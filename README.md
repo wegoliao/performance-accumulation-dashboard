@@ -9,6 +9,8 @@
 ## 目前能看到什麼
 
 - 2026-08-24 使用者貼入的 15 檔現股盤中庫存快照。
+- 投信、YOY、融資、突破四策略的逐筆實際成交歸屬、實際累積曲線與可變現損益。
+- 共同截止日 2026-08-20 的「實際 vs 理論卡」差異；理論來源未更新到 8/24，所以不假造同日差異。
 - 現值、付出成本、累積未實現損益及報酬率。
 - 個股累積損益、當日價格變動估算貢獻、配置與集中度。
 - 日／週／月／季／年／YTD／累計報酬卡，以及週、月、季、年歷史績效。
@@ -16,7 +18,9 @@
 - 每個數字的來源日期、計算狀態與缺資料原因。
 - 每日 NAV／外部現金流／benchmark 到齊後，自動計算 CAGR、波動度、Sharpe、Sortino、MDD、Calmar、Alpha、Beta、Information Ratio 與 Tracking Error。
 
-目前真實帳戶只有單一盤中庫存快照，並不是每日 portfolio NAV。畫面中的一年歷史線是把 2026-08-24 的股數假設整年不變，再用官方收盤價回看估值，會明確標示 `SIMULATED_CONSTANT_HOLDINGS`／`SIMULATED_MTM`；它不是你的真實歷史績效。從今天起每日累積，或匯入過去 NAV／成交後，實際帳戶線才會逐步完整。
+目前實際曲線已用 `20260820庫存表.xlsx` 的成交日、成交價、股數、手續費與交易稅重建。每個策略 sleeve 以 NT$50 萬起始，每日用現金加可變現價值計算；不再把 2026-08-24 持股倒推至一年前冒充實際績效。目前只有 10 筆實際日報酬，MDD 可顯示，Sharpe、Sortino、Alpha、Beta、Information Ratio 與 Tracking Error 在滿 20 筆前保留 `N/A`。
+
+GitHub 每日收盤會以最新官方收盤價延長四策略曲線；最後一筆成交後的股數會明確以 `CARRY_FORWARD_POSITIONS` 估值。若 Owner 有新買賣，必須先更新 `inputs/actual_fills.csv`，否則頁面不會自行推測部位變化。
 
 ## 一鍵重算
 
@@ -51,11 +55,13 @@ index.html
 | `inputs/holdings_snapshot_2026-08-24.csv` | 今日庫存快照 | 已匯入 |
 | `inputs/snapshot_summary_2026-08-24.csv` | 券商畫面小計，用於交叉驗證 | 已匯入 |
 | `inputs/account_nav.csv` | 每日整戶／策略 sleeve NAV 與外部現金流 | 等待資料 |
-| `inputs/strategy_nav.csv` | 策略理論 equity curve | 等待策略資料 |
+| `inputs/actual_fills.csv` | 四策略逐筆實際成交與費稅 | 已匯入 22 筆 |
+| `inputs/strategy_card_returns.csv` | owner 策略卡等權顯示報酬 | 已匯入至 2026-08-20 |
+| `inputs/strategy_position_marks.csv` | 已出場股在持有期的補充收盤 mark | 已匯入 3702 |
+| `inputs/strategy_nav.csv` | 可投資理論 equity curve | 尚未提供；不用策略卡百分比冒充 |
 | `inputs/benchmark_nav.csv` | 0050／加權指數 benchmark | 官方資料逐日累積 |
 | `inputs/price_history.csv` | 個股與 benchmark 官方收盤歷史 | 官方資料逐日累積 |
-| `inputs/positions_ledger.csv` | 部位生效日與股數；不推定交易 | Owner 更新 |
-| `inputs/actual_fills.csv` | 實際成交、費稅與策略歸因 | 等待資料 |
+| `inputs/positions_ledger.csv` | 舊版個股風險特徵輔助檔 | 不再用於實際績效 |
 
 `account_nav.csv` 的 `external_cash_flow_twd` 採「存入為正、提出為負」，TWR 日報酬使用：
 

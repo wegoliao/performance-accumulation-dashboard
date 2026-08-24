@@ -1,7 +1,8 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-08-24T18:38:33+08:00",
+  "generated_at": "2026-08-24T22:49:01+08:00",
   "source_data_asof": "2026-08-24",
+  "actual_valuation_asof": "2026-08-24",
   "source_capture_time": null,
   "source_status": "USER_PASTED_INTRADAY_SNAPSHOT",
   "snapshot_reconciliation": "PASS",
@@ -27,8 +28,16 @@
       "rows": 484
     },
     "actual_fills.csv": {
-      "sha256": "83eda0aa9de6dfa65017e1a3405b3c238e69ab5fa157f12ea6d544c2033ea0b7",
-      "rows": 0
+      "sha256": "a392d4ee48f820e11f827028bbf2006e24ea5e90408986ebf92f97fb30d1f10c",
+      "rows": 22
+    },
+    "strategy_card_returns.csv": {
+      "sha256": "01e3c87633eba16dc3f29d20491667b53e39912e2eb7912728b6f17ae5953d94",
+      "rows": 36
+    },
+    "strategy_position_marks.csv": {
+      "sha256": "4fc2f7225996426e23425afd5205a98771d533ec3f0e1db29318d494d2e36299",
+      "rows": 6
     }
   },
   "snapshot": {
@@ -55,8 +64,8 @@
   "history": {
     "account_nav_observations": 1,
     "account_return_observations": 0,
-    "analysis_return_observations": 241,
-    "analysis_basis": "SIMULATED_CONSTANT_HOLDINGS",
+    "analysis_return_observations": 10,
+    "analysis_basis": "ACTUAL_FOUR_STRATEGY_LIQUIDATION_NAV",
     "mtm_diagnostics": {
       "status": "OK",
       "covered_days": 242,
@@ -67,22 +76,79 @@
       "calendar_source": "TAIEX",
       "basis": "SIMULATED_CONSTANT_HOLDINGS"
     },
-    "strategy_series": [],
+    "strategy_series": [
+      "BREAKOUT",
+      "MARGIN",
+      "TRUST",
+      "YOY"
+    ],
+    "strategy_card_asof": "2026-08-20",
+    "strategy_diagnostics": {
+      "TRUST": {
+        "cash_twd": 81151.0,
+        "liquidation_value_twd": 419567.6277955271,
+        "active_positions": {
+          "3044": 200.0,
+          "2609": 1000.0,
+          "2301": 365.0,
+          "6672": 347.0,
+          "2606": 1000.0
+        }
+      },
+      "YOY": {
+        "cash_twd": 78012.0,
+        "liquidation_value_twd": 425940.3722044729,
+        "active_positions": {
+          "2397": 1045.0,
+          "2301": 261.0,
+          "3006": 257.0,
+          "2395": 106.0,
+          "2103": 2584.0,
+          "2059": 5.0
+        }
+      },
+      "MARGIN": {
+        "cash_twd": 440793.0,
+        "liquidation_value_twd": 57985.68903519871,
+        "active_positions": {
+          "2354": 788.0,
+          "1709": 305.0
+        }
+      },
+      "BREAKOUT": {
+        "cash_twd": 210522.0,
+        "liquidation_value_twd": 314474.31096480123,
+        "active_positions": {
+          "1709": 3644.0,
+          "2408": 198.0,
+          "1590": 63.0
+        }
+      },
+      "reconciliation": "PASS_EXCLUDING_UNASSIGNED_2886",
+      "unassigned": {
+        "2886": 1.0
+      },
+      "last_fill_date": "2026-08-19",
+      "valuation_asof": "2026-08-24",
+      "valuation_basis": "OWNER_SNAPSHOT_NET_LIQUIDATION",
+      "bundle_current_pnl_twd": 28445.999999999767
+    },
+    "legacy_strategy_series": [],
     "benchmark_series": [
       "0050",
       "TAIEX"
     ],
-    "performance_status": "SIMULATED_MTM",
-    "risk_metric_status": "SIMULATED_MTM",
-    "relative_metric_status": "SIMULATED_MTM",
+    "performance_status": "ACTUAL_FILLS_RECONCILED",
+    "risk_metric_status": "WAITING_MIN_20_RETURNS",
+    "relative_metric_status": "WAITING_MIN_20_COMMON_RETURNS",
     "period_returns": {
-      "今日": 0.020194841563904387,
-      "近一週": 0.01362207599114118,
-      "近一月": 0.22410989781977775,
-      "近一季": 0.2712691359317816,
-      "近一年": 0.8199264003874855,
-      "YTD": 0.7267893751164891,
-      "累計": 0.8199264003874855
+      "今日": 0.012028971790606358,
+      "近一週": 0.005331795335463241,
+      "近一月": null,
+      "近一季": null,
+      "近一年": null,
+      "YTD": 0.014222999999999875,
+      "累計": 0.014222999999999875
     }
   },
   "safety": {

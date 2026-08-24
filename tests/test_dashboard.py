@@ -108,20 +108,32 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
 
     assert receipt["status"] == "SUCCESS"
     assert receipt["snapshot_reconciliation"] == "PASS"
-    # A historical line may be available from the explicitly labelled
-    # constant-holdings backcast, but the actual account still has one point.
     assert receipt["history"]["account_nav_observations"] == 1
-    assert receipt["history"]["performance_status"] in {"WAITING_HISTORY", "SIMULATED_MTM"}
-    if receipt["history"]["performance_status"] == "SIMULATED_MTM":
-        assert receipt["history"]["analysis_basis"] == "SIMULATED_CONSTANT_HOLDINGS"
+    assert receipt["history"]["performance_status"] == "ACTUAL_FILLS_RECONCILED"
+    assert receipt["history"]["analysis_basis"] == "ACTUAL_FOUR_STRATEGY_LIQUIDATION_NAV"
+    assert receipt["history"]["analysis_return_observations"] == 10
+    assert receipt["history"]["risk_metric_status"] == "WAITING_MIN_20_RETURNS"
+    assert receipt["history"]["strategy_card_asof"] == "2026-08-20"
+    diagnostics = receipt["history"]["strategy_diagnostics"]
+    assert diagnostics["reconciliation"] == "PASS_EXCLUDING_UNASSIGNED_2886"
+    assert math.isclose(diagnostics["bundle_current_pnl_twd"], 28_446.0, abs_tol=0.01)
+    assert diagnostics["TRUST"]["active_positions"]["2301"] == 365
+    assert diagnostics["YOY"]["active_positions"]["2301"] == 261
+    assert diagnostics["MARGIN"]["active_positions"]["1709"] == 305
+    assert diagnostics["BREAKOUT"]["active_positions"]["1709"] == 3644
     assert receipt["safety"]["network_access"] is False
     assert receipt["safety"]["order_capability"] is False
     assert "NT$ +40,107" in content
-    assert "SIMULATED_CONSTANT_HOLDINGS" in content or "WAITING_HISTORY" in content
+    assert "NT$ +28,446" in content
+    assert "ACTUAL_FOUR_STRATEGY_LIQUIDATION_NAV" in content
+    assert "THEORY_ASOF_2026-08-20" in content
+    assert "SIMULATED_CONSTANT_HOLDINGS" not in content
+    assert "242 個交易日" not in content
     assert "日／週／月／季／年／YTD／累計" in content
     assert "Sharpe／MDD／Alpha／Beta · 完整績效風險衡量" in content
     assert content.index("Sharpe／MDD／Alpha／Beta") < content.index("歷史期間報酬")
-    assert "RISK_METRICS_READY" in content
+    assert "RISK_SAMPLE_10_RETURNS" in content
+    assert "實際 vs 理論 · 四策略差異" in content
     assert "月度績效熱圖" in content
     assert "NO_BROKER · NO_ORDER" in content
     assert "亞德客-KY" in content

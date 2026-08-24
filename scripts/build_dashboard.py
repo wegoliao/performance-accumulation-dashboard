@@ -39,7 +39,22 @@ BENCHMARK_NAV_PATH = INPUTS / "benchmark_nav.csv"
 PRICE_HISTORY_PATH = INPUTS / "price_history.csv"
 LEDGER_PATH = INPUTS / "positions_ledger.csv"
 ACTUAL_FILLS_PATH = INPUTS / "actual_fills.csv"
+STRATEGY_CARD_PATH = INPUTS / "strategy_card_returns.csv"
+STRATEGY_MARKS_PATH = INPUTS / "strategy_position_marks.csv"
 BENCHMARK_LABELS = {"TAIEX": "加權指數", "0050": "0050 元大台灣50"}
+STRATEGY_LABELS = {
+    "TRUST": "投信",
+    "YOY": "YOY",
+    "MARGIN": "融資",
+    "BREAKOUT": "突破",
+}
+STRATEGY_BUDGET_TWD = 500_000.0
+EXPECTED_CARD_MEMBERS_2026_08_20 = {
+    "TRUST": 5,
+    "YOY": 6,
+    "MARGIN": 10,
+    "BREAKOUT": 4,
+}
 
 
 class InputError(ValueError):
@@ -296,6 +311,226 @@ def normalize_curve(curve: list[tuple[date, float]]) -> list[tuple[date, float]]
     return [(day, value / base * 100.0) for day, value in curve]
 
 
+def load_actual_fills(path: Path = ACTUAL_FILLS_PATH) -> list[dict[str, Any]]:
+    fills: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for raw in read_csv(path):
+        trade_id = raw["trade_id"].strip()
+        if not trade_id or trade_id in seen:
+            raise InputError(f"actual_fills.trade_id must be unique: {trade_id!r}")
+        seen.add(trade_id)
+        strategy_id = raw["strategy_id"].strip()
+        if strategy_id not in STRATEGY_LABELS:
+            raise InputError(f"unknown four-strategy id: {strategy_id!r}")
+        side = raw["side"].strip().upper()
+        if side not in {"BUY", "SELL"}:
+            raise InputError(f"{trade_id}.side must be BUY or SELL")
+        row = {
+            **raw,
+            "strategy_id": strategy_id,
+            "side": side,
+            "date": parse_date(raw["fill_date"], "fill_date"),
+            "shares": required_float(raw["shares"], f"{trade_id}.shares"),
+            "price": required_float(raw["fill_price"], f"{trade_id}.fill_price"),
+            "cash_out": required_float(raw["cash_out_twd"], f"{trade_id}.cash_out_twd"),
+            "cash_in": required_float(raw["cash_in_twd"], f"{trade_id}.cash_in_twd"),
+        }
+        if row["shares"] <= 0 or row["price"] <= 0:
+            raise InputError(f"{trade_id} shares and fill price must be positive")
+        fills.append(row)
+    fills.sort(key=lambda row: (row["date"], row["trade_id"]))
+    return fills
+
+
+def load_strategy_cards(
+    path: Path = STRATEGY_CARD_PATH,
+) -> dict[str, list[tuple[date, float]]]:
+    curves: dict[str, list[tuple[date, float]]] = defaultdict(list)
+    for raw in read_csv(path):
+        strategy_id = raw["strategy_id"].strip()
+        if strategy_id not in STRATEGY_LABELS:
+            raise InputError(f"unknown strategy card id: {strategy_id!r}")
+        # Source card percentage is a displayed cumulative return of its held
+        # members.  It is a level, not a daily return, so never compound it.
+        level = 100.0 + required_float(
+            raw["display_return_pct"], "display_return_pct"
+        )
+        curves[strategy_id].append((parse_date(raw["asof_date"]), level))
+    for strategy_id, curve in curves.items():
+        curve.sort(key=lambda item: item[0])
+        if len({item[0] for item in curve}) != len(curve):
+            raise InputError(f"strategy card has duplicate date for {strategy_id}")
+    return dict(curves)
+
+
+def load_supplemental_marks(
+    path: Path = STRATEGY_MARKS_PATH,
+) -> dict[date, dict[str, float]]:
+    marks: dict[date, dict[str, float]] = defaultdict(dict)
+    for raw in read_csv(path):
+        day = parse_date(raw["asof_date"])
+        code = raw["stock_code"].strip()
+        if code in marks[day]:
+            raise InputError(f"duplicate supplemental mark: {day} {code}")
+        marks[day][code] = required_float(raw["close"], f"{day}.{code}.close")
+    return dict(marks)
+
+
+def estimated_liquidation_value(shares: float, close: float) -> float:
+    """Mirror the broker screen's estimated fee + 0.3% transaction tax."""
+    gross = shares * close
+    return gross - int(gross * 0.001425) - int(gross * 0.003)
+
+
+def build_four_strategy_actual(
+    fills: list[dict[str, Any]],
+    prices: dict[str, list[tuple[date, float]]],
+    holdings: list[dict[str, Any]],
+    asof: date,
+    snapshot_asof: date,
+) -> tuple[dict[str, list[tuple[date, float]]], list[tuple[date, float]], dict[str, Any]]:
+    if not fills:
+        raise InputError("actual_fills is empty; four-strategy actual curve unavailable")
+    first_fill = min(row["date"] for row in fills)
+    baseline = first_fill - timedelta(days=1)
+    price_by_day = {
+        day: {code: value for code, points in prices.items() for point_day, value in points if point_day == day}
+        for day in sorted({point_day for points in prices.values() for point_day, _ in points})
+    }
+    trade_days = sorted(day for day in price_by_day if baseline <= day <= asof)
+    if baseline not in trade_days:
+        trade_days.insert(0, baseline)
+    supplemental = load_supplemental_marks()
+    source_holdings = {row["stock_code"]: row for row in holdings}
+    curves: dict[str, list[tuple[date, float]]] = {}
+    diagnostics: dict[str, Any] = {}
+
+    active_by_strategy: dict[str, dict[str, float]] = {}
+    for strategy_id in STRATEGY_LABELS:
+        cash = STRATEGY_BUDGET_TWD
+        positions: dict[str, float] = defaultdict(float)
+        curve: list[tuple[date, float]] = []
+        for day in trade_days:
+            for fill in fills:
+                if fill["date"] != day or fill["strategy_id"] != strategy_id:
+                    continue
+                code = fill["stock_code"].strip()
+                if fill["side"] == "BUY":
+                    cash -= fill["cash_out"]
+                    positions[code] += fill["shares"]
+                else:
+                    if positions[code] + 1e-9 < fill["shares"]:
+                        raise InputError(f"{strategy_id} sells more {code} than held")
+                    cash += fill["cash_in"]
+                    positions[code] -= fill["shares"]
+
+            liquidation = 0.0
+            for code, shares in positions.items():
+                if shares <= 1e-9:
+                    continue
+                if day == snapshot_asof and code in source_holdings:
+                    source = source_holdings[code]
+                    liquidation += (
+                        source["current_value_twd"] * shares / source["shares"]
+                    )
+                    continue
+                close = price_by_day.get(day, {}).get(code)
+                if close is None:
+                    close = supplemental.get(day, {}).get(code)
+                if close is None:
+                    raise InputError(f"missing close for active {strategy_id} {code} on {day}")
+                liquidation += estimated_liquidation_value(shares, close)
+            curve.append((day, (cash + liquidation) / STRATEGY_BUDGET_TWD * 100.0))
+        curves[strategy_id] = curve
+        active_by_strategy[strategy_id] = {
+            code: shares for code, shares in positions.items() if shares > 1e-9
+        }
+        diagnostics[strategy_id] = {
+            "cash_twd": cash,
+            "liquidation_value_twd": curve[-1][1] / 100.0 * STRATEGY_BUDGET_TWD - cash,
+            "active_positions": active_by_strategy[strategy_id],
+        }
+
+    common_dates = sorted(set.intersection(*(set(dict(curve)) for curve in curves.values())))
+    bundle = [
+        (
+            day,
+            sum(dict(curves[strategy_id])[day] for strategy_id in STRATEGY_LABELS)
+            / len(STRATEGY_LABELS),
+        )
+        for day in common_dates
+    ]
+
+    reconstructed: dict[str, float] = defaultdict(float)
+    for positions in active_by_strategy.values():
+        for code, shares in positions.items():
+            reconstructed[code] += shares
+    expected = {
+        row["stock_code"]: row["shares"]
+        for row in holdings
+        if row["stock_code"] != "2886"
+    }
+    if reconstructed != expected:
+        raise InputError(
+            f"four-strategy active shares do not reconcile: fills={dict(reconstructed)} source={expected}"
+        )
+    diagnostics["reconciliation"] = "PASS_EXCLUDING_UNASSIGNED_2886"
+    diagnostics["unassigned"] = {"2886": 1.0}
+    diagnostics["last_fill_date"] = max(row["date"] for row in fills).isoformat()
+    diagnostics["valuation_asof"] = asof.isoformat()
+    diagnostics["valuation_basis"] = (
+        "OWNER_SNAPSHOT_NET_LIQUIDATION"
+        if asof == snapshot_asof
+        else "OFFICIAL_CLOSE_ESTIMATED_LIQUIDATION_CARRY_FORWARD_POSITIONS"
+    )
+    diagnostics["bundle_current_pnl_twd"] = (
+        bundle[-1][1] / 100.0 * STRATEGY_BUDGET_TWD * len(STRATEGY_LABELS)
+        - STRATEGY_BUDGET_TWD * len(STRATEGY_LABELS)
+    )
+    return curves, bundle, diagnostics
+
+
+def slice_and_normalize(
+    curve: list[tuple[date, float]], start: date, end: date
+) -> list[tuple[date, float]]:
+    selected = [(day, value) for day, value in curve if start <= day <= end]
+    return normalize_curve(selected)
+
+
+def strategy_comparison_table(
+    actual_curves: dict[str, list[tuple[date, float]]],
+    card_curves: dict[str, list[tuple[date, float]]],
+    diagnostics: dict[str, Any],
+) -> str:
+    common_asof = min(curve[-1][0] for curve in card_curves.values())
+    rows: list[str] = []
+    for strategy_id, label in STRATEGY_LABELS.items():
+        actual = dict(actual_curves[strategy_id])
+        card = dict(card_curves[strategy_id])
+        actual_common = actual[common_asof] / 100.0 - 1.0
+        theory_common = card[common_asof] / 100.0 - 1.0
+        gap = actual_common - theory_common
+        current = actual_curves[strategy_id][-1][1] / 100.0 - 1.0
+        pnl = current * STRATEGY_BUDGET_TWD
+        metrics = performance_metrics(actual_curves[strategy_id])
+        actual_members = len(diagnostics[strategy_id]["active_positions"])
+        expected_members = EXPECTED_CARD_MEMBERS_2026_08_20[strategy_id]
+        rows.append(
+            "<tr>"
+            f"<td><b>{html.escape(label)}</b><br><small>{strategy_id}</small></td>"
+            f'<td class="num {css_value_class(current)}">{fmt_pct(current, sign=True)}</td>'
+            f'<td class="num {css_value_class(pnl)}">NT$ {fmt_ntd(pnl, sign=True)}</td>'
+            f'<td class="num {css_value_class(actual_common)}">{fmt_pct(actual_common, sign=True)}</td>'
+            f'<td class="num {css_value_class(theory_common)}">{fmt_pct(theory_common, sign=True)}</td>'
+            f'<td class="num {css_value_class(gap)}">{fmt_pct(gap, sign=True)}</td>'
+            f'<td class="num">{actual_members}/{expected_members}</td>'
+            f'<td class="num {css_value_class(metrics["max_drawdown"] or 0)}">{fmt_pct(metrics["max_drawdown"])}</td>'
+            '<td class="num neutral">N/A<br><small>&lt;20 日報酬</small></td>'
+            "</tr>"
+        )
+    return "".join(rows)
+
+
 def returns_from_curve(curve: list[tuple[date, float]]) -> list[float]:
     return [curve[i][1] / curve[i - 1][1] - 1.0 for i in range(1, len(curve))]
 
@@ -515,7 +750,7 @@ def metric_card(label: str, value: str, note: str, value_class: str = "") -> str
 
 
 def status_metric(label: str, value: str, status: str, meaning: str) -> str:
-    status_class = "ok" if status == "OK" else "waiting"
+    status_class = "ok" if status in {"OK", "ACTUAL_FILLS_RECONCILED"} else "waiting"
     return (
         '<div class="status-metric">'
         f'<div><span class="status-dot {status_class}"></span><b>{html.escape(label)}</b></div>'
@@ -730,32 +965,56 @@ def build() -> tuple[Path, dict[str, Any]]:
     source_summary = load_summary()
     snapshot = snapshot_analytics(holdings, source_summary)
     account_rows = load_account_nav()
-    actual_curve = build_twr(account_rows)
-    strategy_curves = load_grouped_levels(STRATEGY_NAV_PATH, "strategy_id", "equity_level")
+    legacy_account_curve = build_twr(account_rows)
+    legacy_strategy_curves = load_grouped_levels(STRATEGY_NAV_PATH, "strategy_id", "equity_level")
     benchmark_curves = load_grouped_levels(BENCHMARK_NAV_PATH, "benchmark_id", "level")
     prices = analytics.load_price_history(PRICE_HISTORY_PATH)
+    fills = load_actual_fills()
+    card_curves = load_strategy_cards()
+    actual_asof = (
+        max(day for day, _ in prices["TAIEX"])
+        if prices.get("TAIEX")
+        else max(day for points in prices.values() for day, _ in points)
+    )
+    actual_strategy_curves, actual_curve, strategy_diagnostics = build_four_strategy_actual(
+        fills,
+        prices,
+        holdings,
+        actual_asof,
+        source_summary["asof_date"],
+    )
     ledger = analytics.load_ledger(LEDGER_PATH)
     mtm_curve, mtm_diagnostics = analytics.build_mtm_curve(ledger, prices, "TAIEX")
-    analysis_curve = actual_curve if len(actual_curve) >= 2 else mtm_curve
-    analysis_basis = (
-        "ACTUAL_ACCOUNT_TWR" if len(actual_curve) >= 2 else "SIMULATED_CONSTANT_HOLDINGS"
-    )
+    analysis_curve = actual_curve
+    analysis_basis = "ACTUAL_FOUR_STRATEGY_LIQUIDATION_NAV"
     actual_metrics = performance_metrics(analysis_curve)
     preferred_benchmark = "TAIEX" if "TAIEX" in benchmark_curves else "0050" if "0050" in benchmark_curves else next(iter(benchmark_curves), None)
+    benchmark_analysis_curve = (
+        slice_and_normalize(
+            benchmark_curves[preferred_benchmark],
+            analysis_curve[0][0],
+            analysis_curve[-1][0],
+        )
+        if preferred_benchmark
+        else []
+    )
     relative = relative_metrics(
         analysis_curve,
-        benchmark_curves.get(preferred_benchmark, []) if preferred_benchmark else [],
+        benchmark_analysis_curve,
     )
 
     series: dict[str, list[tuple[date, float]]] = {}
-    if actual_curve:
-        series["實際成交／帳戶 TWR"] = actual_curve
-    if mtm_curve:
-        series["目前持股回看模擬（非實際帳戶）"] = mtm_curve
-    for name, curve in strategy_curves.items():
-        series[f"策略 {name}"] = curve
-    for name, curve in benchmark_curves.items():
-        series[f"Benchmark {name}"] = curve
+    series["四策略實際合計"] = actual_curve
+    for strategy_id, curve in actual_strategy_curves.items():
+        series[f"實際·{STRATEGY_LABELS[strategy_id]}"] = curve
+    if preferred_benchmark and benchmark_analysis_curve:
+        series[f"Benchmark·{BENCHMARK_LABELS.get(preferred_benchmark, preferred_benchmark)}"] = benchmark_analysis_curve
+    theory_series = {
+        f"理論卡·{STRATEGY_LABELS[strategy_id]}": curve
+        for strategy_id, curve in card_curves.items()
+    }
+    theory_asof = min(curve[-1][0] for curve in card_curves.values())
+    actual_bundle_pnl = strategy_diagnostics["bundle_current_pnl_twd"]
 
     header_cards = "".join(
         [
@@ -774,6 +1033,18 @@ def build() -> tuple[Path, dict[str, Any]]:
                 css_value_class(snapshot["unrealized_return"] or 0),
             ),
             metric_card(
+                "四策略實際損益",
+                f"NT$ {fmt_ntd(actual_bundle_pnl, sign=True)}",
+                "4×50 萬起始；含 3702 已實現損益，排除 2886 未歸屬 1 股",
+                css_value_class(actual_bundle_pnl),
+            ),
+            metric_card(
+                "理論卡截止",
+                theory_asof.isoformat(),
+                f"實際估值已到 {actual_asof.isoformat()}；理論未更新前不假造同日差異",
+                "neutral",
+            ),
+            metric_card(
                 "今日價格變動估算",
                 f"NT$ {fmt_ntd(snapshot['estimated_daily_price_contribution_twd'], sign=True)}",
                 f"約 {fmt_pct(snapshot['estimated_gross_daily_return'], sign=True)}；未含費稅／盤中交易",
@@ -784,23 +1055,17 @@ def build() -> tuple[Path, dict[str, Any]]:
     )
 
     return_obs = max(len(analysis_curve) - 1, 0)
-    history_status = "OK" if len(actual_curve) >= 2 else "SIMULATED_MTM" if len(mtm_curve) >= 2 else "WAITING_HISTORY"
-    risk_status = "OK" if len(actual_curve) >= MIN_RISK_RETURN_OBS + 1 else "SIMULATED_MTM" if len(mtm_curve) >= MIN_RISK_RETURN_OBS + 1 else "WAITING_MIN_20_RETURNS"
-    relative_status = (
-        "SIMULATED_MTM"
-        if relative["beta"] is not None and analysis_basis == "SIMULATED_CONSTANT_HOLDINGS"
-        else "OK"
-        if relative["beta"] is not None
-        else "WAITING_BENCHMARK_HISTORY"
-    )
+    history_status = "ACTUAL_FILLS_RECONCILED"
+    risk_status = "OK" if return_obs >= MIN_RISK_RETURN_OBS else "WAITING_MIN_20_RETURNS"
+    relative_status = "OK" if relative["beta"] is not None else "WAITING_MIN_20_COMMON_RETURNS"
     risk_metrics = "".join(
         [
-            status_metric("庫存累積報酬", fmt_pct(snapshot["unrealized_return"], sign=True), "OK", "單點庫存未實現報酬，不是 TWR"),
-            status_metric("CAGR", fmt_pct(actual_metrics["cagr"], sign=True), history_status, "實際日曆日年化"),
+            status_metric("四策略實際累計", fmt_pct(actual_metrics["total_return"], sign=True), history_status, "4×50 萬；成交現金流＋可變現價值"),
+            status_metric("CAGR", fmt_pct(actual_metrics["cagr"], sign=True), "SHORT_SAMPLE", f"實際日曆日年化；僅 {(analysis_curve[-1][0]-analysis_curve[0][0]).days} 日，數值極不穩定"),
             status_metric("Sharpe", fmt_num(actual_metrics["sharpe"]), risk_status, "日報酬、252 日年化、rf=0"),
             status_metric("Sortino", fmt_num(actual_metrics["sortino"]), risk_status, "只以負報酬估 downside risk"),
-            status_metric("MDD", fmt_pct(actual_metrics["max_drawdown"]), history_status, "每日 equity curve 對歷史高點"),
-            status_metric("Calmar", fmt_num(actual_metrics["calmar"]), history_status, "CAGR ÷ |MDD|"),
+            status_metric("MDD", fmt_pct(actual_metrics["max_drawdown"]), history_status, f"實際四策略合計曲線；{return_obs} 筆日報酬"),
+            status_metric("Calmar", fmt_num(actual_metrics["calmar"]), "SHORT_SAMPLE", "CAGR ÷ |MDD|；短樣本不作穩健評價"),
             status_metric("Alpha", fmt_pct(relative["alpha"], sign=True), relative_status, "日 OLS intercept × 252、rf=0"),
             status_metric("Beta", fmt_num(relative["beta"]), relative_status, "相對主 benchmark 的日報酬斜率"),
             status_metric("Information Ratio", fmt_num(relative["information_ratio"]), relative_status, "主動報酬 ÷ tracking error"),
@@ -846,25 +1111,25 @@ def build() -> tuple[Path, dict[str, Any]]:
 </head>
 <body><main class="wrap">
 <div class="eyebrow">66 · PERFORMANCE ACCUMULATION</div>
-<section class="hero"><div><h1>績效累積圖</h1><p>公開唯讀績效頁：先看累積曲線、期間報酬與 Sharpe／MDD 等風險衡量，再往下拆解個股。歷史數字目前是固定 2026-08-24 股數的回看情境，並非實際帳戶歷史。</p><div class="badges"><span class="badge good">TOTALS_RECONCILED</span><span class="badge warn">SIMULATED_MTM</span><span class="badge good">RISK_METRICS_READY</span><span class="badge">NO_BROKER · NO_ORDER</span></div></div><div><b>資料日期</b><br><span class="mono">{{ASOF}}</span><br><small>盤中快照；原始截圖時間未提供</small></div></section>
+<section class="hero"><div><h1>績效累積圖</h1><p>實際績效已改用 2026-08-10 起始、2026-08-11 起逐筆成交的四策略 equity curve。不再把今日持股倒推一年。理論卡與實際線分開標示截止日。</p><div class="badges"><span class="badge good">ACTUAL_FILLS_RECONCILED</span><span class="badge warn">THEORY_ASOF_2026-08-20</span><span class="badge warn">RISK_SAMPLE_{{RISK_OBS}}_RETURNS</span><span class="badge">NO_BROKER · NO_ORDER</span></div></div><div><b>四策略估值日</b><br><span class="mono">{{ASOF}}</span><br><small>owner 庫存快照 {{SNAPSHOT_ASOF}}；理論卡 {{THEORY_ASOF}}</small></div></section>
 <section class="metrics">{{HEADER_CARDS}}</section>
 <section class="grid">
-<article class="panel full"><h2>策略／實際成交／目前持股回看／大盤 · 累積曲線</h2><div class="sub">共同起點正規化為 100。實際帳戶目前只有一個基準點；有歷史的綠線是「把今天持股與股數往前固定」的 MTM 情境，不是你的真實歷史報酬。</div>{{LINE_CHART}}</article>
-<article class="panel full"><h2>日／週／月／季／年／YTD／累計</h2><div class="sub">目前期間卡片的 basis：{{ANALYSIS_BASIS}}。等你補每日整戶 NAV／現金流後會自動切換成 ACTUAL_ACCOUNT_TWR。</div><div class="period-grid">{{PERIOD_CARDS}}</div></article>
-<article class="panel full" id="risk-metrics"><h2>Sharpe／MDD／Alpha／Beta · 完整績效風險衡量</h2><div class="sub">目前以 {{ANALYSIS_BASIS}} 計算；所有模擬值標示 SIMULATED_MTM，避免誤認為真實帳戶歷史。</div><div class="status-grid">{{RISK_METRICS}}</div></article>
+<article class="panel full"><h2>四策略實際績效 · 累積曲線</h2><div class="sub">每個 sleeve 以 NT$50 萬現金起始，用實際成交、費稅、已實現損益與每日可變現價值重建；合計初始資金 NT$200 萬。</div>{{LINE_CHART}}</article>
+<article class="panel full"><h2>四策略理論卡 · 來源顯示曲線</h2><div class="sub">這是 owner 策略卡的「當日持倉成分等權顯示報酬」，不是可投資 NAV，也不將每日百分比複利串接。資料只到 {{THEORY_ASOF}}。</div>{{THEORY_CHART}}</article>
+<article class="panel full"><h2>實際 vs 理論 · 四策略差異</h2><div class="sub">「差異」只在共同截止日 {{THEORY_ASOF}} 計算：實際 50 萬 sleeve 可變現報酬 − 理論卡等權顯示報酬。這是描述性 implementation gap，權重與現金比率不同，不冒充 alpha。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際累計<br>{{ASOF}}</th><th class="num">實際損益</th><th class="num">實際<br>{{THEORY_ASOF}}</th><th class="num">理論卡<br>{{THEORY_ASOF}}</th><th class="num">差異<br>pp</th><th class="num">實際/理論<br>持股數</th><th class="num">MDD</th><th class="num">Sharpe</th></tr></thead><tbody>{{STRATEGY_TABLE}}</tbody></table></div></article>
+<article class="panel full"><h2>日／週／月／季／年／YTD／累計</h2><div class="sub">basis：{{ANALYSIS_BASIS}}。近一月、季、年若沒有足夠實際觀察就顯示 N/A，不用同一批股票倒推。</div><div class="period-grid">{{PERIOD_CARDS}}</div></article>
+<article class="panel full" id="risk-metrics"><h2>Sharpe／MDD／Alpha／Beta · 完整績效風險衡量</h2><div class="sub">以四策略實際合計曲線計算。MDD 已可計算；Sharpe、Sortino、Alpha、Beta、IR 與 Tracking Error 因尚未滿 20 筆日報酬而顯示 N/A。</div><div class="status-grid">{{RISK_METRICS}}</div></article>
 <article class="panel"><h2>歷史期間報酬</h2><div class="sub">資料成長後優先顯示月報酬，再依可用資料退回週／季／年。</div>{{PERIOD_BARS}}</article>
 <article class="panel"><h2>水下回撤圖</h2><div class="sub">每天相對歷史淨值高點的跌幅；MDD 就是最深位置。</div>{{DRAWDOWN}}</article>
 <article class="panel full"><h2>月度績效熱圖</h2><div class="sub">橫向為月份、縱向為年份，快速看 regime、季節性與連續虧損月份。</div>{{MONTHLY_HEATMAP}}</article>
-<article class="panel"><h2>個股風險／報酬散點</h2><div class="sub">目前持股固定回看：橫軸風險、縱軸期間報酬；只作情境診斷。</div>{{RISK_SCATTER}}</article>
-<article class="panel"><h2>個股期間貢獻瀑布</h2><div class="sub">股數 × 期間價格變動；拆出誰推升、誰拖累目前持股情境。</div>{{CONTRIBUTION_WATERFALL}}</article>
-<article class="panel"><h2>每日報酬分布</h2><div class="sub">觀察尾部、偏態與異常日；不是只看平均數。</div>{{RETURN_DISTRIBUTION}}</article>
-<article class="panel"><h2>個股與大盤相關性</h2><div class="sub">至少 20 個共同日報酬後才顯示；用來辨認同漲同跌風險。</div>{{CORRELATION_CHART}}</article>
+<article class="panel"><h2>個股過去一年風險特徵</h2><div class="sub">這裡只是各股價格歷史的風險指紋，不是你的持有期報酬，不納入上方四策略績效。</div>{{RISK_SCATTER}}</article>
+<article class="panel"><h2>個股過去一年與大盤相關性</h2><div class="sub">單純描述股價風險特徵；不把 8/10 以前報酬算進你的實際績效。</div>{{CORRELATION_CHART}}</article>
 <article class="panel"><h2>個股累積未實現損益</h2><div class="sub">直接使用來源畫面的「損益試算」；綠色為正、紅色為負。</div>{{PNL_BARS}}</article>
 <article class="panel"><h2>今日價格變動估算貢獻</h2><div class="sub">股數 × 畫面漲跌；未含今天費稅、盤中交易與現金，不是正式 daily P&amp;L。</div>{{DAY_BARS}}</article>
 <article class="panel"><h2>庫存配置</h2><div class="sub">依來源「現值」重算；最大單一持股 {{MAX_WEIGHT}}。</div>{{ALLOCATION}}</article>
 <article class="panel"><h2>今天先看懂三件事</h2><div class="sub">單點資料可以回答的問題，不越界解讀。</div><div class="callout"><b>帳面總體為正：</b>累積未實現損益 {{TOTAL_PNL}}，但 15 檔中仍有 {{LOSING}} 檔虧損。</div><p><b>累積最大正貢獻：</b>{{TOP_WINNER}}</p><p><b>累積最大負貢獻：</b>{{TOP_LOSER}}</p><p><b>今日估算最大推升：</b>{{TOP_DAY_WINNER}}</p><p><b>今日估算最大拖累：</b>{{TOP_DAY_LOSER}}</p></article>
 <article class="panel full"><h2>持股明細</h2><div class="sub">現值與損益完全對上 owner 貼入小計；配置比例由現值重新計算。</div><div class="table-wrap"><table><thead><tr><th>股票</th><th class="num">股數</th><th class="num">成本均價</th><th class="num">現價</th><th class="num">今日漲跌幅</th><th class="num">現值</th><th class="num">未實現損益</th><th class="num">獲利率</th><th class="num">配置</th></tr></thead><tbody>{{HOLDINGS_TABLE}}</tbody></table></div></article>
-<article class="panel full"><h2>資料品質與下一步</h2><div class="sub">畫面能否拿來做決策，先看資料是否足夠。</div><div class="quality"><article><b class="positive">PASS · 小計對帳</b><p>15 檔股數、現值、成本與損益加總均與來源小計一致；現值＝成本＋損益。</p></article><article><b class="negative">SIMULATED · 歷史回看</b><p>242 個交易日以 2026-08-24 股數固定回看；可做情境診斷，但不是實際帳戶 TWR。</p></article><article><b class="negative">WAITING · 策略歸因</b><p>缺 strategy_id、進出場時間、實際成交價、股數、費稅，尚不能比較策略理論與實際成交落差。</p></article><article><b class="positive">ACTIVE · Benchmark</b><p>已加入加權指數與 0050；Alpha、Beta、IR、Tracking Error 以共同日報酬計算。</p></article><article><b class="positive">SAFE · 公開唯讀</b><p>HTML builder 無網路／券商／登入／下單；每日 updater 只讀 TWSE／TPEx 官方公開收盤行情。</p></article><article><b class="positive">ACTIVE · 每日更新</b><p>公開 GitHub workflow 預定台北時間 16:30 執行；不推定成交、股息、入出金或部位變化。</p></article></div></article>
+<article class="panel full"><h2>資料品質與限制</h2><div class="sub">畫面能否拿來做決策，先看資料是否足夠。</div><div class="quality"><article><b class="positive">PASS · 庫存小計</b><p>15 檔股數、現值、成本與損益均對上 owner 快照。</p></article><article><b class="positive">PASS · 四策略成交歸屬</b><p>22 筆買賣重建後的活動股數與 8/24 庫存一致，但排除不在成交簿的 2886 1 股。</p></article><article><b class="positive">PASS · 重疊股拆分</b><p>1709：突破 3,644／融資 305 股；2301：YOY 261／投信 365 股；3702 賣出損益納入 YOY。</p></article><article><b class="negative">SHORT SAMPLE · 風險統計</b><p>目前僅 {{RISK_OBS}} 筆實際日報酬；MDD 可描述，Sharpe、Alpha、Beta 等尚不顯示數字。</p></article><article><b class="negative">STALE · 理論卡</b><p>理論來源只到 {{THEORY_ASOF}}；實際與理論不做錯日差異。</p></article><article><b class="positive">SAFE · 公開唯讀</b><p>HTML builder 無券商登入或下單；每日 updater 只讀 TWSE／TPEx 公開收盤行情。</p></article></div></article>
 </section>
 <footer class="footer"><span>口徑：252 trading days · rf=0 · CAGR 365.25 calendar days · Alpha=daily OLS intercept×252</span><span>生成時間：<span class="mono">{{GENERATED_AT}}</span></span></footer>
 </main></body></html>"""
@@ -875,9 +1140,16 @@ def build() -> tuple[Path, dict[str, Any]]:
     top_day_loser = min(holdings, key=lambda row: row["estimated_daily_price_contribution_twd"])
     generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
     replacements = {
-        "{{ASOF}}": source_summary["asof_date"].isoformat(),
+        "{{ASOF}}": actual_asof.isoformat(),
+        "{{SNAPSHOT_ASOF}}": source_summary["asof_date"].isoformat(),
+        "{{RISK_OBS}}": str(return_obs),
+        "{{THEORY_ASOF}}": theory_asof.isoformat(),
         "{{HEADER_CARDS}}": header_cards,
         "{{LINE_CHART}}": line_chart(series),
+        "{{THEORY_CHART}}": line_chart(theory_series),
+        "{{STRATEGY_TABLE}}": strategy_comparison_table(
+            actual_strategy_curves, card_curves, strategy_diagnostics
+        ),
         "{{ANALYSIS_BASIS}}": analysis_basis,
         "{{PERIOD_CARDS}}": period_cards(analysis_curve),
         "{{PERIOD_BARS}}": historical_period_bars(analysis_curve),
@@ -917,11 +1189,14 @@ def build() -> tuple[Path, dict[str, Any]]:
         [
             "# 公開績效累積圖 · 最新摘要",
             "",
-            f"- 資料日期：`{source_summary['asof_date'].isoformat()}`",
+            f"- 四策略估值日：`{actual_asof.isoformat()}`",
+            f"- owner 庫存快照日：`{source_summary['asof_date'].isoformat()}`",
             f"- 庫存現值：`NT$ {fmt_ntd(snapshot['current_value_twd'])}`",
             f"- 累積未實現損益：`NT$ {fmt_ntd(snapshot['unrealized_pnl_twd'], sign=True)}`",
             f"- 累積未實現報酬：`{fmt_pct(snapshot['unrealized_return'], sign=True)}`",
             f"- 今日價格變動估算：`NT$ {fmt_ntd(snapshot['estimated_daily_price_contribution_twd'], sign=True)}`（約 `{fmt_pct(snapshot['estimated_gross_daily_return'], sign=True)}`）",
+            f"- 四策略實際累計損益：`NT$ {fmt_ntd(actual_bundle_pnl, sign=True)}`（以 NT$200 萬起始資金）",
+            f"- 理論卡最新日：`{theory_asof.isoformat()}`（非 8/24 同日值）",
             f"- 期間視圖 basis：`{analysis_basis}`",
             "",
             "| 期間 | TWR 績效 | 狀態 |",
@@ -939,6 +1214,7 @@ def build() -> tuple[Path, dict[str, Any]]:
         "status": "SUCCESS",
         "generated_at": generated_at,
         "source_data_asof": source_summary["asof_date"].isoformat(),
+        "actual_valuation_asof": actual_asof.isoformat(),
         "source_capture_time": None,
         "source_status": "USER_PASTED_INTRADAY_SNAPSHOT",
         "snapshot_reconciliation": snapshot["reconciliation"],
@@ -950,17 +1226,22 @@ def build() -> tuple[Path, dict[str, Any]]:
                 ACCOUNT_NAV_PATH,
                 STRATEGY_NAV_PATH,
                 BENCHMARK_NAV_PATH,
-                INPUTS / "actual_fills.csv",
+                ACTUAL_FILLS_PATH,
+                STRATEGY_CARD_PATH,
+                STRATEGY_MARKS_PATH,
             )
         },
         "snapshot": snapshot,
         "history": {
             "account_nav_observations": len(account_rows),
-            "account_return_observations": max(len(actual_curve) - 1, 0),
+            "account_return_observations": max(len(legacy_account_curve) - 1, 0),
             "analysis_return_observations": return_obs,
             "analysis_basis": analysis_basis,
             "mtm_diagnostics": mtm_diagnostics,
-            "strategy_series": sorted(strategy_curves),
+            "strategy_series": sorted(actual_strategy_curves),
+            "strategy_card_asof": theory_asof.isoformat(),
+            "strategy_diagnostics": strategy_diagnostics,
+            "legacy_strategy_series": sorted(legacy_strategy_curves),
             "benchmark_series": sorted(benchmark_curves),
             "performance_status": history_status,
             "risk_metric_status": risk_status,
