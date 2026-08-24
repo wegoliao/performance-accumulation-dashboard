@@ -487,6 +487,20 @@ def build_four_strategy_actual(
         bundle[-1][1] / 100.0 * STRATEGY_BUDGET_TWD * len(STRATEGY_LABELS)
         - STRATEGY_BUDGET_TWD * len(STRATEGY_LABELS)
     )
+    active_codes = set(reconstructed)
+    active_fill_cash_out = sum(
+        row["cash_out"]
+        for row in fills
+        if row["side"] == "BUY" and row["stock_code"].strip() in active_codes
+    )
+    source_active_cost = sum(
+        row["cost_basis_twd"]
+        for row in holdings
+        if row["stock_code"] != "2886"
+    )
+    diagnostics["active_fill_cash_out_twd"] = active_fill_cash_out
+    diagnostics["source_active_cost_ex_unassigned_twd"] = source_active_cost
+    diagnostics["active_cost_basis_gap_twd"] = active_fill_cash_out - source_active_cost
     return curves, bundle, diagnostics
 
 
@@ -1129,7 +1143,7 @@ def build() -> tuple[Path, dict[str, Any]]:
 <article class="panel"><h2>庫存配置</h2><div class="sub">依來源「現值」重算；最大單一持股 {{MAX_WEIGHT}}。</div>{{ALLOCATION}}</article>
 <article class="panel"><h2>今天先看懂三件事</h2><div class="sub">單點資料可以回答的問題，不越界解讀。</div><div class="callout"><b>帳面總體為正：</b>累積未實現損益 {{TOTAL_PNL}}，但 15 檔中仍有 {{LOSING}} 檔虧損。</div><p><b>累積最大正貢獻：</b>{{TOP_WINNER}}</p><p><b>累積最大負貢獻：</b>{{TOP_LOSER}}</p><p><b>今日估算最大推升：</b>{{TOP_DAY_WINNER}}</p><p><b>今日估算最大拖累：</b>{{TOP_DAY_LOSER}}</p></article>
 <article class="panel full"><h2>持股明細</h2><div class="sub">現值與損益完全對上 owner 貼入小計；配置比例由現值重新計算。</div><div class="table-wrap"><table><thead><tr><th>股票</th><th class="num">股數</th><th class="num">成本均價</th><th class="num">現價</th><th class="num">今日漲跌幅</th><th class="num">現值</th><th class="num">未實現損益</th><th class="num">獲利率</th><th class="num">配置</th></tr></thead><tbody>{{HOLDINGS_TABLE}}</tbody></table></div></article>
-<article class="panel full"><h2>資料品質與限制</h2><div class="sub">畫面能否拿來做決策，先看資料是否足夠。</div><div class="quality"><article><b class="positive">PASS · 庫存小計</b><p>15 檔股數、現值、成本與損益均對上 owner 快照。</p></article><article><b class="positive">PASS · 四策略成交歸屬</b><p>22 筆買賣重建後的活動股數與 8/24 庫存一致，但排除不在成交簿的 2886 1 股。</p></article><article><b class="positive">PASS · 重疊股拆分</b><p>1709：突破 3,644／融資 305 股；2301：YOY 261／投信 365 股；3702 賣出損益納入 YOY。</p></article><article><b class="negative">SHORT SAMPLE · 風險統計</b><p>目前僅 {{RISK_OBS}} 筆實際日報酬；MDD 可描述，Sharpe、Alpha、Beta 等尚不顯示數字。</p></article><article><b class="negative">STALE · 理論卡</b><p>理論來源只到 {{THEORY_ASOF}}；實際與理論不做錯日差異。</p></article><article><b class="positive">SAFE · 公開唯讀</b><p>HTML builder 無券商登入或下單；每日 updater 只讀 TWSE／TPEx 公開收盤行情。</p></article></div></article>
+<article class="panel full"><h2>資料品質與限制</h2><div class="sub">畫面能否拿來做決策，先看資料是否足夠。</div><div class="quality"><article><b class="positive">PASS · 庫存小計</b><p>15 檔股數、現值、成本與損益均對上 owner 快照。</p></article><article><b class="positive">PASS · 四策略成交歸屬</b><p>22 筆買賣重建後的活動股數與 8/24 庫存一致，但排除不在成交簿的 2886 1 股。</p></article><article><b class="positive">PASS · 重疊股拆分</b><p>1709：突破 3,644／融資 305 股；2301：YOY 261／投信 365 股；3702 賣出損益納入 YOY。</p></article><article><b class="negative">CHECK · 成本口徑差</b><p>成交簿在庫實付 NT$1,178,519；快照在庫成本（排除 2886）NT$1,177,866，差 NT$653。四策略損益以逐筆成交現金流為準。</p></article><article><b class="negative">SHORT SAMPLE · 風險統計</b><p>目前僅 {{RISK_OBS}} 筆實際日報酬；MDD 可描述，Sharpe、Alpha、Beta 等尚不顯示數字。</p></article><article><b class="negative">STALE · 理論卡</b><p>理論來源只到 {{THEORY_ASOF}}；實際與理論不做錯日差異。</p></article><article><b class="positive">SAFE · 公開唯讀</b><p>HTML builder 無券商登入或下單；每日 updater 只讀 TWSE／TPEx 公開收盤行情。</p></article></div></article>
 </section>
 <footer class="footer"><span>口徑：252 trading days · rf=0 · CAGR 365.25 calendar days · Alpha=daily OLS intercept×252</span><span>生成時間：<span class="mono">{{GENERATED_AT}}</span></span></footer>
 </main></body></html>"""

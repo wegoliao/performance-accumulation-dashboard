@@ -1,6 +1,6 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-08-24T22:49:01+08:00",
+  "generated_at": "2026-08-24T22:52:08+08:00",
   "source_data_asof": "2026-08-24",
   "actual_valuation_asof": "2026-08-24",
   "source_capture_time": null,
@@ -131,7 +131,10 @@
       "last_fill_date": "2026-08-19",
       "valuation_asof": "2026-08-24",
       "valuation_basis": "OWNER_SNAPSHOT_NET_LIQUIDATION",
-      "bundle_current_pnl_twd": 28445.999999999767
+      "bundle_current_pnl_twd": 28445.999999999767,
+      "active_fill_cash_out_twd": 1178519.0,
+      "source_active_cost_ex_unassigned_twd": 1177866.0,
+      "active_cost_basis_gap_twd": 653.0
     },
     "legacy_strategy_series": [],
     "benchmark_series": [

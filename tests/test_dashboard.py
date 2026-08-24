@@ -117,6 +117,9 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     diagnostics = receipt["history"]["strategy_diagnostics"]
     assert diagnostics["reconciliation"] == "PASS_EXCLUDING_UNASSIGNED_2886"
     assert math.isclose(diagnostics["bundle_current_pnl_twd"], 28_446.0, abs_tol=0.01)
+    assert diagnostics["active_fill_cash_out_twd"] == 1_178_519
+    assert diagnostics["source_active_cost_ex_unassigned_twd"] == 1_177_866
+    assert diagnostics["active_cost_basis_gap_twd"] == 653
     assert diagnostics["TRUST"]["active_positions"]["2301"] == 365
     assert diagnostics["YOY"]["active_positions"]["2301"] == 261
     assert diagnostics["MARGIN"]["active_positions"]["1709"] == 305
@@ -125,6 +128,7 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     assert receipt["safety"]["order_capability"] is False
     assert "NT$ +40,107" in content
     assert "NT$ +28,446" in content
+    assert "差 NT$653" in content
     assert "ACTUAL_FOUR_STRATEGY_LIQUIDATION_NAV" in content
     assert "THEORY_ASOF_2026-08-20" in content
     assert "SIMULATED_CONSTANT_HOLDINGS" not in content
