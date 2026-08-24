@@ -846,11 +846,12 @@ def build() -> tuple[Path, dict[str, Any]]:
 </head>
 <body><main class="wrap">
 <div class="eyebrow">66 · PERFORMANCE ACCUMULATION</div>
-<section class="hero"><div><h1>績效累積圖</h1><p>朋友可直接開啟的離線績效頁。今天先把真實庫存快照算對；時間序列、策略與 benchmark 資料到齊後，同一頁會自動長出完整累積曲線與風險指標。</p><div class="badges"><span class="badge good">TOTALS_RECONCILED</span><span class="badge warn">SNAPSHOT_ONLY</span><span class="badge warn">WAITING_HISTORY</span><span class="badge">NO_BROKER · NO_ORDER</span></div></div><div><b>資料日期</b><br><span class="mono">{{ASOF}}</span><br><small>盤中快照；原始截圖時間未提供</small></div></section>
+<section class="hero"><div><h1>績效累積圖</h1><p>公開唯讀績效頁：先看累積曲線、期間報酬與 Sharpe／MDD 等風險衡量，再往下拆解個股。歷史數字目前是固定 2026-08-24 股數的回看情境，並非實際帳戶歷史。</p><div class="badges"><span class="badge good">TOTALS_RECONCILED</span><span class="badge warn">SIMULATED_MTM</span><span class="badge good">RISK_METRICS_READY</span><span class="badge">NO_BROKER · NO_ORDER</span></div></div><div><b>資料日期</b><br><span class="mono">{{ASOF}}</span><br><small>盤中快照；原始截圖時間未提供</small></div></section>
 <section class="metrics">{{HEADER_CARDS}}</section>
 <section class="grid">
 <article class="panel full"><h2>策略／實際成交／目前持股回看／大盤 · 累積曲線</h2><div class="sub">共同起點正規化為 100。實際帳戶目前只有一個基準點；有歷史的綠線是「把今天持股與股數往前固定」的 MTM 情境，不是你的真實歷史報酬。</div>{{LINE_CHART}}</article>
 <article class="panel full"><h2>日／週／月／季／年／YTD／累計</h2><div class="sub">目前期間卡片的 basis：{{ANALYSIS_BASIS}}。等你補每日整戶 NAV／現金流後會自動切換成 ACTUAL_ACCOUNT_TWR。</div><div class="period-grid">{{PERIOD_CARDS}}</div></article>
+<article class="panel full" id="risk-metrics"><h2>Sharpe／MDD／Alpha／Beta · 完整績效風險衡量</h2><div class="sub">目前以 {{ANALYSIS_BASIS}} 計算；所有模擬值標示 SIMULATED_MTM，避免誤認為真實帳戶歷史。</div><div class="status-grid">{{RISK_METRICS}}</div></article>
 <article class="panel"><h2>歷史期間報酬</h2><div class="sub">資料成長後優先顯示月報酬，再依可用資料退回週／季／年。</div>{{PERIOD_BARS}}</article>
 <article class="panel"><h2>水下回撤圖</h2><div class="sub">每天相對歷史淨值高點的跌幅；MDD 就是最深位置。</div>{{DRAWDOWN}}</article>
 <article class="panel full"><h2>月度績效熱圖</h2><div class="sub">橫向為月份、縱向為年份，快速看 regime、季節性與連續虧損月份。</div>{{MONTHLY_HEATMAP}}</article>
@@ -862,9 +863,8 @@ def build() -> tuple[Path, dict[str, Any]]:
 <article class="panel"><h2>今日價格變動估算貢獻</h2><div class="sub">股數 × 畫面漲跌；未含今天費稅、盤中交易與現金，不是正式 daily P&amp;L。</div>{{DAY_BARS}}</article>
 <article class="panel"><h2>庫存配置</h2><div class="sub">依來源「現值」重算；最大單一持股 {{MAX_WEIGHT}}。</div>{{ALLOCATION}}</article>
 <article class="panel"><h2>今天先看懂三件事</h2><div class="sub">單點資料可以回答的問題，不越界解讀。</div><div class="callout"><b>帳面總體為正：</b>累積未實現損益 {{TOTAL_PNL}}，但 15 檔中仍有 {{LOSING}} 檔虧損。</div><p><b>累積最大正貢獻：</b>{{TOP_WINNER}}</p><p><b>累積最大負貢獻：</b>{{TOP_LOSER}}</p><p><b>今日估算最大推升：</b>{{TOP_DAY_WINNER}}</p><p><b>今日估算最大拖累：</b>{{TOP_DAY_LOSER}}</p></article>
-<article class="panel full"><h2>績效與風險指標狀態</h2><div class="sub">有資料才出數字；缺資料顯示等待原因。這比把單一進出場報酬硬年化更可靠。</div><div class="status-grid">{{RISK_METRICS}}</div></article>
 <article class="panel full"><h2>持股明細</h2><div class="sub">現值與損益完全對上 owner 貼入小計；配置比例由現值重新計算。</div><div class="table-wrap"><table><thead><tr><th>股票</th><th class="num">股數</th><th class="num">成本均價</th><th class="num">現價</th><th class="num">今日漲跌幅</th><th class="num">現值</th><th class="num">未實現損益</th><th class="num">獲利率</th><th class="num">配置</th></tr></thead><tbody>{{HOLDINGS_TABLE}}</tbody></table></div></article>
-<article class="panel full"><h2>資料品質與下一步</h2><div class="sub">畫面能否拿來做決策，先看資料是否足夠。</div><div class="quality"><article><b class="positive">PASS · 小計對帳</b><p>15 檔股數、現值、成本與損益加總均與來源小計一致；現值＝成本＋損益。</p></article><article><b class="negative">BASELINE · 每日歷史</b><p>已建立 2026-08-24 首日 gross-mark 基準；第二個交易日後開始產生日報酬，20 筆後才顯示風險統計。</p></article><article><b class="negative">WAITING · 策略歸因</b><p>缺 strategy_id、進出場時間、實際成交價、股數、費稅，尚不能比較策略理論與實際成交落差。</p></article><article><b class="negative">WAITING · Benchmark</b><p>每日 workflow 將加入 0050 收盤；至少 20 筆共同日報酬後才顯示 Alpha、Beta、IR、Tracking Error。</p></article><article><b class="positive">SAFE · 私人唯讀</b><p>HTML builder 無網路／券商／登入／下單；每日 updater 只讀 TWSE／TPEx 官方公開收盤行情。</p></article><article><b class="positive">ACTIVE · 每日更新</b><p>私人 GitHub workflow 預定台北時間 16:30 執行；不推定成交、股息、入出金或部位變化。</p></article></div></article>
+<article class="panel full"><h2>資料品質與下一步</h2><div class="sub">畫面能否拿來做決策，先看資料是否足夠。</div><div class="quality"><article><b class="positive">PASS · 小計對帳</b><p>15 檔股數、現值、成本與損益加總均與來源小計一致；現值＝成本＋損益。</p></article><article><b class="negative">SIMULATED · 歷史回看</b><p>242 個交易日以 2026-08-24 股數固定回看；可做情境診斷，但不是實際帳戶 TWR。</p></article><article><b class="negative">WAITING · 策略歸因</b><p>缺 strategy_id、進出場時間、實際成交價、股數、費稅，尚不能比較策略理論與實際成交落差。</p></article><article><b class="positive">ACTIVE · Benchmark</b><p>已加入加權指數與 0050；Alpha、Beta、IR、Tracking Error 以共同日報酬計算。</p></article><article><b class="positive">SAFE · 公開唯讀</b><p>HTML builder 無網路／券商／登入／下單；每日 updater 只讀 TWSE／TPEx 官方公開收盤行情。</p></article><article><b class="positive">ACTIVE · 每日更新</b><p>公開 GitHub workflow 預定台北時間 16:30 執行；不推定成交、股息、入出金或部位變化。</p></article></div></article>
 </section>
 <footer class="footer"><span>口徑：252 trading days · rf=0 · CAGR 365.25 calendar days · Alpha=daily OLS intercept×252</span><span>生成時間：<span class="mono">{{GENERATED_AT}}</span></span></footer>
 </main></body></html>"""
@@ -915,7 +915,7 @@ def build() -> tuple[Path, dict[str, Any]]:
     period_snapshot = trailing_returns(analysis_curve)
     summary_markdown = "\n".join(
         [
-            "# 私人績效累積圖 · 最新摘要",
+            "# 公開績效累積圖 · 最新摘要",
             "",
             f"- 資料日期：`{source_summary['asof_date'].isoformat()}`",
             f"- 庫存現值：`NT$ {fmt_ntd(snapshot['current_value_twd'])}`",
@@ -931,7 +931,7 @@ def build() -> tuple[Path, dict[str, Any]]:
                 for label, value in period_snapshot.items()
             ],
             "",
-            "> 完整互動視覺請下載 `index.html` 或 Actions 的 private dashboard artifact 後開啟。",
+            "> 完整視覺：https://wegoliao.github.io/performance-accumulation-dashboard/",
         ]
     )
     (ROOT / "DASHBOARD_SUMMARY.md").write_text(summary_markdown + "\n", encoding="utf-8")

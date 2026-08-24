@@ -1,4 +1,4 @@
-# 私人績效累積圖 · 最新摘要
+# 公開績效累積圖 · 最新摘要
 
 - 資料日期：`2026-08-24`
 - 庫存現值：`NT$ 1,218,013`
@@ -17,4 +17,4 @@
 | YTD | +72.68% | OK |
 | 累計 | +81.99% | OK |
 
-> 完整互動視覺請下載 `index.html` 或 Actions 的 private dashboard artifact 後開啟。
+> 完整視覺：https://wegoliao.github.io/performance-accumulation-dashboard/

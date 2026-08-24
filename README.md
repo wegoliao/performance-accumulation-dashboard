@@ -4,7 +4,7 @@
 
 ![績效累積圖預覽](output/dashboard_full.png)
 
-私人 GitHub 的 owner（`wegoliao`）可直接查看；團隊成員需要 GitHub 帳號並接受 private collaborator 邀請。完整步驟見 [`TEAM_ACCESS.md`](TEAM_ACCESS.md)。
+公開網站：<https://wegoliao.github.io/performance-accumulation-dashboard/>。任何人都能直接觀看，不需要 GitHub 帳號；使用方式見 [`TEAM_ACCESS.md`](TEAM_ACCESS.md)。
 
 ## 目前能看到什麼
 
@@ -80,7 +80,7 @@ index.html
 
 後續可以加入：
 
-1. GitHub Actions 每日收盤重建、更新私有摘要並保留可下載的 HTML artifact。
+1. GitHub Actions 每日收盤重建、更新公開 GitHub Pages，並保留可下載的 HTML artifact。
 2. 公開行情或永豐 Shioaji 唯讀行情／Kbars provider。
 3. 依 `strategy_id` 將策略理論、實際成交與 benchmark 對齊。
 4. 股息、入出金、部分成交、費稅與已實現損益。
@@ -93,4 +93,4 @@ index.html
 - TPEx OpenAPI `tpex_mainboard_daily_close_quotes`：上櫃股票行情。
 - 每日更新預定台北時間 16:30 執行；若官方資料尚未發布、休市或日期不一致，應保持 `NO_NEW_CLOSE`／`MARKET_DATE_MISMATCH`，不得拿舊價冒充今天收盤。
 
-私人 repo 不啟用一般公開 Pages，以免真實股數、成本及損益外洩。團隊在 GitHub 直接看 `DASHBOARD_SUMMARY.md`，完整視覺則下載 Actions artifact 或 clone 後開啟 `index.html`。
+本 repo 與 GitHub Pages 已依 Owner 決策公開；股票、股數、成本、現值與損益都可被任何人讀取。完整視覺直接開啟 <https://wegoliao.github.io/performance-accumulation-dashboard/>。

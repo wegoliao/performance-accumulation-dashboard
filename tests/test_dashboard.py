@@ -119,6 +119,9 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     assert "NT$ +40,107" in content
     assert "SIMULATED_CONSTANT_HOLDINGS" in content or "WAITING_HISTORY" in content
     assert "日／週／月／季／年／YTD／累計" in content
+    assert "Sharpe／MDD／Alpha／Beta · 完整績效風險衡量" in content
+    assert content.index("Sharpe／MDD／Alpha／Beta") < content.index("歷史期間報酬")
+    assert "RISK_METRICS_READY" in content
     assert "月度績效熱圖" in content
     assert "NO_BROKER · NO_ORDER" in content
     assert "亞德客-KY" in content
