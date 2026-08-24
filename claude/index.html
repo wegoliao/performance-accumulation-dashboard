@@ -90,13 +90,13 @@ a{color:var(--accent)}
 
 <section class="tiles">
   <div class="tile"><div class="n neg">+0.27pp</div><div class="l">8/24 當日報酬中，來自估值基準切換而非價格的部分（NT$5,372）</div></div>
-  <div class="tile"><div class="n neg">2 處</div><div class="l">自動化斷點：每日 commit 不會重新部署，8/25 訊號尚未 push</div></div>
+  <div class="tile"><div class="n neg">1 處</div><div class="l">仍未解的自動化斷點：每日 commit 不會重新部署公開頁</div></div>
   <div class="tile"><div class="n">10 / 20</div><div class="l">實際日報酬樣本數／風險統計門檻，Sharpe 仍為 N/A</div></div>
   <div class="tile"><div class="n">0</div><div class="l">核心 sleeve 重建函式的測試覆蓋筆數</div></div>
 </section>
 
 <h2><span class="badge b0">P0</span> 會讓數字說謊，且今天就會發生</h2>
-<p class="sub">這三項不是風格問題。第 1 項已經在線上頁面產生了一個不存在的漲幅，第 2、3 項會讓公開頁停在昨天。</p>
+<p class="sub">這三項不是風格問題。第 1 項已經在線上頁面產生了一個不存在的漲幅，第 2 項會讓公開頁停在昨天，第 3 項在本次稽核期間已被修復但根因仍在。</p>
 
 <div class="item t0">
   <h3><span class="num">01</span>曲線最後一天換了估值基準，把 0.27pp 憑空加進今日報酬</h3>
@@ -120,11 +120,11 @@ a{color:var(--accent)}
 </div>
 
 <div class="item t0">
-  <h3><span class="num">03</span>8/25 的進出訊號只存在本機</h3>
+  <h3><span class="num">03</span>8/25 的進出訊號只存在本機<span class="badge b3" style="margin-left:8px">稽核期間已修復</span></h3>
   <dl>
     <dt>現象</dt><dd>工作目錄有 3 個未追蹤檔（<code>latest_strategy_signals.csv</code>、<code>four_strategy_daily_signals.xlsx</code> 及其 inspect 檔）與 5 個已修改檔尚未 commit。線上最新 commit 仍是 <code>d1805cd</code>。</dd>
     <dt>影響</dt><dd><code>2637 慧洋-KY 進 @97.1</code> 與 <code>2646 星宇航空 出</code> 這兩筆計畫訊號、以及理論卡補到 8/24 的更新，公開頁上都看不到。</dd>
-    <dt>修法</dt><dd>把訊號入庫做成 commit 的一部分，而不是本機終點。已於本次一併推上。</dd>
+    <dt>已修復</dt><dd>稽核進行期間由 commit <code>e4c65cb</code>、<code>3cd918a</code> 推上，公開頁已含 8/25 計畫訊號與可下載工作簿。留在這裡是因為根因還在：訊號入庫仍是本機動作，下一次一樣會停在本機。</dd>
   </dl>
 </div>
 
@@ -246,14 +246,14 @@ a{color:var(--accent)}
 <table>
 <thead><tr><th>順序</th><th>項目</th><th>代價</th><th>拿到什麼</th></tr></thead>
 <tbody>
-<tr><td class="num">1</td><td>#03 推上 8/25 訊號</td><td>幾分鐘</td><td>公開頁與本機一致</td></tr>
-<tr><td class="num">2</td><td>#02 讓每日 commit 觸發部署</td><td>改 5 行 YAML</td><td>自動化真的自動</td></tr>
-<tr><td class="num">3</td><td>#01 統一估值基準</td><td>改 1 個函式 ＋ 1 個測試</td><td>今日報酬不再多出 0.27pp</td></tr>
-<tr><td class="num">4</td><td>#04 .gitattributes</td><td>1 行 ＋ 一次 renormalize</td><td>每日行情 diff 可稽核</td></tr>
-<tr><td class="num">5</td><td>#05 sleeve 重建測試</td><td>半天</td><td>#01 那類錯誤以後自己現形</td></tr>
-<tr><td class="num">6</td><td>#11 履約落差帳</td><td>一天</td><td>理論要打幾折，有自己的證據</td></tr>
-<tr><td class="num">7</td><td>#07 除權息還原</td><td>一天</td><td>報酬不再系統性低估</td></tr>
-<tr><td class="num">8</td><td>#08 真正的理論曲線</td><td>數天</td><td>實際 vs 理論變成可比的對照</td></tr>
+<tr><td class="num">&mdash;</td><td>#03 推上 8/25 訊號</td><td>已完成</td><td>公開頁與本機一致</td></tr>
+<tr><td class="num">1</td><td>#02 讓每日 commit 觸發部署</td><td>改 5 行 YAML</td><td>自動化真的自動</td></tr>
+<tr><td class="num">2</td><td>#01 統一估值基準</td><td>改 1 個函式 ＋ 1 個測試</td><td>今日報酬不再多出 0.27pp</td></tr>
+<tr><td class="num">3</td><td>#04 .gitattributes</td><td>1 行 ＋ 一次 renormalize</td><td>每日行情 diff 可稽核</td></tr>
+<tr><td class="num">4</td><td>#05 sleeve 重建測試</td><td>半天</td><td>#01 那類錯誤以後自己現形</td></tr>
+<tr><td class="num">5</td><td>#11 履約落差帳</td><td>一天</td><td>理論要打幾折，有自己的證據</td></tr>
+<tr><td class="num">6</td><td>#07 除權息還原</td><td>一天</td><td>報酬不再系統性低估</td></tr>
+<tr><td class="num">7</td><td>#08 真正的理論曲線</td><td>數天</td><td>實際 vs 理論變成可比的對照</td></tr>
 </tbody>
 </table>
 </div>
