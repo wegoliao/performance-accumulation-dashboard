@@ -7,6 +7,7 @@ on:
     paths:
       - index.html
       - inputs/four_strategy_daily_signals.xlsx
+      - claude/**
       - .github/workflows/pages.yml
 
 permissions:
@@ -30,9 +31,10 @@ jobs:
         uses: actions/configure-pages@v6
       - name: Prepare public site
         run: |
-          mkdir -p _site/inputs
+          mkdir -p _site/inputs _site/claude
           cp index.html _site/index.html
           cp inputs/four_strategy_daily_signals.xlsx _site/inputs/four_strategy_daily_signals.xlsx
+          cp claude/index.html _site/claude/index.html
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:

@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude 版精進盤點 · 66 績效累積圖</title>
+<meta name="description" content="對 66 績效累積圖做的獨立稽核：15 項可驗證的精進項目，依嚴重度排序。">
+<style>
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#14161a; --muted:#5d646e; --line:#e2e5ea;
+  --accent:#2f6df6; --p0:#c9372c; --p1:#c76a15; --p2:#8a6d00; --p3:#2b7a5b;
+  --p0bg:#fdecea; --p1bg:#fdf1e3; --p2bg:#fbf6e0; --p3bg:#e8f5ef;
+  --code:#f0f2f5; --good:#1a7f4b; --bad:#c9372c;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#101216; --panel:#181b21; --ink:#e8eaee; --muted:#9aa2ad; --line:#282d36;
+    --accent:#6f9dff; --p0:#ff6b5e; --p1:#f0a24a; --p2:#d8bb45; --p3:#4fc48d;
+    --p0bg:#2a1614; --p1bg:#2a1f12; --p2bg:#26220f; --p3bg:#122520;
+    --code:#20242b; --good:#4fc48d; --bad:#ff6b5e;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#101216; --panel:#181b21; --ink:#e8eaee; --muted:#9aa2ad; --line:#282d36;
+  --accent:#6f9dff; --p0:#ff6b5e; --p1:#f0a24a; --p2:#d8bb45; --p3:#4fc48d;
+  --p0bg:#2a1614; --p1bg:#2a1f12; --p2bg:#26220f; --p3bg:#122520;
+  --code:#20242b; --good:#4fc48d; --bad:#ff6b5e;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,-apple-system,"Segoe UI",sans-serif;
+  line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:960px;margin:0 auto;padding:32px 20px 80px}
+header{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:28px}
+.kicker{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:700}
+h1{font-size:clamp(26px,4.4vw,38px);line-height:1.25;margin:10px 0 8px;letter-spacing:-.01em}
+.lede{color:var(--muted);font-size:16px;margin:0;max-width:64ch}
+.meta{margin-top:16px;font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:6px 18px}
+.meta code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:0 0 32px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.tile .n{font-size:26px;font-weight:750;letter-spacing:-.02em;line-height:1.2}
+.tile .l{font-size:13px;color:var(--muted);margin-top:6px}
+h2{font-size:19px;margin:40px 0 6px;letter-spacing:-.005em;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sub{color:var(--muted);font-size:14px;margin:0 0 16px}
+.badge{font-size:11px;font-weight:750;letter-spacing:.06em;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.b0{background:var(--p0bg);color:var(--p0)} .b1{background:var(--p1bg);color:var(--p1)}
+.b2{background:var(--p2bg);color:var(--p2)} .b3{background:var(--p3bg);color:var(--p3)}
+.item{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:12px}
+.item.t0{border-left:3px solid var(--p0)} .item.t1{border-left:3px solid var(--p1)}
+.item.t2{border-left:3px solid var(--p2)} .item.t3{border-left:3px solid var(--p3)}
+.item h3{margin:0 0 10px;font-size:16px;letter-spacing:-.005em}
+.item h3 .num{color:var(--muted);font-variant-numeric:tabular-nums;margin-right:8px;font-weight:600}
+dl{margin:0;display:grid;grid-template-columns:74px 1fr;gap:6px 14px;font-size:14.5px}
+dt{color:var(--muted);font-size:12.5px;font-weight:700;padding-top:3px;letter-spacing:.04em}
+dd{margin:0}
+dd code,p code,li code,td code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;word-break:break-word}
+.tbl{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:10px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:14px}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.05em;color:var(--muted);font-weight:700;background:var(--code)}
+tbody tr:last-child td{border-bottom:none}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.pos{color:var(--good)} .neg{color:var(--bad)}
+ul.tick{list-style:none;padding:0;margin:0;font-size:14.5px}
+ul.tick li{padding:7px 0 7px 26px;position:relative;border-bottom:1px solid var(--line)}
+ul.tick li:last-child{border-bottom:none}
+ul.tick li::before{content:"\2713";position:absolute;left:2px;top:7px;color:var(--good);font-weight:800}
+footer{margin-top:48px;padding-top:22px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+footer a{color:var(--accent)}
+a{color:var(--accent)}
+@media(max-width:560px){dl{grid-template-columns:1fr;gap:2px 0}dt{padding-top:8px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Independent audit &middot; Claude 版</div>
+  <h1>66 績效累積圖：15 項精進盤點</h1>
+  <p class="lede">這不是新的儀表板，是對現有儀表板的獨立稽核。每一項都附上可重跑的證據，依「會不會讓數字說謊」排序。</p>
+  <div class="meta">
+    <span>稽核日 <code>2026-08-25</code></span>
+    <span>受檢版本 <code>d1805cd</code></span>
+    <span>資料截止 <code>2026-08-24</code></span>
+    <span><a href="../">&larr; 回公開績效圖</a></span>
+  </div>
+</header>
+
+<section class="tiles">
+  <div class="tile"><div class="n neg">+0.27pp</div><div class="l">8/24 當日報酬中，來自估值基準切換而非價格的部分（NT$5,372）</div></div>
+  <div class="tile"><div class="n neg">2 處</div><div class="l">自動化斷點：每日 commit 不會重新部署，8/25 訊號尚未 push</div></div>
+  <div class="tile"><div class="n">10 / 20</div><div class="l">實際日報酬樣本數／風險統計門檻，Sharpe 仍為 N/A</div></div>
+  <div class="tile"><div class="n">0</div><div class="l">核心 sleeve 重建函式的測試覆蓋筆數</div></div>
+</section>
+
+<h2><span class="badge b0">P0</span> 會讓數字說謊，且今天就會發生</h2>
+<p class="sub">這三項不是風格問題。第 1 項已經在線上頁面產生了一個不存在的漲幅，第 2、3 項會讓公開頁停在昨天。</p>
+
+<div class="item t0">
+  <h3><span class="num">01</span>曲線最後一天換了估值基準，把 0.27pp 憑空加進今日報酬</h3>
+  <dl>
+    <dt>現象</dt><dd><code>build_four_strategy_actual()</code> 在 <code>day == snapshot_asof</code> 時直接採用券商快照的 <code>current_value_twd</code>；其餘所有日期走 <code>estimated_liquidation_value()</code>，扣掉 0.1425% 手續費與 0.3% 證交稅。同一條曲線上有兩種基準。</dd>
+    <dt>證據</dt><dd>8/21 淨值基準 <code>100.2168</code>。8/24 依現行程式為 <code>101.4223</code>（毛），若用一致的淨值基準則是 <code>101.1537</code>。當日報酬 <span class="neg">+1.20% &rarr; +0.93%</span>，累計 <span class="neg">+1.42% &rarr; +1.15%</span>。快照確實是毛值：<code>1,218,013 = 成本 1,177,906 + 未實現 40,107</code>。</dd>
+    <dt>標籤錯</dt><dd>diagnostics 寫 <code>OWNER_SNAPSHOT_NET_LIQUIDATION</code>，但那份快照沒有扣賣出費稅，它是 GROSS。</dd>
+    <dt>會發生</dt><dd>今天 16:30 排程用官方收盤重建時，快照覆寫消失、基準切回淨值 —— 就算價格完全不動，曲線也會憑空掉約 0.27%。這是自動化上線的第一天。</dd>
+    <dt>修法</dt><dd>整條曲線只用一種基準，並且兩條都出：<code>GROSS_MARK</code> 與 <code>NET_LIQUIDATION</code>。券商快照降級為對帳用途，不參與估值。</dd>
+  </dl>
+</div>
+
+<div class="item t0">
+  <h3><span class="num">02</span>每日自動 commit 不會觸發公開頁重新部署</h3>
+  <dl>
+    <dt>現象</dt><dd><code>daily-close.yml</code> 用預設的 <code>GITHUB_TOKEN</code> push；GitHub 明訂由 <code>GITHUB_TOKEN</code> 推出的 commit 不會再觸發其他 workflow。而 <code>pages.yml</code> 只在 push 到 <code>index.html</code> 時啟動。</dd>
+    <dt>證據</dt><dd>bot commit <code>907a623</code>、<code>c361d7b</code> 都修改了 <code>index.html</code>，但 workflow 清單裡沒有任何一次由這兩個 commit 觸發的 Pages 部署。目前所有成功部署都來自人工 push 或 workflow_dispatch。</dd>
+    <dt>影響</dt><dd>排程跑起來後，repo 內的 index.html 每天更新，公開網址卻不動。看的人以為是最新，其實是上一次人工推的版本。</dd>
+    <dt>修法</dt><dd>把 build 與 deploy 合成同一個 job（最乾淨），或在 daily-close 末尾以 <code>gh workflow run pages.yml</code> 顯式觸發。</dd>
+  </dl>
+</div>
+
+<div class="item t0">
+  <h3><span class="num">03</span>8/25 的進出訊號只存在本機</h3>
+  <dl>
+    <dt>現象</dt><dd>工作目錄有 3 個未追蹤檔（<code>latest_strategy_signals.csv</code>、<code>four_strategy_daily_signals.xlsx</code> 及其 inspect 檔）與 5 個已修改檔尚未 commit。線上最新 commit 仍是 <code>d1805cd</code>。</dd>
+    <dt>影響</dt><dd><code>2637 慧洋-KY 進 @97.1</code> 與 <code>2646 星宇航空 出</code> 這兩筆計畫訊號、以及理論卡補到 8/24 的更新，公開頁上都看不到。</dd>
+    <dt>修法</dt><dd>把訊號入庫做成 commit 的一部分，而不是本機終點。已於本次一併推上。</dd>
+  </dl>
+</div>
+
+<h2><span class="badge b1">P1</span> 稽核性與可重現性</h2>
+<p class="sub">這些不會立刻改變數字，但會讓你在數字出錯時查不出來。</p>
+
+<div class="item t1">
+  <h3><span class="num">04</span>沒有 .gitattributes，每天整檔改寫 CSV，diff 稽核失效</h3>
+  <dl>
+    <dt>證據</dt><dd>本機 <code>core.autocrlf=true</code>、repo 無 <code>.gitattributes</code>。Linux runner 寫 LF、Windows 檢出寫 CRLF，於是 bot commit <code>c361d7b</code> 對 <code>price_history.csv</code> 產生 <code>4,115 行全刪全增</code>，實際只多了一天資料。</dd>
+    <dt>影響</dt><dd>「今天到底加了哪幾筆收盤」無法用 diff 回答，這正是行情稽核最需要的能力；同時 repo 體積每天以整檔速度成長。</dd>
+    <dt>修法</dt><dd>加 <code>*.csv text eol=lf</code>，做一次 renormalize 之後每日 diff 就只剩真正新增的列。</dd>
+  </dl>
+</div>
+
+<div class="item t1">
+  <h3><span class="num">05</span>所有公開數字的來源函式，測試覆蓋為零</h3>
+  <dl>
+    <dt>證據</dt><dd>10 個測試全數通過，但沒有一個碰到 <code>build_four_strategy_actual()</code>。既有測試涵蓋的是快照對帳、TWR、短樣本不造假、fail-closed 狀態 —— 都在 sleeve 重建之前的世代。</dd>
+    <dt>影響</dt><dd>四策略累計 +1.42%、各 sleeve 損益、實際 vs 理論差距，全部由這個未受測的函式產出。第 1 項的基準切換就是它裡面的一行，而綠燈的測試完全沒有察覺。</dd>
+    <dt>修法</dt><dd>至少三個測試：現金＋部位守恆、賣超持股必須 fail-closed、整條曲線的估值基準必須一致（這一條會直接抓到第 1 項）。</dd>
+  </dl>
+</div>
+
+<div class="item t1">
+  <h3><span class="num">06</span>日期與個股硬編碼在程式裡</h3>
+  <dl>
+    <dt>證據</dt><dd><code>HOLDINGS_PATH = "holdings_snapshot_2026-08-24.csv"</code>、排除未歸屬部位的 <code>if row["stock_code"] != "2886"</code> 出現兩處、<code>EXPECTED_CARD_MEMBERS_LATEST</code> 的成員數也寫死。</dd>
+    <dt>影響</dt><dd>下一份庫存快照送進來就得改 Python。資料的事寫在程式裡，等於每天的資料更新都變成一次改版風險。</dd>
+    <dt>修法</dt><dd>快照改用「最新一份」解析；未歸屬部位改由獨立的 <code>unassigned.csv</code> 宣告；成員數從來源卡自己數。</dd>
+  </dl>
+</div>
+
+<h2><span class="badge b2">P2</span> 口徑缺口：會系統性偏移，不是隨機誤差</h2>
+
+<div class="item t2">
+  <h3><span class="num">07</span>股息完全未處理，除息跳空會被記成虧損</h3>
+  <dl>
+    <dt>證據</dt><dd>8/11&ndash;8/24 期間有 5 檔出現單日 &le; &minus;6% 的跳空：<code>1590</code>（&minus;7.8%）、<code>1709</code>（&minus;6.9%）、<code>2408</code>（&minus;6.6%）、<code>3006</code>（&minus;9.2%）、<code>6672</code>（&minus;7.0%）。目前的資料結構無法區分其中哪些是除權息、哪些是真跌。</dd>
+    <dt>影響</dt><dd>台股 7&ndash;9 月是除息旺季，持股裡有航運與電子零組件。只用收盤價算報酬，等於系統性低估。</dd>
+    <dt>修法</dt><dd>加一張 <code>corporate_actions.csv</code>（除息日、現金股利、除權比例），估值時用還原價，並在頁面標示哪些日子做過調整。</dd>
+  </dl>
+</div>
+
+<div class="item t2">
+  <h3><span class="num">08</span>「理論」用的是策略卡表頭，不是可投資的權益曲線</h3>
+  <dl>
+    <dt>現象</dt><dd><code>strategy_card_returns.csv</code> 是「等權持有成員」的顯示報酬，沒有換股成本、沒有部位權重、沒有現金拖累、沒有進出時點。拿它跟真金白銀的 sleeve 比，比的是兩種不同的東西。</dd>
+    <dt>已知矛盾</dt><dd>8/24 的 YOY 表頭 +3.7%，六檔可見成員平均 +4.33%，差 0.63pp —— 來源本身就不自洽。目前原樣保留並標示是對的，但差距沒有解釋。</dd>
+    <dt>修法</dt><dd>用 Quant_Grill_Lab 既有的 FinLab 資料，把四個策略以相同的 sleeve 規則（NT$50 萬、同樣費稅、同樣進出日）重跑成真正的 <code>strategy_nav.csv</code>。這才是能對照的理論值。</dd>
+  </dl>
+</div>
+
+<div class="item t2">
+  <h3><span class="num">09</span>NT$653 的成本口徑差沒有歸因</h3>
+  <dl>
+    <dt>證據</dt><dd>成交簿在庫實付 <code>NT$1,178,519</code>，券商快照在庫成本（排除 2886）<code>NT$1,177,866</code>，差 <code>NT$653</code>。頁面已誠實揭露，但沒說是哪一筆造成的。</dd>
+    <dt>修法</dt><dd>逐檔比對成交簿累計成本與快照成本，把差額落到個股上。653 元大約就是一兩筆手續費折讓或整股／零股拆單的進位差，找出來就永久關掉這個問號。</dd>
+  </dl>
+</div>
+
+<div class="item t2">
+  <h3><span class="num">10</span>樣本只有 10 天，且行情歷史只有 242 天</h3>
+  <dl>
+    <dt>現況</dt><dd>實際日報酬 10 筆，門檻 20 筆，最快要到 9 月中才會有第一個 Sharpe。<code>price_history.csv</code> 從 2025-08-25 起算，只有 242 個交易日，連一年的風險統計都撐不起來。</dd>
+    <dt>修法</dt><dd>短期：把「還要幾天才會出數字」直接寫在頁面上，比空著更有用。中期：行情歷史往回補三年，讓理論曲線與 benchmark 有足夠長度。</dd>
+  </dl>
+</div>
+
+<h2><span class="badge b3">P3</span> 真正的精進：現在沒有、但值得建的東西</h2>
+<p class="sub">前面十項是把現有數字修正確。這五項是讓這個儀表板開始回答它目前答不了的問題。</p>
+
+<div class="item t3">
+  <h3><span class="num">11</span>訊號&rarr;成交的履約落差帳（最高價值）</h3>
+  <dl>
+    <dt>為什麼</dt><dd>你現在有「理論卡說什麼」和「帳戶最後值多少」，中間那一段 —— 訊號價到實際成交價之間的滑價 —— 是空的。而那一段正是「策略能不能實現」的全部答案。</dd>
+    <dt>料已就位</dt><dd><code>latest_strategy_signals.csv</code> 有 <code>entry_price</code>，<code>actual_fills.csv</code> 有 <code>fill_price</code>。缺的只是把兩者接起來的一張表。</dd>
+    <dt>怎麼記</dt><dd>每筆訊號一列：訊號日、訊號價、次日開盤、實際成交價、成交延遲天數、滑價（bp）、未成交原因。今天的 <code>2637 慧洋-KY 明開進 @97.1</code> 就是第一筆樣本，明天就能結案。</dd>
+    <dt>產出</dt><dd>累積 30 筆之後，你會第一次知道「策略卡報酬要打幾折」，而且是用自己的成交證明的。</dd>
+  </dl>
+</div>
+
+<div class="item t3">
+  <h3><span class="num">12</span>容量欄位：零股單量 vs 成交量</h3>
+  <dl>
+    <dt>為什麼</dt><dd>sleeve 各 NT$50 萬，實際成交出現 63 股、261 股、305 股、347 股這類零股。零股流動性遠低於整股，這是規模一放大就先撞到的牆，目前頁面完全看不到。</dd>
+    <dt>修法</dt><dd>每檔加三欄：20 日均量、本次股數佔均量比、以及在不超過 X% 參與率下這個 sleeve 能放大到多少錢。把「這套做法能容納多少資金」變成畫面上的常數。</dd>
+  </dl>
+</div>
+
+<div class="item t3">
+  <h3><span class="num">13</span>四策略表缺 benchmark 欄</h3>
+  <dl>
+    <dt>現況</dt><dd><code>benchmark_nav.csv</code> 已有 0050 與加權指數逐日資料到 8/24，但策略比較表只有「實際／理論／差距」，沒有同期 benchmark。</dd>
+    <dt>修法</dt><dd>加一欄同期 0050 報酬與一欄超額。10 天的超額報酬雖然不能做統計推論，但可以誠實呈現，且成本幾乎是零。</dd>
+  </dl>
+</div>
+
+<div class="item t3">
+  <h3><span class="num">14</span>毛／淨雙軌，已實現／未實現分離</h3>
+  <dl>
+    <dt>為什麼</dt><dd>現在一個數字混了三件事：價格變動、尚未發生的賣出費稅、以及 3702 的已實現虧損。看到 <span class="neg">融資 &minus;0.24%</span> 時，無法判斷是策略不好還是成本估法保守。</dd>
+    <dt>量級</dt><dd>四個 sleeve 若全數平倉，未發生的賣出費稅合計約 <code>NT$5,372</code>（投信 1,850／YOY 1,878／融資 254／突破 1,390）。</dd>
+    <dt>修法</dt><dd>四欄並列：毛報酬、淨可變現報酬、已實現損益、未實現損益。</dd>
+  </dl>
+</div>
+
+<div class="item t3">
+  <h3><span class="num">15</span>把資料契約與展示層拆開</h3>
+  <dl>
+    <dt>現況</dt><dd><code>build_dashboard.py</code> 1,422 行，同時負責讀檔驗證、財務計算與 HTML 字串拼接。第 1 項那個基準切換之所以難發現，就是因為它藏在一段組畫面的迴圈裡。</dd>
+    <dt>修法</dt><dd>中間插一層 <code>dashboard_state.json</code>：計算只負責產生它，HTML 只負責讀它。附帶好處是狀態檔可以直接被測試與被 diff，等於每天的數字都有機器可讀的稽核軌跡。</dd>
+  </dl>
+</div>
+
+<h2>修復順序</h2>
+<p class="sub">依「代價 &divide; 效益」排。前三項建議在今天 16:30 排程跑之前完成。</p>
+<div class="tbl">
+<table>
+<thead><tr><th>順序</th><th>項目</th><th>代價</th><th>拿到什麼</th></tr></thead>
+<tbody>
+<tr><td class="num">1</td><td>#03 推上 8/25 訊號</td><td>幾分鐘</td><td>公開頁與本機一致</td></tr>
+<tr><td class="num">2</td><td>#02 讓每日 commit 觸發部署</td><td>改 5 行 YAML</td><td>自動化真的自動</td></tr>
+<tr><td class="num">3</td><td>#01 統一估值基準</td><td>改 1 個函式 ＋ 1 個測試</td><td>今日報酬不再多出 0.27pp</td></tr>
+<tr><td class="num">4</td><td>#04 .gitattributes</td><td>1 行 ＋ 一次 renormalize</td><td>每日行情 diff 可稽核</td></tr>
+<tr><td class="num">5</td><td>#05 sleeve 重建測試</td><td>半天</td><td>#01 那類錯誤以後自己現形</td></tr>
+<tr><td class="num">6</td><td>#11 履約落差帳</td><td>一天</td><td>理論要打幾折，有自己的證據</td></tr>
+<tr><td class="num">7</td><td>#07 除權息還原</td><td>一天</td><td>報酬不再系統性低估</td></tr>
+<tr><td class="num">8</td><td>#08 真正的理論曲線</td><td>數天</td><td>實際 vs 理論變成可比的對照</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>已經做對、不要動的部分</h2>
+<ul class="tick">
+  <li>輸入契約 fail-closed：日期格式、負股數、賣超持股都會直接擋下來，不會靜默算下去。</li>
+  <li>樣本不足就顯示 N/A。10 筆日報酬不硬算 Sharpe，這是這個 repo 最有價值的紀律。</li>
+  <li>2886 的 1 股標為未歸屬而不是硬塞進某個策略，寧可對帳掛一個註記也不污染四策略。</li>
+  <li>YOY 表頭與成員平均矛盾時原樣保留兩個數字，不為了讓驗證過關去改任何一格。</li>
+  <li>NT$653 成本口徑差主動揭露在畫面上，而不是藏在 log 裡。</li>
+  <li>建置產物有 sha256 receipt，且整條支線無券商登入、無下單能力。</li>
+</ul>
+
+<footer>
+  <p>本頁是對 <code>wegoliao/performance-accumulation-dashboard</code> 在 commit <code>d1805cd</code> 的獨立稽核，由 Claude 產出。所有數字皆可用 repo 內的 <code>scripts/</code> 與 <code>inputs/</code> 重跑驗證；本頁不產生任何交易建議、不含委託能力、也不改動實際成交檔。</p>
+  <p><a href="../">&larr; 回公開績效累積圖</a></p>
+</footer>
+
+</div>
+</body>
+</html>
