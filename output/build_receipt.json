@@ -1,17 +1,17 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-08-24T16:54:34+08:00",
+  "generated_at": "2026-08-24T16:55:04+08:00",
   "source_data_asof": "2026-08-24",
   "source_capture_time": null,
   "source_status": "USER_PASTED_INTRADAY_SNAPSHOT",
   "snapshot_reconciliation": "PASS",
   "inputs": {
     "holdings_snapshot_2026-08-24.csv": {
-      "sha256": "26c2584de6b2de3dd5451660aa7cdeabdc4d85f8b87645402a90bcecb9a77181",
+      "sha256": "c614b85760311c311b28d488cedfd4dff6a5773cf1abbcbc7ccdd7157391cf5e",
       "rows": 15
     },
     "snapshot_summary_2026-08-24.csv": {
-      "sha256": "94b07f7add6a10d6f066db123d2bcc384b8ce708a8b1a1df7c2f07197c248467",
+      "sha256": "d43adbea0142280728432432b5563a1adf0d0e200cd806b1f78bde5afc042cd3",
       "rows": 1
     },
     "account_nav.csv": {
@@ -19,7 +19,7 @@
       "rows": 1
     },
     "strategy_nav.csv": {
-      "sha256": "a218494fcfaac0f23098ce551b2a71cdfeed57e549e77c1b377d9702c33452b1",
+      "sha256": "cb0ba2d3f788493e2de8e7d2ec0689868358d53e54b9b286f5d7e61507c063ee",
       "rows": 0
     },
     "benchmark_nav.csv": {
@@ -27,7 +27,7 @@
       "rows": 484
     },
     "actual_fills.csv": {
-      "sha256": "86c704a49c46957cefdab534dcef5e11138aeb19f046951e2fdb916518a7d9b3",
+      "sha256": "83eda0aa9de6dfa65017e1a3405b3c238e69ab5fa157f12ea6d544c2033ea0b7",
       "rows": 0
     }
   },
