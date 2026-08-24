@@ -1,6 +1,6 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-08-24T22:52:08+08:00",
+  "generated_at": "2026-08-25T00:08:25+08:00",
   "source_data_asof": "2026-08-24",
   "actual_valuation_asof": "2026-08-24",
   "source_capture_time": null,
@@ -32,12 +32,16 @@
       "rows": 22
     },
     "strategy_card_returns.csv": {
-      "sha256": "01e3c87633eba16dc3f29d20491667b53e39912e2eb7912728b6f17ae5953d94",
-      "rows": 36
+      "sha256": "fc0a914d0f18b772defcdf27640b7b69e356ba0b603ef9a267aa0d8d8042f7ab",
+      "rows": 40
     },
     "strategy_position_marks.csv": {
       "sha256": "4fc2f7225996426e23425afd5205a98771d533ec3f0e1db29318d494d2e36299",
       "rows": 6
+    },
+    "latest_strategy_signals.csv": {
+      "sha256": "da31e7f55b3e48c2d8229ded0ab9c51e4f2cdc3af7ef1f032cddb3f534746bfb",
+      "rows": 26
     }
   },
   "snapshot": {
@@ -82,7 +86,64 @@
       "TRUST",
       "YOY"
     ],
-    "strategy_card_asof": "2026-08-20",
+    "strategy_card_asof": "2026-08-24",
+    "latest_strategy_signals": {
+      "asof_date": "2026-08-24",
+      "planned_effective_date": "2026-08-25",
+      "planned_actions": [
+        {
+          "strategy_id": "MARGIN",
+          "stock_code": "2646",
+          "signal": "出",
+          "actual_fill_status": "WAITING_ACTUAL_FILL"
+        },
+        {
+          "strategy_id": "MARGIN",
+          "stock_code": "2637",
+          "signal": "進",
+          "actual_fill_status": "WAITING_ACTUAL_FILL"
+        }
+      ],
+      "quality": {
+        "asof_date": "2026-08-24",
+        "TRUST": {
+          "header_return_pct": 2.5999999999999943,
+          "visible_member_mean_pct": 2.62,
+          "gap_pp": 0.02000000000000579,
+          "held_or_exit_count": 5,
+          "new_entry_count": 0,
+          "exit_count": 0,
+          "status": "PASS"
+        },
+        "YOY": {
+          "header_return_pct": 3.700000000000003,
+          "visible_member_mean_pct": 4.333333333333333,
+          "gap_pp": 0.6333333333333302,
+          "held_or_exit_count": 6,
+          "new_entry_count": 0,
+          "exit_count": 0,
+          "status": "SOURCE_CHECKSUM_MISMATCH"
+        },
+        "MARGIN": {
+          "header_return_pct": 7.599999999999994,
+          "visible_member_mean_pct": 7.599999999999999,
+          "gap_pp": 4.440892098500626e-15,
+          "held_or_exit_count": 10,
+          "new_entry_count": 1,
+          "exit_count": 1,
+          "status": "PASS"
+        },
+        "BREAKOUT": {
+          "header_return_pct": 5.0,
+          "visible_member_mean_pct": 5.000000000000001,
+          "gap_pp": 8.881784197001252e-16,
+          "held_or_exit_count": 4,
+          "new_entry_count": 0,
+          "exit_count": 0,
+          "status": "PASS"
+        }
+      }
+    },
     "strategy_diagnostics": {
       "TRUST": {
         "cash_twd": 81151.0,

@@ -10,7 +10,8 @@
 
 - 2026-08-24 使用者貼入的 15 檔現股盤中庫存快照。
 - 投信、YOY、融資、突破四策略的逐筆實際成交歸屬、實際累積曲線與可變現損益。
-- 共同截止日 2026-08-20 的「實際 vs 理論卡」差異；理論來源未更新到 8/24，所以不假造同日差異。
+- 共同截止日 2026-08-24 的「實際 vs 理論卡」差異；最新四張來源卡與 8/25 計畫進出另有明細視圖。
+- 可下載的 `inputs/four_strategy_daily_signals.xlsx`，包含 262 列歷史、表頭對帳、8/24 四策略卡與 8/25 計畫訊號。
 - 現值、付出成本、累積未實現損益及報酬率。
 - 個股累積損益、當日價格變動估算貢獻、配置與集中度。
 - 日／週／月／季／年／YTD／累計報酬卡，以及週、月、季、年歷史績效。
@@ -56,7 +57,9 @@ index.html
 | `inputs/snapshot_summary_2026-08-24.csv` | 券商畫面小計，用於交叉驗證 | 已匯入 |
 | `inputs/account_nav.csv` | 每日整戶／策略 sleeve NAV 與外部現金流 | 等待資料 |
 | `inputs/actual_fills.csv` | 四策略逐筆實際成交與費稅 | 已匯入 22 筆 |
-| `inputs/strategy_card_returns.csv` | owner 策略卡等權顯示報酬 | 已匯入至 2026-08-20 |
+| `inputs/strategy_card_returns.csv` | owner 策略卡等權顯示報酬 | 已匯入至 2026-08-24 |
+| `inputs/latest_strategy_signals.csv` | 8/24 四策略逐股明細與 8/25 計畫訊號 | 已匯入 26 列 |
+| `inputs/four_strategy_daily_signals.xlsx` | 每日策略卡長期主檔、視覺卡、對帳與說明 | 已累積 10 個來源日／262 列 |
 | `inputs/strategy_position_marks.csv` | 已出場股在持有期的補充收盤 mark | 已匯入 3702 |
 | `inputs/strategy_nav.csv` | 可投資理論 equity curve | 尚未提供；不用策略卡百分比冒充 |
 | `inputs/benchmark_nav.csv` | 0050／加權指數 benchmark | 官方資料逐日累積 |

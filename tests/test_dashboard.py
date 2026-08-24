@@ -113,7 +113,27 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     assert receipt["history"]["analysis_basis"] == "ACTUAL_FOUR_STRATEGY_LIQUIDATION_NAV"
     assert receipt["history"]["analysis_return_observations"] == 10
     assert receipt["history"]["risk_metric_status"] == "WAITING_MIN_20_RETURNS"
-    assert receipt["history"]["strategy_card_asof"] == "2026-08-20"
+    assert receipt["history"]["strategy_card_asof"] == "2026-08-24"
+    latest = receipt["history"]["latest_strategy_signals"]
+    assert latest["asof_date"] == "2026-08-24"
+    assert latest["planned_effective_date"] == "2026-08-25"
+    assert latest["planned_actions"] == [
+        {
+            "strategy_id": "MARGIN",
+            "stock_code": "2646",
+            "signal": "出",
+            "actual_fill_status": "WAITING_ACTUAL_FILL",
+        },
+        {
+            "strategy_id": "MARGIN",
+            "stock_code": "2637",
+            "signal": "進",
+            "actual_fill_status": "WAITING_ACTUAL_FILL",
+        },
+    ]
+    assert latest["quality"]["YOY"]["status"] == "SOURCE_CHECKSUM_MISMATCH"
+    assert math.isclose(latest["quality"]["YOY"]["gap_pp"], 0.6333333333333329)
+    assert latest["quality"]["MARGIN"]["status"] == "PASS"
     diagnostics = receipt["history"]["strategy_diagnostics"]
     assert diagnostics["reconciliation"] == "PASS_EXCLUDING_UNASSIGNED_2886"
     assert math.isclose(diagnostics["bundle_current_pnl_twd"], 28_446.0, abs_tol=0.01)
@@ -130,7 +150,14 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     assert "NT$ +28,446" in content
     assert "差 NT$653" in content
     assert "ACTUAL_FOUR_STRATEGY_LIQUIDATION_NAV" in content
-    assert "THEORY_ASOF_2026-08-20" in content
+    assert "THEORY_ASOF_2026-08-24" in content
+    assert "最新四策略卡 · 8/24 收盤" in content
+    assert "2637 慧洋-KY" in content
+    assert "2646 星宇航空" in content
+    assert "等待實際成交" in content
+    assert 'href="inputs/four_strategy_daily_signals.xlsx"' in content
+    assert "SOURCE_CHECKSUM_MISMATCH" not in content
+    assert "YOY 來源矛盾" in content
     assert "SIMULATED_CONSTANT_HOLDINGS" not in content
     assert "242 個交易日" not in content
     assert "日／週／月／季／年／YTD／累計" in content
