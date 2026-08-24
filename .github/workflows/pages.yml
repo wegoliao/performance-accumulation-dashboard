@@ -9,6 +9,11 @@ on:
       - inputs/four_strategy_daily_signals.xlsx
       - claude/**
       - .github/workflows/pages.yml
+  # Commits pushed with GITHUB_TOKEN (the daily-close bot) do not trigger
+  # `push` events, so re-deploy explicitly when that workflow succeeds.
+  workflow_run:
+    workflows: ["Daily official close and dashboard"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -21,6 +26,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

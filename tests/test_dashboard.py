@@ -136,7 +136,9 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     assert latest["quality"]["MARGIN"]["status"] == "PASS"
     diagnostics = receipt["history"]["strategy_diagnostics"]
     assert diagnostics["reconciliation"] == "PASS_EXCLUDING_UNASSIGNED_2886"
-    assert math.isclose(diagnostics["bundle_current_pnl_twd"], 28_446.0, abs_tol=0.01)
+    # Was 28_446 under the old dual valuation path (snapshot gross vs close
+    # net); unifying on net liquidation removes the ~NT$1.45 rounding gap.
+    assert math.isclose(diagnostics["bundle_current_pnl_twd"], 28_444.55, abs_tol=0.01)
     assert diagnostics["active_fill_cash_out_twd"] == 1_178_519
     assert diagnostics["source_active_cost_ex_unassigned_twd"] == 1_177_866
     assert diagnostics["active_cost_basis_gap_twd"] == 653
@@ -147,11 +149,12 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     assert receipt["safety"]["network_access"] is False
     assert receipt["safety"]["order_capability"] is False
     assert "NT$ +40,107" in content
-    assert "NT$ +28,446" in content
+    # 28_444.55 net-basis PnL renders as NT$ +28,445 (was 28,446 dual-path).
+    assert "NT$ +28,445" in content
     assert "差 NT$653" in content
     assert "ACTUAL_FOUR_STRATEGY_LIQUIDATION_NAV" in content
     assert "THEORY_ASOF_2026-08-24" in content
-    assert "最新四策略卡 · 8/24 收盤" in content
+    assert "最新四策略卡 · 2026-08-24 收盤" in content
     assert "2637 慧洋-KY" in content
     assert "2646 星宇航空" in content
     assert "等待實際成交" in content
@@ -168,3 +171,116 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     assert "月度績效熱圖" in content
     assert "NO_BROKER · NO_ORDER" in content
     assert "亞德客-KY" in content
+
+
+def _synthetic_fill(trade_id: str, day: str, price: str, shares: str) -> dict[str, Any]:
+    """One BUY row shaped like load_actual_fills() output (raw + parsed)."""
+    consideration = float(price) * float(shares)
+    fee = int(consideration * 0.001425)
+    return {
+        "trade_id": trade_id,
+        "strategy_id": "BREAKOUT",
+        "stock_code": "6000",
+        "stock_name": "測試股",
+        "side": "BUY",
+        "fill_date": day,
+        "fill_price": price,
+        # load_actual_fills() overwrites this same key with a float.
+        "shares": float(shares),
+        "consideration_twd": f"{consideration:.0f}",
+        "fee_twd": str(fee),
+        "tax_twd": "0",
+        "cash_out_twd": f"{consideration + fee:.0f}",
+        "cash_in_twd": "0",
+        "currency": "TWD",
+        "source": "synthetic_test",
+        # Parsed fields exactly as load_actual_fills() derives them.
+        "date": date.fromisoformat(day),
+        "price": float(price),
+        "shares_f": float(shares),
+        "cash_out": consideration + fee,
+        "cash_in": 0.0,
+    }
+
+
+def test_snapshot_day_is_valued_at_net_liquidation_like_every_other_day() -> None:
+    """Regression for audit item #01.
+
+    The four-strategy curve must never consult owner-holdings data: before
+    the fix, the snapshot day silently substituted broker-screen values into
+    the curve, creating a second valuation path. Here a deliberately absurd
+    snapshot value must have ZERO effect on the curve.
+    """
+    fills = [
+        _synthetic_fill("T1", "2026-08-20", "100", "4000"),
+    ]
+    prices = {
+        "6000": [
+            (date(2026, 8, 20), 100.0),
+            (date(2026, 8, 21), 101.0),
+        ]
+    }
+
+    def build(holdings: list[dict[str, Any]]) -> tuple[dict[date, float], dict[str, Any]]:
+        curves, _, diagnostics = dashboard.build_four_strategy_actual(
+            fills, prices, holdings, date(2026, 8, 21)
+        )
+        return dict(curves["BREAKOUT"]), diagnostics
+
+    def holding_with(value_twd: float) -> list[dict[str, Any]]:
+        # Shares must reconcile with the fill; the VALUE is the poison under
+        # test -- the old code leaked it into the snapshot-day curve.
+        return [
+            {
+                "stock_code": "6000",
+                "stock_name": "測試股",
+                "shares": 4000.0,
+                "current_value_twd": value_twd,
+                "cost_basis_twd": 1.0,
+                "last_price": 101.0,
+            }
+        ]
+
+    curve_a, diag_a = build(holding_with(999_999_999.0))
+    curve_b, diag_b = build(holding_with(1.0))
+
+    # Snapshot values have ZERO effect: absurd vs near-zero produce identical
+    # curves, valued purely at official close net liquidation.
+    assert curve_a == curve_b
+    # Net liquidation, not gross: 404000 -> fee 575 + tax 1212 -> 402213.
+    assert math.isclose(
+        curve_b[date(2026, 8, 21)],
+        (dashboard.STRATEGY_BUDGET_TWD - 400570 + 404000 - 575 - 1212)
+        / dashboard.STRATEGY_BUDGET_TWD
+        * 100.0,
+    )
+    for diagnostics in (diag_a, diag_b):
+        assert (
+            diagnostics["valuation_basis"]
+            == "OFFICIAL_CLOSE_ESTIMATED_LIQUIDATION_CARRY_FORWARD_POSITIONS"
+        )
+
+
+def test_real_data_bundle_stays_on_one_valuation_basis_through_snapshot_day() -> None:
+    """The 8/24 owner snapshot day must not switch valuation bases mid-curve.
+
+    Locks the corrected numbers AND the fact that unifying the basis left the
+    published 8/24 level essentially unchanged -- the broker screen's 現值
+    column already carries fee+tax, so the audited 'fake +0.27pp' claim does
+    not reproduce (the real two-path gap was ~NT$17 of rounding).
+    """
+    fills = dashboard.load_actual_fills()
+    prices = dashboard.analytics.load_price_history(dashboard.PRICE_HISTORY_PATH)
+    holdings = dashboard.load_holdings()
+
+    curves, bundle, diagnostics = dashboard.build_four_strategy_actual(
+        fills, prices, holdings, date(2026, 8, 24)
+    )
+
+    assert diagnostics["reconciliation"] == "PASS_EXCLUDING_UNASSIGNED_2886"
+    assert (
+        diagnostics["valuation_basis"]
+        == "OFFICIAL_CLOSE_ESTIMATED_LIQUIDATION_CARRY_FORWARD_POSITIONS"
+    )
+    assert math.isclose(bundle[-1][1], 101.4222, abs_tol=0.001)
+    assert math.isclose(diagnostics["bundle_current_pnl_twd"], 28_444.55, abs_tol=0.5)

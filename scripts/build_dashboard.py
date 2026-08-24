@@ -92,6 +92,15 @@ def parse_date(value: str, field: str = "asof_date") -> date:
         raise InputError(f"{field} must be YYYY-MM-DD: {value!r}") from exc
 
 
+def next_weekday(value: date) -> date:
+    """Next Mon-Fri day after `value`. Taiwan exchange holidays are not
+    modelled here; the source card remains the authority for the real day."""
+    nxt = value + timedelta(days=1)
+    while nxt.weekday() >= 5:
+        nxt += timedelta(days=1)
+    return nxt
+
+
 def load_holdings(path: Path = HOLDINGS_PATH) -> list[dict[str, Any]]:
     rows = read_csv(path)
     if not rows:
@@ -391,8 +400,6 @@ def load_latest_strategy_signals(
         if not math.isclose(signed, expected, abs_tol=0.001):
             raise InputError(f"signed return mismatch for {key}: {signed} vs {expected}")
         effective_raw = raw.get("effective_date", "").strip()
-        if signal in {"進", "出"} and effective_raw != "2026-08-25":
-            raise InputError(f"planned action {key} must carry effective_date=2026-08-25")
         rows.append(
             {
                 **raw,
@@ -409,6 +416,14 @@ def load_latest_strategy_signals(
         )
     if not rows or len({row["asof_date"] for row in rows}) != 1:
         raise InputError("latest strategy signals must contain exactly one source date")
+    expected_effective = next_weekday(rows[0]["asof_date"])
+    for row in rows:
+        if row["signal"] in {"進", "出"} and row["effective_date"] != expected_effective:
+            raise InputError(
+                f"planned action {row['strategy_id']} {row['stock_code']} "
+                f"must carry effective_date={expected_effective.isoformat()}, "
+                f"got {row['effective_date']}"
+            )
     return rows
 
 
@@ -472,6 +487,7 @@ def latest_signal_cards(
 
 def planned_signal_table(rows: list[dict[str, Any]]) -> str:
     planned = [row for row in rows if row["signal"] in {"進", "出"}]
+    asof_label = planned[0]["asof_date"].isoformat() if planned else "收盤"
     body = "".join(
         "<tr>"
         f'<td>{row["effective_date"].isoformat()}</td>'
@@ -485,7 +501,8 @@ def planned_signal_table(rows: list[dict[str, Any]]) -> str:
         for row in planned
     )
     return (
-        '<div class="table-wrap"><table><thead><tr><th>計畫日</th><th>策略</th><th>股票</th><th>動作</th><th>進場顯示</th><th class="num">8/24 收盤</th><th>實際狀態</th></tr></thead>'
+        '<div class="table-wrap"><table><thead><tr><th>計畫日</th><th>策略</th><th>股票</th><th>動作</th><th>進場顯示</th>'
+        f'<th class="num">{asof_label} 收盤</th><th>實際狀態</th></tr></thead>'
         f'<tbody>{body}</tbody></table></div>'
     )
 
@@ -514,8 +531,14 @@ def build_four_strategy_actual(
     prices: dict[str, list[tuple[date, float]]],
     holdings: list[dict[str, Any]],
     asof: date,
-    snapshot_asof: date,
 ) -> tuple[dict[str, list[tuple[date, float]]], list[tuple[date, float]], dict[str, Any]]:
+    """Value every day -- including the latest -- on one consistent basis.
+
+    Positions are always marked at the official close and carried at an
+    estimated net liquidation value (fee + transaction tax). Owner snapshot
+    gross values are never substituted into the curve, so consecutive daily
+    returns stay comparable across snapshot days.
+    """
     if not fills:
         raise InputError("actual_fills is empty; four-strategy actual curve unavailable")
     first_fill = min(row["date"] for row in fills)
@@ -528,7 +551,6 @@ def build_four_strategy_actual(
     if baseline not in trade_days:
         trade_days.insert(0, baseline)
     supplemental = load_supplemental_marks()
-    source_holdings = {row["stock_code"]: row for row in holdings}
     curves: dict[str, list[tuple[date, float]]] = {}
     diagnostics: dict[str, Any] = {}
 
@@ -554,12 +576,6 @@ def build_four_strategy_actual(
             liquidation = 0.0
             for code, shares in positions.items():
                 if shares <= 1e-9:
-                    continue
-                if day == snapshot_asof and code in source_holdings:
-                    source = source_holdings[code]
-                    liquidation += (
-                        source["current_value_twd"] * shares / source["shares"]
-                    )
                     continue
                 close = price_by_day.get(day, {}).get(code)
                 if close is None:
@@ -605,11 +621,7 @@ def build_four_strategy_actual(
     diagnostics["unassigned"] = {"2886": 1.0}
     diagnostics["last_fill_date"] = max(row["date"] for row in fills).isoformat()
     diagnostics["valuation_asof"] = asof.isoformat()
-    diagnostics["valuation_basis"] = (
-        "OWNER_SNAPSHOT_NET_LIQUIDATION"
-        if asof == snapshot_asof
-        else "OFFICIAL_CLOSE_ESTIMATED_LIQUIDATION_CARRY_FORWARD_POSITIONS"
-    )
+    diagnostics["valuation_basis"] = "OFFICIAL_CLOSE_ESTIMATED_LIQUIDATION_CARRY_FORWARD_POSITIONS"
     diagnostics["bundle_current_pnl_twd"] = (
         bundle[-1][1] / 100.0 * STRATEGY_BUDGET_TWD * len(STRATEGY_LABELS)
         - STRATEGY_BUDGET_TWD * len(STRATEGY_LABELS)
@@ -1124,7 +1136,6 @@ def build() -> tuple[Path, dict[str, Any]]:
         prices,
         holdings,
         actual_asof,
-        source_summary["asof_date"],
     )
     ledger = analytics.load_ledger(LEDGER_PATH)
     mtm_curve, mtm_diagnostics = analytics.build_mtm_curve(ledger, prices, "TAIEX")
@@ -1246,7 +1257,7 @@ def build() -> tuple[Path, dict[str, Any]]:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>績效累積圖 · 2026-08-24</title>
+<title>績效累積圖 · {{SIGNAL_ASOF}}</title>
 <style>
 :root{--ink:#ecf4ef;--muted:#9eaaa5;--panel:#14231f;--panel2:#192c27;--line:#2a4039;--green:#57d3a2;--red:#ff7f7f;--gold:#f5bd58;--blue:#72a7ff;--bg:#0b1512}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#18362d 0,transparent 34%),var(--bg);color:var(--ink);font-family:"Segoe UI","Noto Sans TC",sans-serif;line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:34px 24px 70px}.eyebrow{color:var(--green);font-weight:700;letter-spacing:.16em;font-size:12px;text-transform:uppercase}.hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;margin:8px 0 24px}.hero h1{font-size:clamp(34px,5vw,64px);line-height:1.02;margin:0;letter-spacing:-.04em}.hero p{max-width:560px;color:var(--muted);margin:8px 0 0}.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.badge{border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-size:12px;color:var(--muted)}.badge.good{border-color:#2c7259;color:var(--green)}.badge.warn{border-color:#745c2c;color:var(--gold)}.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.metric-card,.panel{background:linear-gradient(145deg,rgba(25,44,39,.94),rgba(17,31,27,.94));border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,.18)}.metric-card{padding:18px;min-height:132px}.metric-label{font-size:13px;color:var(--muted)}.metric-value{font-size:25px;font-weight:750;margin:10px 0 4px;white-space:nowrap}.metric-note{font-size:12px;color:var(--muted)}.positive{color:var(--green)!important}.negative{color:var(--red)!important}.neutral{color:var(--muted)!important}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.panel{padding:22px;overflow:hidden}.panel.full{grid-column:1/-1}.panel h2{font-size:20px;margin:0 0 4px}.panel .sub{color:var(--muted);font-size:13px;margin-bottom:18px}.callout{border-left:3px solid var(--gold);background:#2a2618;border-radius:8px;padding:12px 14px;color:#eadfbe;margin:16px 0}.bar-row{display:grid;grid-template-columns:150px 1fr 92px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.bar-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bar-track{height:12px;background:#0d1915;border-radius:999px;position:relative;overflow:hidden}.bar-axis{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#607169}.bar-fill{position:absolute;top:2px;bottom:2px;border-radius:999px}.bar-fill.positive{background:var(--green)}.bar-fill.negative{background:var(--red)}.bar-fill.neutral{background:#607169}.bar-value{text-align:right;font-variant-numeric:tabular-nums}.allocation-row{display:grid;grid-template-columns:150px 1fr 54px;gap:10px;align-items:center;font-size:12px;margin:8px 0}.allocation-track{height:8px;background:#0d1915;border-radius:99px;overflow:hidden}.allocation-track span{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--green));border-radius:99px}.allocation-row strong{text-align:right}.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.status-metric{background:#0f1d19;border:1px solid var(--line);border-radius:12px;padding:13px}.status-metric>div{font-size:12px}.status-metric strong{display:block;font-size:20px;margin:6px 0}.status-metric small{display:block;color:var(--muted);font-size:10px}.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px}.status-dot.ok{background:var(--green);box-shadow:0 0 10px var(--green)}.status-dot.waiting{background:var(--gold);box-shadow:0 0 10px var(--gold)}.period-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}.period-card{background:#0f1d19;border:1px solid var(--line);border-radius:14px;padding:15px}.period-card span,.period-card small{display:block;color:var(--muted);font-size:11px}.period-card b{display:block;font-size:21px;margin:7px 0}.period-bar-row{display:grid;grid-template-columns:82px 1fr 70px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.period-bar-track{height:10px;background:#0d1915;border-radius:99px;overflow:hidden}.period-bar-track i{display:block;height:100%;border-radius:99px}.period-bar-track i.positive{background:var(--green)}.period-bar-track i.negative{background:var(--red)}.period-kind{font-size:12px;color:var(--muted);margin-bottom:10px}.mini-empty{min-height:180px;border:1px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--gold);text-align:center;padding:20px}.heat-wrap{overflow:auto}.heatmap{min-width:850px}.heatmap td{text-align:center;font-variant-numeric:tabular-nums;border:3px solid var(--panel);border-radius:7px}.heat-empty{background:#0f1d19;color:#5f6e68}.drawdown-head{display:flex;justify-content:space-between;margin-bottom:8px}.drawdown-chart{width:100%;height:auto;background:#0f1d19;border-radius:12px}.empty-chart{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}.empty-chart b{color:var(--gold)}.empty-chart p{margin:4px;max-width:540px}.empty-icon{font-size:48px;color:var(--green)}.line-chart{width:100%;height:auto;background:#0f1d19;border-radius:12px}.grid-line{stroke:#2a4039;stroke-width:1}.axis-text{fill:#899791;font-size:11px}.chart-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;color:var(--muted)}.chart-legend i{display:inline-block;width:18px;height:3px;margin-right:6px;vertical-align:middle}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:10px 8px;white-space:nowrap}td{padding:10px 8px;border-bottom:1px solid rgba(42,64,57,.55)}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}small{color:var(--muted)}.quality{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.quality article{background:#0f1d19;border-radius:12px;padding:15px;border:1px solid var(--line)}.quality b{display:block;margin-bottom:5px}.quality p{font-size:12px;color:var(--muted);margin:0}.footer{margin-top:22px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:20px}.mono{font-family:Consolas,monospace}.section-gap{margin-top:16px}@media(max-width:1050px){.metrics{grid-template-columns:repeat(3,1fr)}.period-grid{grid-template-columns:repeat(4,1fr)}.status-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.wrap{padding:22px 14px 50px}.hero{display:block}.grid{grid-template-columns:1fr}.panel.full{grid-column:auto}.metrics{grid-template-columns:repeat(2,1fr)}.period-grid{grid-template-columns:repeat(2,1fr)}.status-grid,.quality{grid-template-columns:1fr}.bar-row{grid-template-columns:100px 1fr 78px}.allocation-row{grid-template-columns:100px 1fr 48px}.metric-value{font-size:20px}}@media print{body{background:#fff;color:#111}.metric-card,.panel{box-shadow:none;background:#fff;border-color:#ccc}.metric-note,.panel .sub,small,.footer{color:#555}.positive{color:#087f5b!important}.negative{color:#c92a2a!important}}
@@ -1262,8 +1273,8 @@ def build() -> tuple[Path, dict[str, Any]]:
 <section class="hero"><div><h1>績效累積圖</h1><p>實際績效已改用 2026-08-10 起始、2026-08-11 起逐筆成交的四策略 equity curve。不再把今日持股倒推一年。理論卡與實際線分開標示截止日。</p><div class="badges"><span class="badge good">ACTUAL_FILLS_RECONCILED</span><span class="badge good">THEORY_ASOF_{{THEORY_ASOF_COMPACT}}</span><span class="badge warn">RISK_SAMPLE_{{RISK_OBS}}_RETURNS</span><span class="badge">NO_BROKER · NO_ORDER</span><a class="badge good" href="inputs/four_strategy_daily_signals.xlsx" download>下載 Excel 主檔</a></div></div><div><b>四策略估值日</b><br><span class="mono">{{ASOF}}</span><br><small>owner 庫存快照 {{SNAPSHOT_ASOF}}；理論卡 {{THEORY_ASOF}}</small></div></section>
 <section class="metrics">{{HEADER_CARDS}}</section>
 <section class="grid">
-<article class="panel full"><h2>最新四策略卡 · 8/24 收盤</h2><div class="sub">來源圖逐列保存。紅／綠方向已轉成帶正負號報酬；融資的 2637「進」與 2646「出」是 8/25 計畫訊號，不是成交。</div><div class="strategy-card-grid">{{LATEST_SIGNAL_CARDS}}</div></article>
-<article class="panel full"><h2>8/25 計畫進出 · 等待實際成交</h2><div class="sub">沒有成交時間、價格、股數與費稅前，不寫入 actual_fills.csv，也不改實際績效曲線。</div>{{PLANNED_SIGNALS}}</article>
+<article class="panel full"><h2>最新四策略卡 · {{SIGNAL_ASOF}} 收盤</h2><div class="sub">來源圖逐列保存。紅／綠方向已轉成帶正負號報酬；{{PLANNED_DATE}} 的「進／出」是計畫訊號，不是成交。</div><div class="strategy-card-grid">{{LATEST_SIGNAL_CARDS}}</div></article>
+<article class="panel full"><h2>{{PLANNED_DATE}} 計畫進出 · 等待實際成交</h2><div class="sub">沒有成交時間、價格、股數與費稅前，不寫入 actual_fills.csv，也不改實際績效曲線。</div>{{PLANNED_SIGNALS}}</article>
 <article class="panel full"><h2>四策略實際績效 · 累積曲線</h2><div class="sub">每個 sleeve 以 NT$50 萬現金起始，用實際成交、費稅、已實現損益與每日可變現價值重建；合計初始資金 NT$200 萬。</div>{{LINE_CHART}}</article>
 <article class="panel full"><h2>四策略理論卡 · 來源顯示曲線</h2><div class="sub">這是 owner 策略卡的「當日持倉成分等權顯示報酬」，不是可投資 NAV，也不將每日百分比複利串接。資料只到 {{THEORY_ASOF}}。</div>{{THEORY_CHART}}</article>
 <article class="panel full"><h2>實際 vs 理論 · 四策略差異</h2><div class="sub">「差異」只在共同截止日 {{THEORY_ASOF}} 計算：實際 50 萬 sleeve 可變現報酬 − 理論卡等權顯示報酬。這是描述性 implementation gap，權重與現金比率不同，不冒充 alpha。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際累計<br>{{ASOF}}</th><th class="num">實際損益</th><th class="num">實際<br>{{THEORY_ASOF}}</th><th class="num">理論卡<br>{{THEORY_ASOF}}</th><th class="num">差異<br>pp</th><th class="num">實際/理論<br>持股數</th><th class="num">MDD</th><th class="num">Sharpe</th></tr></thead><tbody>{{STRATEGY_TABLE}}</tbody></table></div></article>
@@ -1288,9 +1299,15 @@ def build() -> tuple[Path, dict[str, Any]]:
     top_loser = min(holdings, key=lambda row: row["unrealized_pnl_twd"])
     top_day_winner = max(holdings, key=lambda row: row["estimated_daily_price_contribution_twd"])
     top_day_loser = min(holdings, key=lambda row: row["estimated_daily_price_contribution_twd"])
+    planned_rows = [row for row in latest_signals if row["signal"] in {"進", "出"}]
+    planned_effective_label = (
+        planned_rows[0]["effective_date"].isoformat() if planned_rows else None
+    )
     generated_at = datetime.now().astimezone().isoformat(timespec="seconds")
     replacements = {
         "{{ASOF}}": actual_asof.isoformat(),
+        "{{SIGNAL_ASOF}}": latest_signals[0]["asof_date"].isoformat(),
+        "{{PLANNED_DATE}}": planned_effective_label or "待定",
         "{{SNAPSHOT_ASOF}}": source_summary["asof_date"].isoformat(),
         "{{RISK_OBS}}": str(return_obs),
         "{{THEORY_ASOF}}": theory_asof.isoformat(),
@@ -1350,7 +1367,16 @@ def build() -> tuple[Path, dict[str, Any]]:
             f"- 今日價格變動估算：`NT$ {fmt_ntd(snapshot['estimated_daily_price_contribution_twd'], sign=True)}`（約 `{fmt_pct(snapshot['estimated_gross_daily_return'], sign=True)}`）",
             f"- 四策略實際累計損益：`NT$ {fmt_ntd(actual_bundle_pnl, sign=True)}`（以 NT$200 萬起始資金）",
             f"- 理論卡最新日：`{theory_asof.isoformat()}`（與實際估值同日）",
-            "- 8/25 計畫訊號：`2637 慧洋-KY 進`、`2646 星宇航空 出`（等待實際成交）",
+            (
+                f"- {planned_effective_label} 計畫訊號："
+                + "、".join(
+                    f"`{row['stock_code']} {row['stock_name']} {row['signal']}`"
+                    for row in planned_rows
+                )
+                + "（等待實際成交）"
+                if planned_rows
+                else "- 無新的計畫進出訊號"
+            ),
             f"- 期間視圖 basis：`{analysis_basis}`",
             "",
             "| 期間 | TWR 績效 | 狀態 |",
@@ -1397,7 +1423,7 @@ def build() -> tuple[Path, dict[str, Any]]:
             "strategy_card_asof": theory_asof.isoformat(),
             "latest_strategy_signals": {
                 "asof_date": latest_signals[0]["asof_date"].isoformat(),
-                "planned_effective_date": "2026-08-25",
+                "planned_effective_date": planned_effective_label,
                 "planned_actions": [
                     {
                         "strategy_id": row["strategy_id"],

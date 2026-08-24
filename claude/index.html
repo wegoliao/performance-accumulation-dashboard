@@ -89,33 +89,32 @@ a{color:var(--accent)}
 </header>
 
 <section class="tiles">
-  <div class="tile"><div class="n neg">+0.27pp</div><div class="l">8/24 當日報酬中，來自估值基準切換而非價格的部分（NT$5,372）</div></div>
-  <div class="tile"><div class="n neg">1 處</div><div class="l">仍未解的自動化斷點：每日 commit 不會重新部署公開頁</div></div>
+  <div class="tile"><div class="n">+0.0008pp</div><div class="l">覆核後的真實雙路徑差（約 NT$17）。原文宣稱的 +0.27pp／NT$5,372 已撤回 —— 券商「現值」欄本就含費稅</div></div>
+  <div class="tile"><div class="n pos">3 處</div><div class="l">P0＋P1 已修復：估值路徑統一、workflow_run 自動部署、.gitattributes ＋ renormalize</div></div>
   <div class="tile"><div class="n">10 / 20</div><div class="l">實際日報酬樣本數／風險統計門檻，Sharpe 仍為 N/A</div></div>
-  <div class="tile"><div class="n">0</div><div class="l">核心 sleeve 重建函式的測試覆蓋筆數</div></div>
+  <div class="tile"><div class="n pos">2 筆</div><div class="l">sleeve 重建函式新增迴歸測試（毒化快照零依賴 ＋ 真實數字鎖定），全套 12 綠</div></div>
 </section>
 
-<h2><span class="badge b0">P0</span> 會讓數字說謊，且今天就會發生</h2>
-<p class="sub">這三項不是風格問題。第 1 項已經在線上頁面產生了一個不存在的漲幅，第 2 項會讓公開頁停在昨天，第 3 項在本次稽核期間已被修復但根因仍在。</p>
+<h2><span class="badge b0">P0</span> 覆核結果：三項中兩項屬實、一項主張撤回但架構風險為真</h2>
+<p class="sub">這三項不是風格問題。覆核後：第 1 項的「灌水」主張有誤（已撤回，詳見該項），但雙路徑架構風險為真且已修復；第 2 項、第 3 項屬實，分別已修復／已補救。</p>
 
 <div class="item t0">
-  <h3><span class="num">01</span>曲線最後一天換了估值基準，把 0.27pp 憑空加進今日報酬</h3>
+  <h3><span class="num">01</span>曲線存在雙估值路徑<span class="badge b3" style="margin-left:8px">已修復 · 原文主張部分撤回</span></h3>
   <dl>
-    <dt>現象</dt><dd><code>build_four_strategy_actual()</code> 在 <code>day == snapshot_asof</code> 時直接採用券商快照的 <code>current_value_twd</code>；其餘所有日期走 <code>estimated_liquidation_value()</code>，扣掉 0.1425% 手續費與 0.3% 證交稅。同一條曲線上有兩種基準。</dd>
-    <dt>證據</dt><dd>8/21 淨值基準 <code>100.2168</code>。8/24 依現行程式為 <code>101.4223</code>（毛），若用一致的淨值基準則是 <code>101.1537</code>。當日報酬 <span class="neg">+1.20% &rarr; +0.93%</span>，累計 <span class="neg">+1.42% &rarr; +1.15%</span>。快照確實是毛值：<code>1,218,013 = 成本 1,177,906 + 未實現 40,107</code>。</dd>
-    <dt>標籤錯</dt><dd>diagnostics 寫 <code>OWNER_SNAPSHOT_NET_LIQUIDATION</code>，但那份快照沒有扣賣出費稅，它是 GROSS。</dd>
-    <dt>會發生</dt><dd>今天 16:30 排程用官方收盤重建時，快照覆寫消失、基準切回淨值 —— 就算價格完全不動，曲線也會憑空掉約 0.27%。這是自動化上線的第一天。</dd>
-    <dt>修法</dt><dd>整條曲線只用一種基準，並且兩條都出：<code>GROSS_MARK</code> 與 <code>NET_LIQUIDATION</code>。券商快照降級為對帳用途，不參與估值。</dd>
+    <dt>原文主張</dt><dd>本頁初版宣稱快照日被灌入 <b>+0.27pp 假漲幅</b>（毛值 101.4223 vs 淨值 101.1537）。<b class="neg">此主張有誤，撤回。</b></dd>
+    <dt>覆核證據</dt><dd>券商畫面的「現值」欄位<b>本身就是淨變現估計</b>：逐檔驗算 14 檔全部吻合 —— 例如 1590：<code>63 × 1,435 = 90,405</code> &rarr; 扌<code>128</code> ＋ 稅 <code>271</code> &rarr; <code>90,006</code>，與畫面分毫不差；其餘各檔差異皆 &le; NT$2（進位）。初版的 <code>101.1537</code> 是把已含費稅的現值<b>又扣一次費稅</b>得出來的。真實的雙路徑差異僅約 <span class="pos">NT$17（0.0008pp）</span>，不是 NT$5,372。</dd>
+    <dt>仍然成立的問題</dt><dd><code>day == snapshot_asof</code> 時曲線確實改用庫存快照估值、其餘日走 <code>estimated_liquidation_value()</code>：兩條路徑有 ~NT$1.45 進位差、diagnostics 標籤 <code>OWNER_SNAPSHOT_NET_LIQUIDATION</code> 語意混淆、且整條曲線隱性依賴一份會過期的手貼快照檔。這些是架構風險，不是灌水。</dd>
+    <dt>已修復</dt><dd>2026-08-25 移除快照日特例：每日一律以官方收盤 × 淨變現估值，函式不再接受 <code>snapshot_asof</code>、不再讀取庫存現值，標籤統一為 <code>OFFICIAL_CLOSE_ESTIMATED_LIQUIDATION_CARRY_FORWARD_POSITIONS</code>。迴歸測試用「毒化快照值」證明曲線零依賴；重建後 8/24 水準 <code>101.4222</code>、累計 <code>+1.42%</code>、損益 <code>NT$ +28,444.55</code>，與線上頁面實質相同。</dd>
   </dl>
 </div>
 
 <div class="item t0">
-  <h3><span class="num">02</span>每日自動 commit 不會觸發公開頁重新部署</h3>
+  <h3><span class="num">02</span>每日自動 commit 不會觸發公開頁重新部署<span class="badge b3" style="margin-left:8px">已修復</span></h3>
   <dl>
     <dt>現象</dt><dd><code>daily-close.yml</code> 用預設的 <code>GITHUB_TOKEN</code> push；GitHub 明訂由 <code>GITHUB_TOKEN</code> 推出的 commit 不會再觸發其他 workflow。而 <code>pages.yml</code> 只在 push 到 <code>index.html</code> 時啟動。</dd>
     <dt>證據</dt><dd>bot commit <code>907a623</code>、<code>c361d7b</code> 都修改了 <code>index.html</code>，但 workflow 清單裡沒有任何一次由這兩個 commit 觸發的 Pages 部署。目前所有成功部署都來自人工 push 或 workflow_dispatch。</dd>
     <dt>影響</dt><dd>排程跑起來後，repo 內的 index.html 每天更新，公開網址卻不動。看的人以為是最新，其實是上一次人工推的版本。</dd>
-    <dt>修法</dt><dd>把 build 與 deploy 合成同一個 job（最乾淨），或在 daily-close 末尾以 <code>gh workflow run pages.yml</code> 顯式觸發。</dd>
+    <dt>已修復</dt><dd>2026-08-25 <code>pages.yml</code> 加上 <code>workflow_run</code> 觸發器（監聽「Daily official close and dashboard」成功完成），並以 job 級 <code>if</code> 條件只在成功時部署；原有 push 觸發與手動 dispatch 保持不變。每日 bot commit 從此會自動重新部署公開頁。</dd>
   </dl>
 </div>
 
@@ -132,20 +131,20 @@ a{color:var(--accent)}
 <p class="sub">這些不會立刻改變數字，但會讓你在數字出錯時查不出來。</p>
 
 <div class="item t1">
-  <h3><span class="num">04</span>沒有 .gitattributes，每天整檔改寫 CSV，diff 稽核失效</h3>
+  <h3><span class="num">04</span>沒有 .gitattributes，每天整檔改寫 CSV，diff 稽核失效<span class="badge b3" style="margin-left:8px">已修復</span></h3>
   <dl>
-    <dt>證據</dt><dd>本機 <code>core.autocrlf=true</code>、repo 無 <code>.gitattributes</code>。Linux runner 寫 LF、Windows 檢出寫 CRLF，於是 bot commit <code>c361d7b</code> 對 <code>price_history.csv</code> 產生 <code>4,115 行全刪全增</code>，實際只多了一天資料。</dd>
+    <dt>證據</dt><dd>本機 <code>core.autocrlf=true</code>、repo 無 <code>.gitattributes</code>。Linux runner 寫 LF、Windows 檢出寫 CRLF，於是 bot commit <code>c361d7b</code> 對 <code>price_history.csv</code> 產生 <code>4,115 行全刪全增</code>，實際只多了一天資料。renormalize 時確實抓到 repo 內 <code>price_history.csv</code>、<code>benchmark_nav.csv</code> 存的是 CRLF。</dd>
     <dt>影響</dt><dd>「今天到底加了哪幾筆收盤」無法用 diff 回答，這正是行情稽核最需要的能力；同時 repo 體積每天以整檔速度成長。</dd>
-    <dt>修法</dt><dd>加 <code>*.csv text eol=lf</code>，做一次 renormalize 之後每日 diff 就只剩真正新增的列。</dd>
+    <dt>已修復</dt><dd>2026-08-25 新增 <code>.gitattributes</code>（<code>* text=auto eol=lf</code> ＋ 明確副檔名規則、<code>*.bat text eol=crlf</code>、<code>*.png/*.xlsx binary</code>），並完成一次 <code>git add --renormalize .</code>。之後每日行情 diff 只剩真正新增的列。</dd>
   </dl>
 </div>
 
 <div class="item t1">
-  <h3><span class="num">05</span>所有公開數字的來源函式，測試覆蓋為零</h3>
+  <h3><span class="num">05</span>所有公開數字的來源函式，測試覆蓋為零<span class="badge b3" style="margin-left:8px">已修復</span></h3>
   <dl>
     <dt>證據</dt><dd>10 個測試全數通過，但沒有一個碰到 <code>build_four_strategy_actual()</code>。既有測試涵蓋的是快照對帳、TWR、短樣本不造假、fail-closed 狀態 —— 都在 sleeve 重建之前的世代。</dd>
-    <dt>影響</dt><dd>四策略累計 +1.42%、各 sleeve 損益、實際 vs 理論差距，全部由這個未受測的函式產出。第 1 項的基準切換就是它裡面的一行，而綠燈的測試完全沒有察覺。</dd>
-    <dt>修法</dt><dd>至少三個測試：現金＋部位守恆、賣超持股必須 fail-closed、整條曲線的估值基準必須一致（這一條會直接抓到第 1 項）。</dd>
+    <dt>影響</dt><dd>四策略累計 +1.42%、各 sleeve 損益、實際 vs 理論差距，全部由這個未受測的函式產生。</dd>
+    <dt>已修復</dt><dd>2026-08-25 補上兩個迴歸測試（全套 12 綠）：合成案例用「毒化快照值」證明曲線對庫存現值零依賴且走淨變現估值；真實資料鎖定 8/24 水準 <code>101.4222</code> 與損益 <code>NT$ +28,444.55</code>，防止基準再次漂移。</dd>
   </dl>
 </div>
 
@@ -241,16 +240,16 @@ a{color:var(--accent)}
 </div>
 
 <h2>修復順序</h2>
-<p class="sub">依「代價 &divide; 效益」排。前三項建議在今天 16:30 排程跑之前完成。</p>
+<p class="sub">2026-08-25 覆核更新：#01–#05 已完成（含原文 #01 主張的更正），其餘依原評估排序。</p>
 <div class="tbl">
 <table>
 <thead><tr><th>順序</th><th>項目</th><th>代價</th><th>拿到什麼</th></tr></thead>
 <tbody>
 <tr><td class="num">&mdash;</td><td>#03 推上 8/25 訊號</td><td>已完成</td><td>公開頁與本機一致</td></tr>
-<tr><td class="num">1</td><td>#02 讓每日 commit 觸發部署</td><td>改 5 行 YAML</td><td>自動化真的自動</td></tr>
-<tr><td class="num">2</td><td>#01 統一估值基準</td><td>改 1 個函式 ＋ 1 個測試</td><td>今日報酬不再多出 0.27pp</td></tr>
-<tr><td class="num">3</td><td>#04 .gitattributes</td><td>1 行 ＋ 一次 renormalize</td><td>每日行情 diff 可稽核</td></tr>
-<tr><td class="num">4</td><td>#05 sleeve 重建測試</td><td>半天</td><td>#01 那類錯誤以後自己現形</td></tr>
+<tr><td class="num">1</td><td>#02 讓每日 commit 觸發部署</td><td class="pos">已完成</td><td><code>workflow_run</code> 成功後自動部署，自動化真的自動</td></tr>
+<tr><td class="num">2</td><td>#01 統一估值基準</td><td class="pos">已完成</td><td>單一淨變現路徑；「+0.27pp 灌水」主張經覆核撤回（真實差 ~NT$17）</td></tr>
+<tr><td class="num">3</td><td>#04 .gitattributes</td><td class="pos">已完成</td><td>LF 規範 ＋ renormalize，每日行情 diff 可稽核</td></tr>
+<tr><td class="num">4</td><td>#05 sleeve 重建測試</td><td class="pos">已完成</td><td>毒化快照零依賴迴歸 ＋ 真實數字鎖定（12 測試全綠）</td></tr>
 <tr><td class="num">5</td><td>#11 履約落差帳</td><td>一天</td><td>理論要打幾折，有自己的證據</td></tr>
 <tr><td class="num">6</td><td>#07 除權息還原</td><td>一天</td><td>報酬不再系統性低估</td></tr>
 <tr><td class="num">7</td><td>#08 真正的理論曲線</td><td>數天</td><td>實際 vs 理論變成可比的對照</td></tr>
@@ -269,7 +268,7 @@ a{color:var(--accent)}
 </ul>
 
 <footer>
-  <p>本頁是對 <code>wegoliao/performance-accumulation-dashboard</code> 在 commit <code>d1805cd</code> 的獨立稽核，由 Claude 產出。所有數字皆可用 repo 內的 <code>scripts/</code> 與 <code>inputs/</code> 重跑驗證；本頁不產生任何交易建議、不含委託能力、也不改動實際成交檔。</p>
+  <p>本頁是對 <code>wegoliao/performance-accumulation-dashboard</code> 在 commit <code>d1805cd</code> 的獨立稽核，由 Claude 產出；2026-08-25 覆核修訂（#01 主張撤回、#01/#02/#04/#05 標記已修復）。所有數字皆可用 repo 內的 <code>scripts/</code> 與 <code>inputs/</code> 重跑驗證；本頁不產生任何交易建議、不含委託能力、也不改動實際成交檔。</p>
   <p><a href="../">&larr; 回公開績效累積圖</a></p>
 </footer>
 
