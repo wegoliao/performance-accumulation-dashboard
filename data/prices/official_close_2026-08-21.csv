@@ -1,0 +1,17 @@
+asof_date,market,stock_code,stock_name,close,source
+2026-08-21,TWSE,1590,亞德客-KY,1435.0000,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,1709,和益,33.3000,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,2059,川湖,13385.0000,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,2103,台橡,28.4000,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,2301,光寶科,261.0000,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,2354,鴻準,60.2000,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,2395,研華,649.0000,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,2397,友通,62.8000,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,2408,南亞科,528.0000,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,2606,裕民,72.6000,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,2609,陽明,64.0000,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,2886,兆豐金,46.9500,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,3006,晶豪科,256.5000,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,3044,健鼎,459.0000,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,6672,騰輝電子-KY,267.5000,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL
+2026-08-21,TWSE,0050,元大台灣50,104.6500,https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL

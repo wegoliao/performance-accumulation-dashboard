@@ -1,0 +1,51 @@
+name: Daily official close and dashboard
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 16:30 Asia/Taipei = 08:30 UTC, Monday-Friday.
+    - cron: "30 8 * * 1-5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-performance-dashboard
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install test dependency
+        run: python -m pip install --disable-pip-version-check pytest
+      - name: Fetch official TWSE and TPEx close
+        run: python scripts/fetch_prices.py --lookback 45 --delay 2.6
+      - name: Rebuild dashboard and receipts
+        run: python scripts/build_dashboard.py
+      - name: Verify calculations and fail-closed states
+        run: python -m pytest -q tests
+      - name: Upload private dashboard artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-dashboard-${{ github.run_number }}
+          path: |
+            index.html
+            DASHBOARD_SUMMARY.md
+            output/*.json
+          retention-days: 90
+      - name: Commit verified daily evidence
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add inputs/price_history.csv inputs/benchmark_nav.csv output/*.json index.html output/performance_dashboard.html DASHBOARD_SUMMARY.md
+          if git diff --cached --quiet; then
+            echo "No new official close."
+          else
+            git commit -m "data: append verified official close"
+            git push
+          fi

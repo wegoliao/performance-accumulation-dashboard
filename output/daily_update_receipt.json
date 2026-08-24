@@ -1,0 +1,20 @@
+{
+  "status": "UPDATED",
+  "data_asof": "2026-08-21",
+  "holdings_source": "holdings_snapshot_2026-08-24.csv",
+  "positions": 15,
+  "portfolio_gross_mark_twd": 1199194.85,
+  "benchmark": "0050",
+  "benchmark_close": 104.65,
+  "account_nav_changed": false,
+  "benchmark_changed": false,
+  "price_receipt_changed": true,
+  "price_receipt": "data\\prices\\official_close_2026-08-21.csv",
+  "safety": {
+    "official_public_market_data_only": true,
+    "broker_access": false,
+    "credential_access": false,
+    "order_capability": false,
+    "inferred_position_changes": false
+  }
+}

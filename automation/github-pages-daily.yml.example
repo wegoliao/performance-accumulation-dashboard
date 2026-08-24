@@ -1,0 +1,30 @@
+# TEMPLATE ONLY — this file is intentionally outside .github/workflows and is
+# not active. Copy/enable it only after the owner confirms the target repo,
+# Pages branch, benchmark, data provider, and refresh schedule.
+name: rebuild-performance-dashboard
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Taiwan close + buffer, represented in UTC. Confirm DST/holiday behavior
+    # and provider freshness before enabling.
+    - cron: "30 6 * * 1-5"
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Rebuild static HTML from checked-in inputs
+        shell: pwsh
+        run: python 66.performance_accumulation_dashboard/scripts/build_dashboard.py
+      - name: Verify no missing-history metric was fabricated
+        shell: pwsh
+        run: python -m pytest -q 66.performance_accumulation_dashboard/tests/test_dashboard.py
+      # Publishing/commit step intentionally omitted until owner confirms repo.

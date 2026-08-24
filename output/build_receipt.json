@@ -1,0 +1,94 @@
+{
+  "status": "SUCCESS",
+  "generated_at": "2026-08-24T16:54:34+08:00",
+  "source_data_asof": "2026-08-24",
+  "source_capture_time": null,
+  "source_status": "USER_PASTED_INTRADAY_SNAPSHOT",
+  "snapshot_reconciliation": "PASS",
+  "inputs": {
+    "holdings_snapshot_2026-08-24.csv": {
+      "sha256": "26c2584de6b2de3dd5451660aa7cdeabdc4d85f8b87645402a90bcecb9a77181",
+      "rows": 15
+    },
+    "snapshot_summary_2026-08-24.csv": {
+      "sha256": "94b07f7add6a10d6f066db123d2bcc384b8ce708a8b1a1df7c2f07197c248467",
+      "rows": 1
+    },
+    "account_nav.csv": {
+      "sha256": "8e6049be52d6276aee1da1afdc168226f182873d5af327774f080a8eab4a1b1b",
+      "rows": 1
+    },
+    "strategy_nav.csv": {
+      "sha256": "a218494fcfaac0f23098ce551b2a71cdfeed57e549e77c1b377d9702c33452b1",
+      "rows": 0
+    },
+    "benchmark_nav.csv": {
+      "sha256": "5c35207c39fff1ce0d27419adf205607ff714aa628f3928885d2a41ce59bd006",
+      "rows": 484
+    },
+    "actual_fills.csv": {
+      "sha256": "86c704a49c46957cefdab534dcef5e11138aeb19f046951e2fdb916518a7d9b3",
+      "rows": 0
+    }
+  },
+  "snapshot": {
+    "shares": 12169.0,
+    "yesterday_shares": 12169.0,
+    "current_value_twd": 1218013.0,
+    "cost_basis_twd": 1177906.0,
+    "unrealized_pnl_twd": 40107.0,
+    "positions": 15,
+    "unrealized_return": 0.03404940631934976,
+    "estimated_daily_price_contribution_twd": 24217.550000000003,
+    "estimated_gross_daily_return": 0.02019484156390432,
+    "gross_current_mark_value_twd": 1223412.4,
+    "gross_previous_mark_value_twd": 1199194.8499999999,
+    "max_weight": 0.1468531124052042,
+    "hhi": 0.08137823083107056,
+    "effective_positions": 12.288298600099276,
+    "winning_positions": 9,
+    "losing_positions": 6,
+    "winning_position_ratio": 0.6,
+    "source_subtotal_return": 0.034,
+    "reconciliation": "PASS"
+  },
+  "history": {
+    "account_nav_observations": 1,
+    "account_return_observations": 0,
+    "analysis_return_observations": 241,
+    "analysis_basis": "SIMULATED_CONSTANT_HOLDINGS",
+    "mtm_diagnostics": {
+      "status": "OK",
+      "covered_days": 242,
+      "skipped_days": 0,
+      "first_covered": "2025-08-25",
+      "last_covered": "2026-08-24",
+      "missing": [],
+      "calendar_source": "TAIEX",
+      "basis": "SIMULATED_CONSTANT_HOLDINGS"
+    },
+    "strategy_series": [],
+    "benchmark_series": [
+      "0050",
+      "TAIEX"
+    ],
+    "performance_status": "SIMULATED_MTM",
+    "risk_metric_status": "SIMULATED_MTM",
+    "relative_metric_status": "SIMULATED_MTM",
+    "period_returns": {
+      "今日": 0.020194841563904387,
+      "近一週": 0.01362207599114118,
+      "近一月": 0.22410989781977775,
+      "近一季": 0.2712691359317816,
+      "近一年": 0.8199264003874855,
+      "YTD": 0.7267893751164891,
+      "累計": 0.8199264003874855
+    }
+  },
+  "safety": {
+    "network_access": false,
+    "broker_import": false,
+    "credential_access": false,
+    "order_capability": false
+  }
+}
