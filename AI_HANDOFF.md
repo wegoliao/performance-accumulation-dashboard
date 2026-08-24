@@ -23,9 +23,14 @@
 4. GitHub repo／Pages 位置及收盤／盤中更新頻率。
 5. 永豐唯讀資料 provider；任何連線都必須保留 no-login/no-order 測試。
 
-接手時先執行：
+## 接手時先執行
 
 ```powershell
 ..\.venv\Scripts\python.exe -m pytest -q tests\test_dashboard.py
 .\run_dashboard.ps1 -NoOpen
 ```
+
+> **每日訊號流水線（收圖→閘門→匯出→儀表板→發布）請一律照
+> [DEEPSEEK_RUNBOOK.md](DEEPSEEK_RUNBOOK.md) 執行**。訊號正典是主 repo 的
+> `..\data\strategy_signals.tsv`；`inputs/latest_strategy_signals.csv` 由
+> `..\scripts\export_latest_signals.py` 自動產出，不得手改。
