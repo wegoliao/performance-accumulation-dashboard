@@ -1,6 +1,6 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-08-25T16:43:01+00:00",
+  "generated_at": "2026-08-26T00:45:05+08:00",
   "source_data_asof": "2026-08-24",
   "actual_valuation_asof": "2026-08-25",
   "source_capture_time": null,
@@ -28,11 +28,11 @@
       "rows": 486
     },
     "actual_fills.csv": {
-      "sha256": "079b8ab2412455f42c83a97fdc7ae072e32d60c986d0f0eaeeaf397a1988ef57",
+      "sha256": "e63698c1fb4457463de22cdef73b3335166b6d02cdc1d0c013a427a9fb15de27",
       "rows": 23
     },
     "strategy_card_returns.csv": {
-      "sha256": "2569a4aee9f5e4e46b45bc28cceefb2034f181cef9b1b64a87104d4a5deabd35",
+      "sha256": "ea60da4dd22da6877135b307c399aed60fbbb4717a9c64cdeaffa929df6f7800",
       "rows": 44
     },
     "strategy_position_marks.csv": {
@@ -40,7 +40,7 @@
       "rows": 6
     },
     "latest_strategy_signals.csv": {
-      "sha256": "755e279cab30d0af33e0d62644c502681ad34b032ec665bdf71e9cb8b4b0f0ac",
+      "sha256": "c618fc6c80f7d9785f7b6e93a19a8feee8df17b5c4b065f72dd8c6cd745c42c1",
       "rows": 25
     }
   },

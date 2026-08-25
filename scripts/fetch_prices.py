@@ -374,6 +374,29 @@ def rebuild_benchmark_nav(prices: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(rows, key=lambda row: (row["benchmark_id"], row["asof_date"]))
 
 
+
+def _latest_session(prices: list[dict[str, Any]], start: date, end: date) -> str | None:
+    in_window = sorted(
+        {
+            row["asof_date"]
+            for row in prices
+            if start.isoformat() <= row["asof_date"] <= end.isoformat()
+        }
+    )
+    return in_window[-1] if in_window else None
+
+
+def _missing_at_latest(
+    prices: list[dict[str, Any]], targets: list[dict[str, str]], start: date, end: date
+) -> set[str]:
+    """Target symbols with no row on the newest session inside the window."""
+    latest = _latest_session(prices, start, end)
+    if latest is None:
+        return {item["stock_code"] for item in targets}
+    covered = {row["stock_code"] for row in prices if row["asof_date"] == latest}
+    return {item["stock_code"] for item in targets} - covered
+
+
 # --------------------------------------------------------------------- main
 
 
@@ -423,15 +446,17 @@ def run(start: date, end: date, delay: float, only: set[str] | None = None) -> d
         if kept == 0:
             failures.append(f"{code}: no rows in {start}..{end}")
 
-    # If the per-symbol path was turned away for recent data, try the one-shot
-    # OpenAPI feed before giving up on today's close.
+    # TWSE rate-limits datacenter IPs unevenly: some symbols answer, others 307
+    # in the same run. So decide the fallback on WHICH symbols are missing at
+    # the newest session, not on whether any symbol happened to succeed.
+    prices = merge_prices(existing, collected)
     stock_codes = {item["stock_code"] for item in targets if item["stock_code"] != "TAIEX"}
-    fetched_dates = {row["asof_date"] for row in collected}
-    if failures and stock_codes and (not fetched_dates or max(fetched_dates) < end.isoformat()):
+    missing = _missing_at_latest(prices, targets, start, end)
+    if missing & stock_codes:
         try:
             recovered = [
                 row
-                for row in fetch_openapi_latest(stock_codes)
+                for row in fetch_openapi_latest(missing & stock_codes)
                 if start.isoformat() <= row["asof_date"] <= end.isoformat()
             ]
         except FetchError as exc:
@@ -439,16 +464,18 @@ def run(start: date, end: date, delay: float, only: set[str] | None = None) -> d
             recovered = []
         if recovered:
             collected.extend(recovered)
-            recovered_day = max(row["asof_date"] for row in recovered)
             print(
-                f"[fallback] OpenAPI recovered {len(recovered)} rows for {recovered_day}",
+                f"[fallback] OpenAPI recovered {len(recovered)} rows for "
+                f"{max(row['asof_date'] for row in recovered)}: "
+                f"{sorted({row['stock_code'] for row in recovered})}",
                 flush=True,
             )
             for code in {row["stock_code"] for row in recovered}:
                 per_symbol.setdefault(code, {"rows": 0, "market": "TWSE", "name": code})
                 per_symbol[code]["rows"] += 1
+            prices = merge_prices(existing, collected)
 
-    prices = merge_prices(existing, collected)
+
     write_csv(PRICE_PATH, PRICE_FIELDS, prices)
     benchmark_rows = rebuild_benchmark_nav(prices)
     write_csv(BENCHMARK_PATH, BENCHMARK_FIELDS, benchmark_rows)
@@ -457,16 +484,8 @@ def run(start: date, end: date, delay: float, only: set[str] | None = None) -> d
     # The daily job only needs the newest session. A backfill month that 307s
     # is a warning, not a build failure -- previously ANY failure exited 1 and
     # took the whole scheduled workflow down with it.
-    in_window = [day for day in dates if start.isoformat() <= day <= end.isoformat()]
-    latest_day = in_window[-1] if in_window else None
-    covered_at_latest = (
-        {row["stock_code"] for row in prices if row["asof_date"] == latest_day}
-        if latest_day
-        else set()
-    )
-    missing_at_latest = sorted(
-        {item["stock_code"] for item in targets} - covered_at_latest
-    )
+    latest_day = _latest_session(prices, start, end)
+    missing_at_latest = sorted(_missing_at_latest(prices, targets, start, end))
     receipt = {
         "status": (
             "SUCCESS"
