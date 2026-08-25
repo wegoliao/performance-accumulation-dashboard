@@ -37,6 +37,32 @@ def _nice_bounds(values: Sequence[float], pad_ratio: float = 0.10) -> tuple[floa
     return low - pad, high + pad
 
 
+def _robust_bounds(values: Sequence[float]) -> tuple[float, float]:
+    """Bounds that frame the bulk of the data instead of the extremes.
+
+    Uses the inter-quartile range so one runaway holding cannot flatten the
+    rest of the plot. Callers are expected to clamp and flag anything outside.
+    """
+    ordered = sorted(values)
+    if len(ordered) < 4:
+        return _nice_bounds(values, 0.14)
+
+    def quantile(fraction: float) -> float:
+        position = fraction * (len(ordered) - 1)
+        lower = int(math.floor(position))
+        upper = min(lower + 1, len(ordered) - 1)
+        return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
+
+    q1, q3 = quantile(0.25), quantile(0.75)
+    spread = q3 - q1
+    if math.isclose(spread, 0.0):
+        return _nice_bounds(values, 0.14)
+    low = max(min(ordered), q1 - 1.5 * spread)
+    high = min(max(ordered), q3 + 1.5 * spread)
+    pad = (high - low) * 0.16
+    return low - pad, high + pad
+
+
 def _fmt_axis(value: float, percent: bool) -> str:
     return f"{value * 100:.1f}%" if percent else f"{value:,.1f}"
 
@@ -240,7 +266,11 @@ def risk_return_scatter(points: Sequence[dict[str, Any]], benchmark: dict[str, A
         xs.append(benchmark["volatility"])
         ys.append(benchmark["annualised_return"])
     x_low, x_high = _nice_bounds(xs, 0.14)
-    y_low, y_high = _nice_bounds(ys + [0.0], 0.14)
+    # A single 10-bagger annualises into the hundreds of percent and would
+    # squash every other holding onto the floor. Frame the plot on the robust
+    # middle of the distribution and pin the outliers to the edge instead,
+    # keeping their true value visible in the label rather than hiding it.
+    y_low, y_high = _robust_bounds(ys + [0.0])
     x_low = max(x_low, 0.0)
     max_value = max(row["end_value"] for row in usable) or 1.0
 
@@ -268,16 +298,38 @@ def risk_return_scatter(points: Sequence[dict[str, Any]], benchmark: dict[str, A
             f'<line x1="{left}" y1="{y_of(0):.1f}" x2="{width - right}" y2="{y_of(0):.1f}" class="ref-line"/>'
         )
 
+    clamped: list[str] = []
     for row in sorted(usable, key=lambda item: item["end_value"], reverse=True):
         radius = 6 + 22 * math.sqrt(row["end_value"] / max_value)
         color = GREEN if row["annualised_return"] >= 0 else RED
-        cx, cy = x_of(row["volatility"]), y_of(row["annualised_return"])
+        actual = row["annualised_return"]
+        shown = min(max(actual, y_low), y_high)
+        off_scale = not math.isclose(shown, actual)
+        cx, cy = x_of(row["volatility"]), y_of(shown)
+        tooltip = (
+            f'{html.escape(row["stock_code"])} {html.escape(row["stock_name"])} · '
+            f'年化 {actual * 100:+.1f}% · 波動 {row["volatility"] * 100:.1f}% · '
+            f'部位 NT$ {row["end_value"]:,.0f}'
+            + ("（超出座標範圍，已標在邊緣）" if off_scale else "")
+        )
+        if off_scale:
+            # Pin to the edge as a triangle carrying its real number, so an
+            # off-scale holding reads as "beyond the axis", never as "at the top".
+            size = max(radius * 0.72, 7.0)
+            tip = cy - size if actual > shown else cy + size
+            parts.append(
+                f'<polygon points="{cx:.1f},{tip:.1f} {cx - size:.1f},{cy:.1f} {cx + size:.1f},{cy:.1f}" '
+                f'fill="{color}" opacity="0.30" stroke="{color}" stroke-width="1.6">'
+                f"<title>{tooltip}</title></polygon>"
+                f'<text x="{cx:.1f}" y="{cy + (14 if actual < shown else -size - 4):.1f}" '
+                f'class="scatter-label" text-anchor="middle" fill="{color}">'
+                f'{html.escape(row["stock_code"])} {actual * 100:+,.0f}%</text>'
+            )
+            clamped.append(f'{row["stock_code"]} {row["stock_name"]} {actual * 100:+,.0f}%')
+            continue
         parts.append(
             f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="{radius:.1f}" fill="{color}" opacity="0.24" '
-            f'stroke="{color}" stroke-width="1.4"><title>'
-            f'{html.escape(row["stock_code"])} {html.escape(row["stock_name"])} · '
-            f'年化 {row["annualised_return"] * 100:+.1f}% · 波動 {row["volatility"] * 100:.1f}% · '
-            f'部位 NT$ {row["end_value"]:,.0f}</title></circle>'
+            f'stroke="{color}" stroke-width="1.4"><title>{tooltip}</title></circle>'
             f'<text x="{cx:.1f}" y="{cy + 3.5:.1f}" class="scatter-label" text-anchor="middle">'
             f'{html.escape(row["stock_code"])}</text>'
         )
@@ -292,8 +344,15 @@ def risk_return_scatter(points: Sequence[dict[str, Any]], benchmark: dict[str, A
         f'<text x="{left + plot_w / 2:.1f}" y="{height - 6}" class="axis-text" text-anchor="middle">'
         "年化波動度 →</text>"
     )
+    note = (
+        f'<div class="chart-legend"><span>▲ 超出座標範圍（真實值已標在圖上）：'
+        f'{html.escape("、".join(clamped))}</span></div>'
+        if clamped
+        else ""
+    )
     return (
-        f'<svg class="line-chart" viewBox="0 0 {width} {height}" role="img" aria-label="風險報酬散布圖">'
+        note
+        + f'<svg class="line-chart" viewBox="0 0 {width} {height}" role="img" aria-label="風險報酬散布圖">'
         + "".join(parts)
         + "</svg>"
     )

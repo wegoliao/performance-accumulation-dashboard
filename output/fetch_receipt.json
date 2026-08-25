@@ -1,106 +1,111 @@
 {
   "status": "SUCCESS",
-  "fetched_at": "2026-08-24T09:04:27+00:00",
+  "fetched_at": "2026-08-26T00:10:00+08:00",
   "window": {
-    "start": "2026-07-10",
-    "end": "2026-08-24"
+    "start": "2026-08-01",
+    "end": "2026-08-25"
   },
-  "requested_symbols": 17,
-  "price_rows_total": 4114,
-  "price_rows_added_or_refreshed": 527,
-  "trading_days": 242,
+  "requested_symbols": 18,
+  "price_rows_total": 4374,
+  "price_rows_added_or_refreshed": 306,
+  "trading_days": 243,
   "coverage": {
     "first": "2025-08-25",
-    "last": "2026-08-24"
+    "last": "2026-08-25"
   },
   "per_symbol": {
     "1590": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "亞德客-KY"
     },
     "1709": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "和益"
     },
     "2059": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "川湖"
     },
     "2103": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "台橡"
     },
     "2301": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "光寶科"
     },
     "2354": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "鴻準"
     },
     "2395": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "研華"
     },
     "2397": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "友通"
     },
     "2408": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "南亞科"
     },
     "2606": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "裕民"
     },
     "2609": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "陽明"
     },
+    "2637": {
+      "rows": 17,
+      "market": "TWSE",
+      "name": "慧洋-KY"
+    },
     "2886": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "兆豐金"
     },
     "3006": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "晶豪科"
     },
     "3044": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "健鼎"
     },
     "6672": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "騰輝電子-KY"
     },
     "0050": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE",
       "name": "0050"
     },
     "TAIEX": {
-      "rows": 31,
+      "rows": 17,
       "market": "TWSE_INDEX",
       "name": "TAIEX"
     }
   },
-  "benchmark_rows": 484,
+  "benchmark_rows": 486,
   "failures": [],
   "endpoints": [
     "https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY",

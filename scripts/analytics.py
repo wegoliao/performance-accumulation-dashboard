@@ -454,3 +454,92 @@ def contribution_shares(stats: Sequence[dict[str, Any]]) -> list[dict[str, Any]]
         }
         for row in ordered
     ]
+
+
+# ------------------------------------------------------- signal-to-fill ledger
+
+
+def load_ohlc(path: Path) -> dict[str, dict[date, dict[str, float]]]:
+    """Full OHLC per stock, for execution-quality work that needs more than close."""
+    book: dict[str, dict[date, dict[str, float]]] = defaultdict(dict)
+    for row in _read_csv(path):
+        code = (row.get("stock_code") or "").strip()
+        if not code:
+            continue
+        bar: dict[str, float] = {}
+        for field in ("open", "high", "low", "close"):
+            raw = (row.get(field) or "").strip()
+            if raw:
+                bar[field] = _to_float(raw, f"price_history.{field}[{code}]")
+        if "close" in bar:
+            book[code][_to_date(row["asof_date"], "price_history.asof_date")] = bar
+    return dict(book)
+
+
+def build_slippage_ledger(
+    path: Path, ohlc: dict[str, dict[date, dict[str, float]]]
+) -> list[dict[str, Any]]:
+    """Measure what each signal actually cost to execute.
+
+    The strategy card quotes an entry price; the account pays a fill price. The
+    gap between them is the whole answer to "can this strategy be traded", and
+    it is invisible in both the theory curve and the account NAV.
+    """
+    rows: list[dict[str, Any]] = []
+    for raw in _read_csv(path):
+        code = (raw.get("stock_code") or "").strip()
+        fill_date = _to_date(raw["fill_date"], "signal_fills.fill_date")
+        signal_date = _to_date(raw["signal_date"], "signal_fills.signal_date")
+        fill_price = _to_float(raw["fill_price"], "signal_fills.fill_price")
+        signal_ref = _to_float(raw["signal_ref_price"], "signal_fills.signal_ref_price")
+        side = (raw.get("action") or "BUY").strip().upper()
+        bar = ohlc.get(code, {}).get(fill_date, {})
+        # A buy filled ABOVE its reference is adverse; a sell filled below is.
+        direction = 1.0 if side == "BUY" else -1.0
+
+        def basis_points(reference: float | None) -> float | None:
+            if not reference:
+                return None
+            return direction * (fill_price / reference - 1.0) * 10_000.0
+
+        day_open = bar.get("open")
+        high, low, close = bar.get("high"), bar.get("low"), bar.get("close")
+        span = (high - low) if high is not None and low is not None else None
+        rows.append(
+            {
+                "signal_date": signal_date,
+                "effective_date": raw.get("effective_date", "").strip(),
+                "strategy_id": (raw.get("strategy_id") or "").strip(),
+                "stock_code": code,
+                "stock_name": (raw.get("stock_name") or "").strip(),
+                "action": side,
+                "signal_ref_price": signal_ref,
+                "signal_basis": (raw.get("signal_basis") or "").strip(),
+                "fill_date": fill_date,
+                "fill_time": (raw.get("fill_time") or "").strip(),
+                "fill_price": fill_price,
+                "shares": _to_float(raw["shares"], "signal_fills.shares"),
+                "delay_days": (fill_date - signal_date).days,
+                "day_open": day_open,
+                "day_high": high,
+                "day_low": low,
+                "day_close": close,
+                "slippage_vs_signal_bp": basis_points(signal_ref),
+                "slippage_vs_open_bp": basis_points(day_open),
+                # Where in the day's range the fill landed: 0% = the low, 100% = the high.
+                "fill_range_position": (
+                    (fill_price - low) / span if span and span > 0 else None
+                ),
+                # Best and worst the position looked on the day, measured from the fill.
+                "mfe_pct": (high / fill_price - 1.0) if high else None,
+                "mae_pct": (low / fill_price - 1.0) if low else None,
+                "close_vs_fill_pct": (close / fill_price - 1.0) if close else None,
+                "limit_up_price": round(signal_ref * 1.10, 2) if signal_ref else None,
+                "hit_limit_up": (
+                    high >= round(signal_ref * 1.10, 2) - 1e-9
+                    if high and signal_ref
+                    else None
+                ),
+            }
+        )
+    return sorted(rows, key=lambda row: (row["fill_date"], row["stock_code"]))

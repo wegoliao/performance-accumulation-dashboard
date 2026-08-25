@@ -39,6 +39,7 @@ BENCHMARK_NAV_PATH = INPUTS / "benchmark_nav.csv"
 PRICE_HISTORY_PATH = INPUTS / "price_history.csv"
 LEDGER_PATH = INPUTS / "positions_ledger.csv"
 ACTUAL_FILLS_PATH = INPUTS / "actual_fills.csv"
+SIGNAL_FILLS_PATH = INPUTS / "signal_fills.csv"
 STRATEGY_CARD_PATH = INPUTS / "strategy_card_returns.csv"
 STRATEGY_MARKS_PATH = INPUTS / "strategy_position_marks.csv"
 LATEST_STRATEGY_SIGNALS_PATH = INPUTS / "latest_strategy_signals.csv"
@@ -613,11 +614,32 @@ def build_four_strategy_actual(
         for row in holdings
         if row["stock_code"] != "2886"
     }
-    if reconstructed != expected:
+    # The owner snapshot is a point in time. A fill executed after it cannot be
+    # reconciled against it yet, so replay the book only up to the snapshot date
+    # and check that; anything later is reported as awaiting its own snapshot
+    # rather than silently loosening the guard.
+    snapshot_dates = [row["asof_date"] for row in holdings if row.get("asof_date")]
+    snapshot_asof = max(snapshot_dates) if snapshot_dates else asof
+    settled_shares: dict[str, float] = defaultdict(float)
+    for fill in fills:
+        if fill["date"] > snapshot_asof:
+            continue
+        settled_shares[fill["stock_code"].strip()] += (
+            fill["shares"] if fill["side"] == "BUY" else -fill["shares"]
+        )
+    settled = {code: shares for code, shares in settled_shares.items() if shares > 1e-9}
+    if settled != expected:
         raise InputError(
-            f"four-strategy active shares do not reconcile: fills={dict(reconstructed)} source={expected}"
+            f"four-strategy active shares do not reconcile at {snapshot_asof}: "
+            f"fills={settled} source={expected}"
         )
     diagnostics["reconciliation"] = "PASS_EXCLUDING_UNASSIGNED_2886"
+    diagnostics["reconciled_asof"] = snapshot_asof.isoformat()
+    diagnostics["post_snapshot_positions"] = {
+        code: shares - expected.get(code, 0.0)
+        for code, shares in sorted(reconstructed.items())
+        if abs(shares - expected.get(code, 0.0)) > 1e-9
+    }
     diagnostics["unassigned"] = {"2886": 1.0}
     diagnostics["last_fill_date"] = max(row["date"] for row in fills).isoformat()
     diagnostics["valuation_asof"] = asof.isoformat()
@@ -627,10 +649,15 @@ def build_four_strategy_actual(
         - STRATEGY_BUDGET_TWD * len(STRATEGY_LABELS)
     )
     active_codes = set(reconstructed)
+    # The snapshot cost is a point in time, so only fills up to that date may be
+    # compared against it -- otherwise a post-snapshot purchase shows up as a
+    # six-figure "cost basis gap" that is really just a newer trade.
     active_fill_cash_out = sum(
         row["cash_out"]
         for row in fills
-        if row["side"] == "BUY" and row["stock_code"].strip() in active_codes
+        if row["side"] == "BUY"
+        and row["stock_code"].strip() in active_codes
+        and row["date"] <= snapshot_asof
     )
     source_active_cost = sum(
         row["cost_basis_twd"]
@@ -640,6 +667,11 @@ def build_four_strategy_actual(
     diagnostics["active_fill_cash_out_twd"] = active_fill_cash_out
     diagnostics["source_active_cost_ex_unassigned_twd"] = source_active_cost
     diagnostics["active_cost_basis_gap_twd"] = active_fill_cash_out - source_active_cost
+    diagnostics["post_snapshot_fill_cash_out_twd"] = sum(
+        row["cash_out"]
+        for row in fills
+        if row["side"] == "BUY" and row["date"] > snapshot_asof
+    )
     return curves, bundle, diagnostics
 
 
@@ -1109,6 +1141,77 @@ def holdings_table(holdings: list[dict[str, Any]]) -> str:
     return "".join(rows)
 
 
+def slippage_table(rows: list[dict[str, Any]]) -> str:
+    """Signal price vs the price actually paid -- the implementation gap."""
+    if not rows:
+        return (
+            '<div class="mini-empty">WAITING_FIRST_FILL · '
+            "計畫訊號成交後，這裡會逐筆記錄訊號價與實際成交價的落差</div>"
+        )
+
+    def price_cell(value: float | None, note: str = "") -> str:
+        if value is None:
+            return '<td class="num">—</td>'
+        suffix = f"<br><small>{html.escape(note)}</small>" if note else ""
+        return f'<td class="num">{value:,.2f}{suffix}</td>'
+
+    def bp_cell(value: float | None) -> str:
+        if value is None:
+            return '<td class="num">—</td>'
+        # Adverse slippage is a cost, so positive basis points render red.
+        klass = "negative" if value > 0 else "positive"
+        return f'<td class="num {klass}">{value:+,.0f} bp</td>'
+
+    def pct_cell(value: float | None, klass: str | None = None) -> str:
+        if value is None:
+            return '<td class="num">—</td>'
+        return f'<td class="num {klass or css_value_class(value)}">{value * 100:+.2f}%</td>'
+
+    body: list[str] = []
+    for row in rows:
+        position = row["fill_range_position"]
+        if position is None:
+            range_cell = "<td><small>—</small></td>"
+        else:
+            limit_note = ""
+            if row["hit_limit_up"] is not None:
+                limit_note = (
+                    f'<br><small>當日最高 {row["day_high"]:,.2f}；漲停價 '
+                    f'{row["limit_up_price"]:,.2f}'
+                    f'{"，曾觸及漲停" if row["hit_limit_up"] else "，未觸及漲停"}</small>'
+                )
+            range_cell = (
+                '<td><div class="range-track">'
+                f'<span class="range-fill" style="left:{position * 100:.1f}%"></span></div>'
+                f'<small>{row["day_low"]:,.2f} — {row["day_high"]:,.2f}，'
+                f'成交落在區間 {position * 100:.0f}%</small>{limit_note}</td>'
+            )
+        body.append(
+            "<tr>"
+            f'<td><b>{html.escape(row["stock_code"])}</b> {html.escape(row["stock_name"])}'
+            f'<br><small>{html.escape(row["strategy_id"])} · {html.escape(row["action"])}'
+            f' · T+{row["delay_days"]}</small></td>'
+            + price_cell(row["signal_ref_price"], row["signal_basis"])
+            + price_cell(row["day_open"])
+            + price_cell(row["fill_price"], row["fill_time"])
+            + bp_cell(row["slippage_vs_open_bp"])
+            + bp_cell(row["slippage_vs_signal_bp"])
+            + range_cell
+            + pct_cell(row["mfe_pct"], "positive")
+            + pct_cell(row["mae_pct"], "negative")
+            + pct_cell(row["close_vs_fill_pct"])
+            + "</tr>"
+        )
+    return (
+        '<div class="table-wrap"><table><thead><tr><th>訊號</th><th class="num">訊號參考價</th>'
+        '<th class="num">當日開盤</th><th class="num">實際成交</th><th class="num">vs 開盤</th>'
+        '<th class="num">vs 訊號價</th><th>成交價在當日區間位置</th><th class="num">最大有利</th>'
+        '<th class="num">最大不利</th><th class="num">收盤 vs 成交</th></tr></thead><tbody>'
+        + "".join(body)
+        + "</tbody></table></div>"
+    )
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -1252,6 +1355,32 @@ def build() -> tuple[Path, dict[str, Any]]:
     )
     correlation_chart = charts.correlation_bars(per_stock)
 
+    # --- Basket lane -------------------------------------------------------
+    # The four-strategy actual lane is only {RISK_OBS} days old, so Sharpe /
+    # Alpha / Beta legitimately read N/A there. The basket lane marks TODAY's
+    # 15 holdings back through 242 official closes: that is a valid risk
+    # fingerprint of the book the owner is holding right now, and it is the
+    # only lane on this page with enough observations to be stable. It is NOT
+    # realised performance and every label on it says so.
+    basket_window = (mtm_curve[0][0], mtm_curve[-1][0]) if len(mtm_curve) >= 2 else None
+    basket_metrics = performance_metrics(mtm_curve)
+    basket_benchmarks: dict[str, list[tuple[date, float]]] = {}
+    if basket_window:
+        for code in ("TAIEX", "0050"):
+            if code in benchmark_curves:
+                basket_benchmarks[code] = slice_and_normalize(
+                    benchmark_curves[code], basket_window[0], basket_window[1]
+                )
+    basket_relative = relative_metrics(mtm_curve, basket_benchmarks.get("TAIEX", []))
+    basket_capture = analytics.capture_ratios(mtm_curve, basket_benchmarks.get("TAIEX", []))
+    basket_dd = analytics.drawdown_detail(mtm_curve)
+    basket_obs = max(len(mtm_curve) - 1, 0)
+    basket_status = "OK" if basket_obs >= MIN_RISK_RETURN_OBS else "WAITING_MIN_20_RETURNS"
+
+    basket_bench_metrics = performance_metrics(basket_benchmarks.get("TAIEX", []))
+    slippage_rows = analytics.build_slippage_ledger(
+        SIGNAL_FILLS_PATH, analytics.load_ohlc(PRICE_HISTORY_PATH)
+    )
     template = """<!doctype html>
 <html lang="zh-Hant-TW">
 <head>
@@ -1260,7 +1389,7 @@ def build() -> tuple[Path, dict[str, Any]]:
 <title>績效累積圖 · {{SIGNAL_ASOF}}</title>
 <style>
 :root{--ink:#ecf4ef;--muted:#9eaaa5;--panel:#14231f;--panel2:#192c27;--line:#2a4039;--green:#57d3a2;--red:#ff7f7f;--gold:#f5bd58;--blue:#72a7ff;--bg:#0b1512}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#18362d 0,transparent 34%),var(--bg);color:var(--ink);font-family:"Segoe UI","Noto Sans TC",sans-serif;line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:34px 24px 70px}.eyebrow{color:var(--green);font-weight:700;letter-spacing:.16em;font-size:12px;text-transform:uppercase}.hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;margin:8px 0 24px}.hero h1{font-size:clamp(34px,5vw,64px);line-height:1.02;margin:0;letter-spacing:-.04em}.hero p{max-width:560px;color:var(--muted);margin:8px 0 0}.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.badge{border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-size:12px;color:var(--muted)}.badge.good{border-color:#2c7259;color:var(--green)}.badge.warn{border-color:#745c2c;color:var(--gold)}.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.metric-card,.panel{background:linear-gradient(145deg,rgba(25,44,39,.94),rgba(17,31,27,.94));border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,.18)}.metric-card{padding:18px;min-height:132px}.metric-label{font-size:13px;color:var(--muted)}.metric-value{font-size:25px;font-weight:750;margin:10px 0 4px;white-space:nowrap}.metric-note{font-size:12px;color:var(--muted)}.positive{color:var(--green)!important}.negative{color:var(--red)!important}.neutral{color:var(--muted)!important}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.panel{padding:22px;overflow:hidden}.panel.full{grid-column:1/-1}.panel h2{font-size:20px;margin:0 0 4px}.panel .sub{color:var(--muted);font-size:13px;margin-bottom:18px}.callout{border-left:3px solid var(--gold);background:#2a2618;border-radius:8px;padding:12px 14px;color:#eadfbe;margin:16px 0}.bar-row{display:grid;grid-template-columns:150px 1fr 92px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.bar-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bar-track{height:12px;background:#0d1915;border-radius:999px;position:relative;overflow:hidden}.bar-axis{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#607169}.bar-fill{position:absolute;top:2px;bottom:2px;border-radius:999px}.bar-fill.positive{background:var(--green)}.bar-fill.negative{background:var(--red)}.bar-fill.neutral{background:#607169}.bar-value{text-align:right;font-variant-numeric:tabular-nums}.allocation-row{display:grid;grid-template-columns:150px 1fr 54px;gap:10px;align-items:center;font-size:12px;margin:8px 0}.allocation-track{height:8px;background:#0d1915;border-radius:99px;overflow:hidden}.allocation-track span{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--green));border-radius:99px}.allocation-row strong{text-align:right}.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.status-metric{background:#0f1d19;border:1px solid var(--line);border-radius:12px;padding:13px}.status-metric>div{font-size:12px}.status-metric strong{display:block;font-size:20px;margin:6px 0}.status-metric small{display:block;color:var(--muted);font-size:10px}.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px}.status-dot.ok{background:var(--green);box-shadow:0 0 10px var(--green)}.status-dot.waiting{background:var(--gold);box-shadow:0 0 10px var(--gold)}.period-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}.period-card{background:#0f1d19;border:1px solid var(--line);border-radius:14px;padding:15px}.period-card span,.period-card small{display:block;color:var(--muted);font-size:11px}.period-card b{display:block;font-size:21px;margin:7px 0}.period-bar-row{display:grid;grid-template-columns:82px 1fr 70px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.period-bar-track{height:10px;background:#0d1915;border-radius:99px;overflow:hidden}.period-bar-track i{display:block;height:100%;border-radius:99px}.period-bar-track i.positive{background:var(--green)}.period-bar-track i.negative{background:var(--red)}.period-kind{font-size:12px;color:var(--muted);margin-bottom:10px}.mini-empty{min-height:180px;border:1px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--gold);text-align:center;padding:20px}.heat-wrap{overflow:auto}.heatmap{min-width:850px}.heatmap td{text-align:center;font-variant-numeric:tabular-nums;border:3px solid var(--panel);border-radius:7px}.heat-empty{background:#0f1d19;color:#5f6e68}.drawdown-head{display:flex;justify-content:space-between;margin-bottom:8px}.drawdown-chart{width:100%;height:auto;background:#0f1d19;border-radius:12px}.empty-chart{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}.empty-chart b{color:var(--gold)}.empty-chart p{margin:4px;max-width:540px}.empty-icon{font-size:48px;color:var(--green)}.line-chart{width:100%;height:auto;background:#0f1d19;border-radius:12px}.grid-line{stroke:#2a4039;stroke-width:1}.axis-text{fill:#899791;font-size:11px}.chart-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;color:var(--muted)}.chart-legend i{display:inline-block;width:18px;height:3px;margin-right:6px;vertical-align:middle}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:10px 8px;white-space:nowrap}td{padding:10px 8px;border-bottom:1px solid rgba(42,64,57,.55)}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}small{color:var(--muted)}.quality{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.quality article{background:#0f1d19;border-radius:12px;padding:15px;border:1px solid var(--line)}.quality b{display:block;margin-bottom:5px}.quality p{font-size:12px;color:var(--muted);margin:0}.footer{margin-top:22px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:20px}.mono{font-family:Consolas,monospace}.section-gap{margin-top:16px}@media(max-width:1050px){.metrics{grid-template-columns:repeat(3,1fr)}.period-grid{grid-template-columns:repeat(4,1fr)}.status-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.wrap{padding:22px 14px 50px}.hero{display:block}.grid{grid-template-columns:1fr}.panel.full{grid-column:auto}.metrics{grid-template-columns:repeat(2,1fr)}.period-grid{grid-template-columns:repeat(2,1fr)}.status-grid,.quality{grid-template-columns:1fr}.bar-row{grid-template-columns:100px 1fr 78px}.allocation-row{grid-template-columns:100px 1fr 48px}.metric-value{font-size:20px}}@media print{body{background:#fff;color:#111}.metric-card,.panel{box-shadow:none;background:#fff;border-color:#ccc}.metric-note,.panel .sub,small,.footer{color:#555}.positive{color:#087f5b!important}.negative{color:#c92a2a!important}}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#18362d 0,transparent 34%),var(--bg);color:var(--ink);font-family:"Segoe UI","Noto Sans TC",sans-serif;line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:34px 24px 70px}.eyebrow{color:var(--green);font-weight:700;letter-spacing:.16em;font-size:12px;text-transform:uppercase}.hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;margin:8px 0 24px}.hero h1{font-size:clamp(34px,5vw,64px);line-height:1.02;margin:0;letter-spacing:-.04em}.hero p{max-width:560px;color:var(--muted);margin:8px 0 0}.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.badge{border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-size:12px;color:var(--muted)}.badge.good{border-color:#2c7259;color:var(--green)}.badge.warn{border-color:#745c2c;color:var(--gold)}.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.metric-card,.panel{background:linear-gradient(145deg,rgba(25,44,39,.94),rgba(17,31,27,.94));border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,.18)}.metric-card{padding:18px;min-height:132px}.metric-label{font-size:13px;color:var(--muted)}.metric-value{font-size:25px;font-weight:750;margin:10px 0 4px;white-space:nowrap}.metric-note{font-size:12px;color:var(--muted)}.positive{color:var(--green)!important}.negative{color:var(--red)!important}.neutral{color:var(--muted)!important}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.panel{padding:22px;overflow:hidden}.panel.full{grid-column:1/-1}.panel h2{font-size:20px;margin:0 0 4px}.panel .sub{color:var(--muted);font-size:13px;margin-bottom:18px}.callout{border-left:3px solid var(--gold);background:#2a2618;border-radius:8px;padding:12px 14px;color:#eadfbe;margin:16px 0}.bar-row{display:grid;grid-template-columns:150px 1fr 92px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.bar-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bar-track{height:12px;background:#0d1915;border-radius:999px;position:relative;overflow:hidden}.bar-axis{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#607169}.bar-fill{position:absolute;top:2px;bottom:2px;border-radius:999px}.bar-fill.positive{background:var(--green)}.bar-fill.negative{background:var(--red)}.bar-fill.neutral{background:#607169}.bar-value{text-align:right;font-variant-numeric:tabular-nums}.allocation-row{display:grid;grid-template-columns:150px 1fr 54px;gap:10px;align-items:center;font-size:12px;margin:8px 0}.allocation-track{height:8px;background:#0d1915;border-radius:99px;overflow:hidden}.allocation-track span{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--green));border-radius:99px}.allocation-row strong{text-align:right}.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.status-metric{background:#0f1d19;border:1px solid var(--line);border-radius:12px;padding:13px}.status-metric>div{font-size:12px}.status-metric strong{display:block;font-size:20px;margin:6px 0}.status-metric small{display:block;color:var(--muted);font-size:10px}.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px}.status-dot.ok{background:var(--green);box-shadow:0 0 10px var(--green)}.status-dot.waiting{background:var(--gold);box-shadow:0 0 10px var(--gold)}.period-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}.period-card{background:#0f1d19;border:1px solid var(--line);border-radius:14px;padding:15px}.period-card span,.period-card small{display:block;color:var(--muted);font-size:11px}.period-card b{display:block;font-size:21px;margin:7px 0}.period-bar-row{display:grid;grid-template-columns:82px 1fr 70px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.period-bar-track{height:10px;background:#0d1915;border-radius:99px;overflow:hidden}.period-bar-track i{display:block;height:100%;border-radius:99px}.period-bar-track i.positive{background:var(--green)}.period-bar-track i.negative{background:var(--red)}.period-kind{font-size:12px;color:var(--muted);margin-bottom:10px}.range-track{height:8px;background:#0d1915;border-radius:99px;position:relative;margin:4px 0 5px;border:1px solid var(--line)}.range-fill{position:absolute;top:-3px;width:3px;height:12px;background:var(--gold);border-radius:2px;box-shadow:0 0 6px var(--gold)}.mini-empty{min-height:180px;border:1px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--gold);text-align:center;padding:20px}.heat-wrap{overflow:auto}.heatmap{min-width:850px}.heatmap td{text-align:center;font-variant-numeric:tabular-nums;border:3px solid var(--panel);border-radius:7px}.heat-empty{background:#0f1d19;color:#5f6e68}.drawdown-head{display:flex;justify-content:space-between;margin-bottom:8px}.drawdown-chart{width:100%;height:auto;background:#0f1d19;border-radius:12px}.empty-chart{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}.empty-chart b{color:var(--gold)}.empty-chart p{margin:4px;max-width:540px}.empty-icon{font-size:48px;color:var(--green)}.line-chart{width:100%;height:auto;background:#0f1d19;border-radius:12px}.grid-line{stroke:#2a4039;stroke-width:1}.axis-text{fill:#899791;font-size:11px}.chart-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;color:var(--muted)}.chart-legend i{display:inline-block;width:18px;height:3px;margin-right:6px;vertical-align:middle}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:10px 8px;white-space:nowrap}td{padding:10px 8px;border-bottom:1px solid rgba(42,64,57,.55)}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}small{color:var(--muted)}.quality{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.quality article{background:#0f1d19;border-radius:12px;padding:15px;border:1px solid var(--line)}.quality b{display:block;margin-bottom:5px}.quality p{font-size:12px;color:var(--muted);margin:0}.footer{margin-top:22px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:20px}.mono{font-family:Consolas,monospace}.section-gap{margin-top:16px}@media(max-width:1050px){.metrics{grid-template-columns:repeat(3,1fr)}.period-grid{grid-template-columns:repeat(4,1fr)}.status-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.wrap{padding:22px 14px 50px}.hero{display:block}.grid{grid-template-columns:1fr}.panel.full{grid-column:auto}.metrics{grid-template-columns:repeat(2,1fr)}.period-grid{grid-template-columns:repeat(2,1fr)}.status-grid,.quality{grid-template-columns:1fr}.bar-row{grid-template-columns:100px 1fr 78px}.allocation-row{grid-template-columns:100px 1fr 48px}.metric-value{font-size:20px}}@media print{body{background:#fff;color:#111}.metric-card,.panel{box-shadow:none;background:#fff;border-color:#ccc}.metric-note,.panel .sub,small,.footer{color:#555}.positive{color:#087f5b!important}.negative{color:#c92a2a!important}}
 </style>
 <style>
 .badges a{text-decoration:none}
@@ -1275,6 +1404,7 @@ def build() -> tuple[Path, dict[str, Any]]:
 <section class="grid">
 <article class="panel full"><h2>最新四策略卡 · {{SIGNAL_ASOF}} 收盤</h2><div class="sub">來源圖逐列保存。紅／綠方向已轉成帶正負號報酬；{{PLANNED_DATE}} 的「進／出」是計畫訊號，不是成交。</div><div class="strategy-card-grid">{{LATEST_SIGNAL_CARDS}}</div></article>
 <article class="panel full"><h2>{{PLANNED_DATE}} 計畫進出 · 等待實際成交</h2><div class="sub">沒有成交時間、價格、股數與費稅前，不寫入 actual_fills.csv，也不改實際績效曲線。</div>{{PLANNED_SIGNALS}}</article>
+<article class="panel full"><h2>訊號 → 成交 · 履約落差帳</h2><div class="sub">策略卡報的是訊號價，帳戶付的是成交價，中間的差就是「這個策略能不能被執行」的全部答案。正的 bp 代表對自己不利。累積夠多筆之後，才知道策略卡報酬要打幾折。</div>{{SLIPPAGE_TABLE}}</article>
 <article class="panel full"><h2>四策略實際績效 · 累積曲線</h2><div class="sub">每個 sleeve 以 NT$50 萬現金起始，用實際成交、費稅、已實現損益與每日可變現價值重建；合計初始資金 NT$200 萬。</div>{{LINE_CHART}}</article>
 <article class="panel full"><h2>四策略理論卡 · 來源顯示曲線</h2><div class="sub">這是 owner 策略卡的「當日持倉成分等權顯示報酬」，不是可投資 NAV，也不將每日百分比複利串接。資料只到 {{THEORY_ASOF}}。</div>{{THEORY_CHART}}</article>
 <article class="panel full"><h2>實際 vs 理論 · 四策略差異</h2><div class="sub">「差異」只在共同截止日 {{THEORY_ASOF}} 計算：實際 50 萬 sleeve 可變現報酬 − 理論卡等權顯示報酬。這是描述性 implementation gap，權重與現金比率不同，不冒充 alpha。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際累計<br>{{ASOF}}</th><th class="num">實際損益</th><th class="num">實際<br>{{THEORY_ASOF}}</th><th class="num">理論卡<br>{{THEORY_ASOF}}</th><th class="num">差異<br>pp</th><th class="num">實際/理論<br>持股數</th><th class="num">MDD</th><th class="num">Sharpe</th></tr></thead><tbody>{{STRATEGY_TABLE}}</tbody></table></div></article>
@@ -1325,6 +1455,7 @@ def build() -> tuple[Path, dict[str, Any]]:
         "{{PERIOD_BARS}}": historical_period_bars(analysis_curve),
         "{{DRAWDOWN}}": drawdown_visual(analysis_curve),
         "{{MONTHLY_HEATMAP}}": monthly_heatmap(analysis_curve),
+        "{{SLIPPAGE_TABLE}}": slippage_table(slippage_rows),
         "{{RISK_SCATTER}}": risk_scatter,
         "{{CONTRIBUTION_WATERFALL}}": contribution_waterfall,
         "{{RETURN_DISTRIBUTION}}": return_distribution,
@@ -1419,6 +1550,23 @@ def build() -> tuple[Path, dict[str, Any]]:
             "analysis_return_observations": return_obs,
             "analysis_basis": analysis_basis,
             "mtm_diagnostics": mtm_diagnostics,
+            "signal_fill_slippage": [
+                {
+                    key: value.isoformat() if isinstance(value, date) else value
+                    for key, value in row.items()
+                }
+                for row in slippage_rows
+            ],
+            "basket_lane": {
+                "basis": "SIMULATED_CONSTANT_HOLDINGS",
+                "observations": basket_obs,
+                "status": basket_status,
+                "metrics": basket_metrics,
+                "relative_to_TAIEX": basket_relative,
+                "capture": basket_capture,
+                "drawdown": basket_dd,
+                "benchmark_TAIEX": basket_bench_metrics,
+            },
             "strategy_series": sorted(actual_strategy_curves),
             "strategy_card_asof": theory_asof.isoformat(),
             "latest_strategy_signals": {

@@ -1,8 +1,8 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-08-25T01:02:18+08:00",
+  "generated_at": "2026-08-26T00:27:10+08:00",
   "source_data_asof": "2026-08-24",
-  "actual_valuation_asof": "2026-08-24",
+  "actual_valuation_asof": "2026-08-25",
   "source_capture_time": null,
   "source_status": "USER_PASTED_INTRADAY_SNAPSHOT",
   "snapshot_reconciliation": "PASS",
@@ -24,24 +24,24 @@
       "rows": 0
     },
     "benchmark_nav.csv": {
-      "sha256": "5c35207c39fff1ce0d27419adf205607ff714aa628f3928885d2a41ce59bd006",
-      "rows": 484
+      "sha256": "51293f09fb2a69414449013a40fa612832233ef89e7135390aa8954815b2b4f0",
+      "rows": 486
     },
     "actual_fills.csv": {
-      "sha256": "a392d4ee48f820e11f827028bbf2006e24ea5e90408986ebf92f97fb30d1f10c",
-      "rows": 22
+      "sha256": "e63698c1fb4457463de22cdef73b3335166b6d02cdc1d0c013a427a9fb15de27",
+      "rows": 23
     },
     "strategy_card_returns.csv": {
-      "sha256": "fc0a914d0f18b772defcdf27640b7b69e356ba0b603ef9a267aa0d8d8042f7ab",
-      "rows": 40
+      "sha256": "ea60da4dd22da6877135b307c399aed60fbbb4717a9c64cdeaffa929df6f7800",
+      "rows": 44
     },
     "strategy_position_marks.csv": {
       "sha256": "4fc2f7225996426e23425afd5205a98771d533ec3f0e1db29318d494d2e36299",
       "rows": 6
     },
     "latest_strategy_signals.csv": {
-      "sha256": "da31e7f55b3e48c2d8229ded0ab9c51e4f2cdc3af7ef1f032cddb3f534746bfb",
-      "rows": 26
+      "sha256": "c618fc6c80f7d9785f7b6e93a19a8feee8df17b5c4b065f72dd8c6cd745c42c1",
+      "rows": 25
     }
   },
   "snapshot": {
@@ -68,17 +68,96 @@
   "history": {
     "account_nav_observations": 1,
     "account_return_observations": 0,
-    "analysis_return_observations": 10,
+    "analysis_return_observations": 11,
     "analysis_basis": "ACTUAL_FOUR_STRATEGY_LIQUIDATION_NAV",
     "mtm_diagnostics": {
       "status": "OK",
-      "covered_days": 242,
+      "covered_days": 243,
       "skipped_days": 0,
       "first_covered": "2025-08-25",
-      "last_covered": "2026-08-24",
+      "last_covered": "2026-08-25",
       "missing": [],
       "calendar_source": "TAIEX",
       "basis": "SIMULATED_CONSTANT_HOLDINGS"
+    },
+    "signal_fill_slippage": [
+      {
+        "signal_date": "2026-08-24",
+        "effective_date": "2026-08-25",
+        "strategy_id": "MARGIN",
+        "stock_code": "2637",
+        "stock_name": "慧洋-KY",
+        "action": "BUY",
+        "signal_ref_price": 97.1,
+        "signal_basis": "NEXT_OPEN",
+        "fill_date": "2026-08-25",
+        "fill_time": "10:14:13",
+        "fill_price": 97.8,
+        "shares": 1000.0,
+        "delay_days": 1,
+        "day_open": 97.8,
+        "day_high": 105.0,
+        "day_low": 94.7,
+        "day_close": 95.5,
+        "slippage_vs_signal_bp": 72.09062821833089,
+        "slippage_vs_open_bp": 0.0,
+        "fill_range_position": 0.3009708737864073,
+        "mfe_pct": 0.07361963190184051,
+        "mae_pct": -0.0316973415132924,
+        "close_vs_fill_pct": -0.023517382413087873,
+        "limit_up_price": 106.81,
+        "hit_limit_up": false
+      }
+    ],
+    "basket_lane": {
+      "basis": "SIMULATED_CONSTANT_HOLDINGS",
+      "observations": 242,
+      "status": "OK",
+      "metrics": {
+        "total_return": 0.8134451312531656,
+        "cagr": 0.8141846066984693,
+        "volatility": 0.28887266857742916,
+        "sharpe": 2.2926132315963925,
+        "sortino": 3.141947528941598,
+        "max_drawdown": -0.1500379585723164,
+        "calmar": 5.426524157258796,
+        "worst_day": -0.06507305374302819,
+        "positive_day_ratio": 0.5743801652892562
+      },
+      "relative_to_TAIEX": {
+        "alpha": 0.09375714118080831,
+        "beta": 0.8314133216820566,
+        "r_squared": 0.6072011065510996,
+        "tracking_error": 0.18671203344940449,
+        "information_ratio": -0.11526607880093007,
+        "overlap_returns": 242.0
+      },
+      "capture": {
+        "up_capture": 0.8608029022147511,
+        "down_capture": 0.8024142071114451,
+        "up_days": 138.0,
+        "down_days": 104.0,
+        "hit_rate_vs_benchmark": 0.4628099173553719
+      },
+      "drawdown": {
+        "max_drawdown": -0.1500379585723164,
+        "peak_date": "2026-07-15",
+        "trough_date": "2026-07-30",
+        "recovery_date": "2026-08-05",
+        "underwater_days": 15,
+        "current_drawdown": 0.0
+      },
+      "benchmark_TAIEX": {
+        "total_return": 0.8605574407123009,
+        "cagr": 0.8613488252222135,
+        "volatility": 0.27074207413288387,
+        "sharpe": 2.52563207391333,
+        "sortino": 3.6825949498711705,
+        "max_drawdown": -0.16355180219477772,
+        "calmar": 5.266519926184688,
+        "worst_day": -0.06473887769375475,
+        "positive_day_ratio": 0.5702479338842975
+      }
     },
     "strategy_series": [
       "BREAKOUT",
@@ -86,57 +165,44 @@
       "TRUST",
       "YOY"
     ],
-    "strategy_card_asof": "2026-08-24",
+    "strategy_card_asof": "2026-08-25",
     "latest_strategy_signals": {
-      "asof_date": "2026-08-24",
-      "planned_effective_date": "2026-08-25",
-      "planned_actions": [
-        {
-          "strategy_id": "MARGIN",
-          "stock_code": "2646",
-          "signal": "出",
-          "actual_fill_status": "WAITING_ACTUAL_FILL"
-        },
-        {
-          "strategy_id": "MARGIN",
-          "stock_code": "2637",
-          "signal": "進",
-          "actual_fill_status": "WAITING_ACTUAL_FILL"
-        }
-      ],
+      "asof_date": "2026-08-25",
+      "planned_effective_date": null,
+      "planned_actions": [],
       "quality": {
-        "asof_date": "2026-08-24",
+        "asof_date": "2026-08-25",
         "TRUST": {
-          "header_return_pct": 2.5999999999999943,
-          "visible_member_mean_pct": 2.62,
-          "gap_pp": 0.02000000000000579,
+          "header_return_pct": 6.0,
+          "visible_member_mean_pct": 6.0,
+          "gap_pp": 0.0,
           "held_or_exit_count": 5,
           "new_entry_count": 0,
           "exit_count": 0,
           "status": "PASS"
         },
         "YOY": {
-          "header_return_pct": 3.700000000000003,
-          "visible_member_mean_pct": 4.333333333333333,
-          "gap_pp": 0.6333333333333302,
+          "header_return_pct": 3.5,
+          "visible_member_mean_pct": 4.083333333333332,
+          "gap_pp": 0.5833333333333321,
           "held_or_exit_count": 6,
           "new_entry_count": 0,
           "exit_count": 0,
           "status": "SOURCE_CHECKSUM_MISMATCH"
         },
         "MARGIN": {
-          "header_return_pct": 7.599999999999994,
-          "visible_member_mean_pct": 7.599999999999999,
-          "gap_pp": 4.440892098500626e-15,
+          "header_return_pct": 8.900000000000006,
+          "visible_member_mean_pct": 8.86,
+          "gap_pp": -0.04000000000000625,
           "held_or_exit_count": 10,
-          "new_entry_count": 1,
-          "exit_count": 1,
+          "new_entry_count": 0,
+          "exit_count": 0,
           "status": "PASS"
         },
         "BREAKOUT": {
-          "header_return_pct": 5.0,
-          "visible_member_mean_pct": 5.000000000000001,
-          "gap_pp": 8.881784197001252e-16,
+          "header_return_pct": 5.5,
+          "visible_member_mean_pct": 5.5,
+          "gap_pp": 0.0,
           "held_or_exit_count": 4,
           "new_entry_count": 0,
           "exit_count": 0,
@@ -147,7 +213,7 @@
     "strategy_diagnostics": {
       "TRUST": {
         "cash_twd": 81151.0,
-        "liquidation_value_twd": 419567.0,
+        "liquidation_value_twd": 434179.5,
         "active_positions": {
           "3044": 200.0,
           "2609": 1000.0,
@@ -158,7 +224,7 @@
       },
       "YOY": {
         "cash_twd": 78012.0,
-        "liquidation_value_twd": 425939.7,
+        "liquidation_value_twd": 425129.9,
         "active_positions": {
           "2397": 1045.0,
           "2301": 261.0,
@@ -169,16 +235,17 @@
         }
       },
       "MARGIN": {
-        "cash_twd": 440793.0,
-        "liquidation_value_twd": 57986.24999999994,
+        "cash_twd": 342854.0,
+        "liquidation_value_twd": 152791.75,
         "active_positions": {
           "2354": 788.0,
-          "1709": 305.0
+          "1709": 305.0,
+          "2637": 1000.0
         }
       },
       "BREAKOUT": {
         "cash_twd": 210522.0,
-        "liquidation_value_twd": 314473.6,
+        "liquidation_value_twd": 314551.0,
         "active_positions": {
           "1709": 3644.0,
           "2408": 198.0,
@@ -186,16 +253,21 @@
         }
       },
       "reconciliation": "PASS_EXCLUDING_UNASSIGNED_2886",
+      "reconciled_asof": "2026-08-24",
+      "post_snapshot_positions": {
+        "2637": 1000.0
+      },
       "unassigned": {
         "2886": 1.0
       },
-      "last_fill_date": "2026-08-19",
-      "valuation_asof": "2026-08-24",
+      "last_fill_date": "2026-08-25",
+      "valuation_asof": "2026-08-25",
       "valuation_basis": "OFFICIAL_CLOSE_ESTIMATED_LIQUIDATION_CARRY_FORWARD_POSITIONS",
-      "bundle_current_pnl_twd": 28444.550000000047,
+      "bundle_current_pnl_twd": 39191.149999999674,
       "active_fill_cash_out_twd": 1178519.0,
       "source_active_cost_ex_unassigned_twd": 1177866.0,
-      "active_cost_basis_gap_twd": 653.0
+      "active_cost_basis_gap_twd": 653.0,
+      "post_snapshot_fill_cash_out_twd": 97939.0
     },
     "legacy_strategy_series": [],
     "benchmark_series": [
@@ -206,13 +278,13 @@
     "risk_metric_status": "WAITING_MIN_20_RETURNS",
     "relative_metric_status": "WAITING_MIN_20_COMMON_RETURNS",
     "period_returns": {
-      "今日": 0.012028248358970206,
-      "近一週": 0.005331076691189152,
+      "今日": 0.005297951082764207,
+      "近一週": 0.012455284727225235,
       "近一月": null,
       "近一季": null,
       "近一年": null,
-      "YTD": 0.014222275000000062,
-      "累計": 0.014222275000000062
+      "YTD": 0.019595574999999865,
+      "累計": 0.019595574999999865
     }
   },
   "safety": {

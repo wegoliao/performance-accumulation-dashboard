@@ -111,34 +111,47 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     assert receipt["history"]["account_nav_observations"] == 1
     assert receipt["history"]["performance_status"] == "ACTUAL_FILLS_RECONCILED"
     assert receipt["history"]["analysis_basis"] == "ACTUAL_FOUR_STRATEGY_LIQUIDATION_NAV"
-    assert receipt["history"]["analysis_return_observations"] == 10
-    assert receipt["history"]["risk_metric_status"] == "WAITING_MIN_20_RETURNS"
-    assert receipt["history"]["strategy_card_asof"] == "2026-08-24"
+    # A new strategy card arrives every trading day, so assert the fail-closed
+    # RULE rather than one day's constants -- pinning the count made the daily
+    # GitHub Action fail on every fresh card.
+    observations = receipt["history"]["analysis_return_observations"]
+    assert observations >= 10
+    expected_gate = "OK" if observations >= dashboard.MIN_RISK_RETURN_OBS else "WAITING_MIN_20_RETURNS"
+    assert receipt["history"]["risk_metric_status"] == expected_gate
+
+    # The card asof must track the newest row actually present in the input.
+    card_rows = dashboard.read_csv(dashboard.INPUTS / "strategy_card_returns.csv")
+    assert receipt["history"]["strategy_card_asof"] == max(row["asof_date"] for row in card_rows)
+
     latest = receipt["history"]["latest_strategy_signals"]
-    assert latest["asof_date"] == "2026-08-24"
-    assert latest["planned_effective_date"] == "2026-08-25"
-    assert latest["planned_actions"] == [
-        {
-            "strategy_id": "MARGIN",
-            "stock_code": "2646",
-            "signal": "出",
-            "actual_fill_status": "WAITING_ACTUAL_FILL",
-        },
-        {
-            "strategy_id": "MARGIN",
-            "stock_code": "2637",
-            "signal": "進",
-            "actual_fill_status": "WAITING_ACTUAL_FILL",
-        },
-    ]
+    signal_rows = dashboard.read_csv(dashboard.INPUTS / "latest_strategy_signals.csv")
+    assert latest["asof_date"] == max(row["asof_date"] for row in signal_rows)
+
+    # Every planned entry/exit stays labelled as a plan until a real fill lands.
+    for action in latest["planned_actions"]:
+        assert action["actual_fill_status"] == "WAITING_ACTUAL_FILL"
+        assert action["signal"] in {"進", "出"}
+
+    # The YOY card header has never matched the mean of its own visible members;
+    # that divergence must keep surfacing instead of being quietly averaged away.
     assert latest["quality"]["YOY"]["status"] == "SOURCE_CHECKSUM_MISMATCH"
-    assert math.isclose(latest["quality"]["YOY"]["gap_pp"], 0.6333333333333329)
+    assert abs(latest["quality"]["YOY"]["gap_pp"]) > 0.1
     assert latest["quality"]["MARGIN"]["status"] == "PASS"
     diagnostics = receipt["history"]["strategy_diagnostics"]
     assert diagnostics["reconciliation"] == "PASS_EXCLUDING_UNASSIGNED_2886"
     # Was 28_446 under the old dual valuation path (snapshot gross vs close
-    # net); unifying on net liquidation removes the ~NT$1.45 rounding gap.
-    assert math.isclose(diagnostics["bundle_current_pnl_twd"], 28_444.55, abs_tol=0.01)
+    # net). The amount moves with the market, so assert the PATH: bundle P&L
+    # must equal the four sleeves' net-liquidation value less their budgets,
+    # never a snapshot-gross figure.
+    sleeve_total = sum(
+        diagnostics[strategy_id]["cash_twd"]
+        + diagnostics[strategy_id]["liquidation_value_twd"]
+        for strategy_id in dashboard.STRATEGY_LABELS
+    )
+    budget_total = dashboard.STRATEGY_BUDGET_TWD * len(dashboard.STRATEGY_LABELS)
+    assert math.isclose(
+        diagnostics["bundle_current_pnl_twd"], sleeve_total - budget_total, abs_tol=0.5
+    )
     assert diagnostics["active_fill_cash_out_twd"] == 1_178_519
     assert diagnostics["source_active_cost_ex_unassigned_twd"] == 1_177_866
     assert diagnostics["active_cost_basis_gap_twd"] == 653
@@ -149,15 +162,15 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     assert receipt["safety"]["network_access"] is False
     assert receipt["safety"]["order_capability"] is False
     assert "NT$ +40,107" in content
-    # 28_444.55 net-basis PnL renders as NT$ +28,445 (was 28,446 dual-path).
-    assert "NT$ +28,445" in content
+    rendered_pnl = f"NT$ {diagnostics['bundle_current_pnl_twd']:+,.0f}"
+    assert rendered_pnl in content
     assert "差 NT$653" in content
     assert "ACTUAL_FOUR_STRATEGY_LIQUIDATION_NAV" in content
-    assert "THEORY_ASOF_2026-08-24" in content
-    assert "最新四策略卡 · 2026-08-24 收盤" in content
+    assert "THEORY_ASOF_" in content
+    assert f"最新四策略卡 · {latest['asof_date']} 收盤" in content
     assert "2637 慧洋-KY" in content
-    assert "2646 星宇航空" in content
-    assert "等待實際成交" in content
+    # The first signal that completed the plan -> fill lifecycle.
+    assert "訊號 → 成交 · 履約落差帳" in content
     assert 'href="inputs/four_strategy_daily_signals.xlsx"' in content
     assert "SOURCE_CHECKSUM_MISMATCH" not in content
     assert "YOY 來源矛盾" in content
@@ -166,7 +179,7 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     assert "日／週／月／季／年／YTD／累計" in content
     assert "Sharpe／MDD／Alpha／Beta · 完整績效風險衡量" in content
     assert content.index("Sharpe／MDD／Alpha／Beta") < content.index("歷史期間報酬")
-    assert "RISK_SAMPLE_10_RETURNS" in content
+    assert f"RISK_SAMPLE_{observations}_RETURNS" in content
     assert "實際 vs 理論 · 四策略差異" in content
     assert "月度績效熱圖" in content
     assert "NO_BROKER · NO_ORDER" in content
@@ -284,3 +297,86 @@ def test_real_data_bundle_stays_on_one_valuation_basis_through_snapshot_day() ->
     )
     assert math.isclose(bundle[-1][1], 101.4222, abs_tol=0.001)
     assert math.isclose(diagnostics["bundle_current_pnl_twd"], 28_444.55, abs_tol=0.5)
+
+
+def test_slippage_ledger_measures_execution_against_the_right_reference() -> None:
+    """A buy filled above its reference is a COST, and must read positive bp.
+
+    The sign convention is the whole point: if adverse slippage rendered
+    negative it would look like a gain on the dashboard.
+    """
+    import analytics
+
+    ohlc = {
+        "9999": {
+            date(2026, 8, 25): {"open": 100.0, "high": 110.0, "low": 95.0, "close": 96.0}
+        }
+    }
+    ledger_csv = ROOT / "tests" / "_tmp_signal_fills.csv"
+    ledger_csv.write_text(
+        "signal_date,effective_date,strategy_id,stock_code,stock_name,action,"
+        "signal_ref_price,signal_basis,fill_date,fill_time,fill_price,shares,source\n"
+        "2026-08-24,2026-08-25,MARGIN,9999,測試股,BUY,100.0,NEXT_OPEN,"
+        "2026-08-25,10:00:00,101.0,1000,test\n",
+        encoding="utf-8",
+    )
+    try:
+        rows = analytics.build_slippage_ledger(ledger_csv, ohlc)
+    finally:
+        ledger_csv.unlink()
+
+    assert len(rows) == 1
+    row = rows[0]
+    # Paid 101 against a 100 reference: 100 bp adverse, positive by convention.
+    assert math.isclose(row["slippage_vs_signal_bp"], 100.0)
+    assert math.isclose(row["slippage_vs_open_bp"], 100.0)
+    assert row["delay_days"] == 1
+    # Filled at 101 in a 95-110 range -> 40% of the way up the day's range.
+    assert math.isclose(row["fill_range_position"], (101.0 - 95.0) / (110.0 - 95.0))
+    assert math.isclose(row["mfe_pct"], 110.0 / 101.0 - 1.0)
+    assert math.isclose(row["mae_pct"], 95.0 / 101.0 - 1.0)
+    assert math.isclose(row["close_vs_fill_pct"], 96.0 / 101.0 - 1.0)
+    # Limit up on a 100 reference is 110.00, and the high touched it.
+    assert math.isclose(row["limit_up_price"], 110.0)
+    assert row["hit_limit_up"] is True
+
+
+def test_slippage_sign_flips_for_sells() -> None:
+    """Selling BELOW the reference is the adverse direction for a sell."""
+    import analytics
+
+    ohlc = {"9999": {date(2026, 8, 25): {"open": 100.0, "high": 101.0, "low": 98.0, "close": 99.0}}}
+    ledger_csv = ROOT / "tests" / "_tmp_signal_fills_sell.csv"
+    ledger_csv.write_text(
+        "signal_date,effective_date,strategy_id,stock_code,stock_name,action,"
+        "signal_ref_price,signal_basis,fill_date,fill_time,fill_price,shares,source\n"
+        "2026-08-24,2026-08-25,MARGIN,9999,測試股,SELL,100.0,NEXT_OPEN,"
+        "2026-08-25,10:00:00,99.0,1000,test\n",
+        encoding="utf-8",
+    )
+    try:
+        row = analytics.build_slippage_ledger(ledger_csv, ohlc)[0]
+    finally:
+        ledger_csv.unlink()
+
+    # Sold 1% below the reference -> 100 bp adverse, still positive.
+    assert math.isclose(row["slippage_vs_signal_bp"], 100.0)
+
+
+def test_real_2637_fill_landed_exactly_on_the_official_open() -> None:
+    """Regression on the first real signal->fill sample."""
+    import analytics
+
+    rows = analytics.build_slippage_ledger(
+        dashboard.SIGNAL_FILLS_PATH, analytics.load_ohlc(dashboard.PRICE_HISTORY_PATH)
+    )
+    row = next(item for item in rows if item["stock_code"] == "2637")
+
+    assert math.isclose(row["fill_price"], 97.80)
+    assert math.isclose(row["day_open"], 97.80)
+    assert math.isclose(row["slippage_vs_open_bp"], 0.0, abs_tol=1e-6)
+    # The 8/24 close of 97.1 was the signal reference, so vs-signal is adverse.
+    assert row["slippage_vs_signal_bp"] > 0
+    # It ran to 105.00 intraday but limit up was 106.81 -- it never locked up.
+    assert row["hit_limit_up"] is False
+    assert math.isclose(row["day_high"], 105.0)

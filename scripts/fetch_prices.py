@@ -290,10 +290,18 @@ def rebuild_benchmark_nav(prices: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # --------------------------------------------------------------------- main
 
 
-def run(start: date, end: date, delay: float) -> dict[str, Any]:
+def run(start: date, end: date, delay: float, only: set[str] | None = None) -> dict[str, Any]:
     universe = load_universe()
     targets = [dict(item) for item in universe]
+    if only:
+        known = {item['stock_code'] for item in targets} | set(BENCHMARKS)
+        unknown = only - known
+        if unknown:
+            raise FetchError(f"--only contains codes outside the ledger: {sorted(unknown)}")
+        targets = [item for item in targets if item['stock_code'] in only]
     for code in sorted(BENCHMARKS):
+        if only and code not in only:
+            continue
         if all(item["stock_code"] != code for item in targets):
             targets.append({"stock_code": code, "stock_name": code, "market": "TWSE"})
 
@@ -368,6 +376,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--full", action="store_true", help="backfill from the ledger start date")
     parser.add_argument("--lookback", type=int, default=45, help="incremental lookback in days")
     parser.add_argument("--delay", type=float, default=DEFAULT_DELAY, help="seconds between requests")
+    parser.add_argument(
+        "--only",
+        help="comma-separated stock codes to fetch instead of the whole ledger universe",
+    )
     return parser.parse_args(argv)
 
 
@@ -384,7 +396,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"FAIL: start {start} is after end {end}", file=sys.stderr)
         return 2
 
-    receipt = run(start, end, max(args.delay, 0.0))
+    only = {code.strip() for code in args.only.split(",") if code.strip()} if args.only else None
+    receipt = run(start, end, max(args.delay, 0.0), only)
     print(f"{receipt['status']}: {receipt['price_rows_total']} price rows, {receipt['trading_days']} trading days")
     print(f"COVERAGE: {receipt['coverage']['first']} .. {receipt['coverage']['last']}")
     for failure in receipt["failures"]:
