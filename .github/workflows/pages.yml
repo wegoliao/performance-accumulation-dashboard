@@ -8,6 +8,7 @@ on:
       - index.html
       - inputs/four_strategy_daily_signals.xlsx
       - claude/**
+      - mainline2/**
       - .github/workflows/pages.yml
   # Commits pushed with GITHUB_TOKEN (the daily-close bot) do not trigger
   # `push` events, so re-deploy explicitly when that workflow succeeds.
@@ -41,6 +42,8 @@ jobs:
           cp index.html _site/index.html
           cp inputs/four_strategy_daily_signals.xlsx _site/inputs/four_strategy_daily_signals.xlsx
           cp claude/index.html _site/claude/index.html
+          mkdir -p _site/mainline2
+          cp mainline2/index.html _site/mainline2/index.html
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:

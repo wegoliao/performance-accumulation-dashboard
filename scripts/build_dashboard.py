@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import analytics  # noqa: E402  (local module, loaded by path)
 import charts  # noqa: E402
+import realized  # noqa: E402
 
 
 TRADING_DAYS = 252
@@ -682,6 +683,137 @@ def slice_and_normalize(
     return normalize_curve(selected)
 
 
+def pnl_split(
+    fills: list[dict[str, Any]],
+    prices: dict[str, list[tuple[date, float]]],
+    asof: date,
+) -> dict[str, Any]:
+    """Split every sleeve into settled cash and open marks.
+
+    Realized comes only from the fill book -- cash that actually moved. Open
+    cost is the FIFO-reduced book cost of what is still held, so realized and
+    unrealized never double-count the same share.
+    """
+    lots = realized.as_of(realized.closed_lots(fills), asof)
+    by_id = realized.by_strategy(lots)
+    rows: dict[str, Any] = {}
+    for strategy_id in STRATEGY_LABELS:
+        held: dict[str, float] = defaultdict(float)
+        book_cost: dict[str, float] = defaultdict(float)
+        for fill in sorted(fills, key=lambda row: row["date"]):
+            if fill["strategy_id"] != strategy_id or fill["date"] > asof:
+                continue
+            code = fill["stock_code"].strip()
+            if fill["side"] == "BUY":
+                held[code] += fill["shares"]
+                book_cost[code] += fill["cash_out"]
+            else:
+                unit = book_cost[code] / held[code]
+                book_cost[code] -= unit * fill["shares"]
+                held[code] -= fill["shares"]
+        market = 0.0
+        open_cost = 0.0
+        for code, shares in held.items():
+            if shares <= 1e-9:
+                continue
+            history = [value for day, value in prices.get(code, []) if day <= asof]
+            if not history:
+                raise InputError(f"no close on or before {asof} for open {code}")
+            market += estimated_liquidation_value(shares, history[-1])
+            open_cost += book_cost[code]
+        settled = by_id.get(strategy_id, {})
+        realized_pnl = settled.get("realized_pnl_twd", 0.0)
+        unrealized = market - open_cost
+        rows[strategy_id] = {
+            "realized_pnl_twd": realized_pnl,
+            "unrealized_pnl_twd": unrealized,
+            "total_pnl_twd": realized_pnl + unrealized,
+            "open_cost_twd": open_cost,
+            "market_twd": market,
+            "closed_lots": settled.get("closed_lots", 0),
+            "return_on_budget": (realized_pnl + unrealized) / STRATEGY_BUDGET_TWD,
+        }
+    strategies = [rows[key] for key in STRATEGY_LABELS]
+    rows["_lots"] = lots
+    rows["_totals"] = {
+        "realized_pnl_twd": sum(row["realized_pnl_twd"] for row in strategies),
+        "unrealized_pnl_twd": sum(row["unrealized_pnl_twd"] for row in strategies),
+    }
+    rows["_totals"]["total_pnl_twd"] = (
+        rows["_totals"]["realized_pnl_twd"] + rows["_totals"]["unrealized_pnl_twd"]
+    )
+    return rows
+
+
+def pnl_split_table(split: dict[str, Any]) -> str:
+    rows: list[str] = []
+    for strategy_id, label in STRATEGY_LABELS.items():
+        row = split[strategy_id]
+        realized_cell = (
+            fmt_ntd(row["realized_pnl_twd"], sign=True) if row["closed_lots"] else "—"
+        )
+        rows.append(
+            "<tr>"
+            f"<td><b>{html.escape(label)}</b><br><small>{strategy_id}</small></td>"
+            f'<td class="num {css_value_class(row["realized_pnl_twd"])}">{realized_cell}</td>'
+            f'<td class="num">{row["closed_lots"] or "—"}</td>'
+            f'<td class="num {css_value_class(row["unrealized_pnl_twd"])}">'
+            f'{fmt_ntd(row["unrealized_pnl_twd"], sign=True)}</td>'
+            f'<td class="num">{fmt_ntd(row["open_cost_twd"])}</td>'
+            f'<td class="num {css_value_class(row["total_pnl_twd"])}">'
+            f'<b>{fmt_ntd(row["total_pnl_twd"], sign=True)}</b></td>'
+            f'<td class="num {css_value_class(row["total_pnl_twd"])}">'
+            f'{fmt_pct(row["return_on_budget"], sign=True)}</td>'
+            "</tr>"
+        )
+    totals = split["_totals"]
+    budget = STRATEGY_BUDGET_TWD * len(STRATEGY_LABELS)
+    rows.append(
+        '<tr style="border-top:2px solid var(--line)">'
+        "<td><b>四策略合計</b><br><small>NT$200 萬</small></td>"
+        f'<td class="num {css_value_class(totals["realized_pnl_twd"])}">'
+        f'<b>{fmt_ntd(totals["realized_pnl_twd"], sign=True)}</b></td>'
+        f'<td class="num">{len(split["_lots"])}</td>'
+        f'<td class="num {css_value_class(totals["unrealized_pnl_twd"])}">'
+        f'<b>{fmt_ntd(totals["unrealized_pnl_twd"], sign=True)}</b></td>'
+        '<td class="num">—</td>'
+        f'<td class="num {css_value_class(totals["total_pnl_twd"])}">'
+        f'<b>{fmt_ntd(totals["total_pnl_twd"], sign=True)}</b></td>'
+        f'<td class="num {css_value_class(totals["total_pnl_twd"])}">'
+        f'<b>{fmt_pct(totals["total_pnl_twd"] / budget, sign=True)}</b></td>'
+        "</tr>"
+    )
+    return "".join(rows)
+
+
+def closed_lot_table(lots: list[dict[str, Any]]) -> str:
+    if not lots:
+        return (
+            '<tr><td colspan="8" class="neutral">尚無平倉紀錄。'
+            "任何賣出成交寫進 actual_fills.csv 後，這裡會逐筆列出實收現金與已實現損益。</td></tr>"
+        )
+    rows: list[str] = []
+    for lot in sorted(lots, key=lambda row: row["sell_date"], reverse=True):
+        cls = css_value_class(lot["realized_pnl_twd"])
+        label = STRATEGY_LABELS.get(lot["strategy_id"], lot["strategy_id"])
+        rows.append(
+            "<tr>"
+            f"<td>{html.escape(label)}</td>"
+            f'<td>{lot["stock_code"]} {html.escape(lot["stock_name"])}</td>'
+            f'<td class="num">{lot["shares"]:,.0f}</td>'
+            f'<td class="num">{lot["buy_date"].isoformat()}'
+            f'<br><small>@{lot["buy_price"]:g}</small></td>'
+            f'<td class="num">{lot["sell_date"].isoformat()}'
+            f'<br><small>@{lot["sell_price"]:g}</small></td>'
+            f'<td class="num">{lot["holding_days"]} 天</td>'
+            f'<td class="num">{fmt_ntd(lot["cost_twd"])} → {fmt_ntd(lot["proceeds_twd"])}</td>'
+            f'<td class="num {cls}"><b>{fmt_ntd(lot["realized_pnl_twd"], sign=True)}</b>'
+            f'<br><small>{fmt_pct(lot["return_pct"], sign=True)}</small></td>'
+            "</tr>"
+        )
+    return "".join(rows)
+
+
 def strategy_comparison_table(
     actual_curves: dict[str, list[tuple[date, float]]],
     card_curves: dict[str, list[tuple[date, float]]],
@@ -1240,6 +1372,7 @@ def build() -> tuple[Path, dict[str, Any]]:
         holdings,
         actual_asof,
     )
+    pnl_breakdown = pnl_split(fills, prices, actual_asof)
     ledger = analytics.load_ledger(LEDGER_PATH)
     mtm_curve, mtm_diagnostics = analytics.build_mtm_curve(ledger, prices, "TAIEX")
     analysis_curve = actual_curve
@@ -1407,6 +1540,7 @@ def build() -> tuple[Path, dict[str, Any]]:
 <article class="panel full"><h2>訊號 → 成交 · 履約落差帳</h2><div class="sub">策略卡報的是訊號價，帳戶付的是成交價，中間的差就是「這個策略能不能被執行」的全部答案。正的 bp 代表對自己不利。累積夠多筆之後，才知道策略卡報酬要打幾折。</div>{{SLIPPAGE_TABLE}}</article>
 <article class="panel full"><h2>四策略實際績效 · 累積曲線</h2><div class="sub">每個 sleeve 以 NT$50 萬現金起始，用實際成交、費稅、已實現損益與每日可變現價值重建；合計初始資金 NT$200 萬。</div>{{LINE_CHART}}</article>
 <article class="panel full"><h2>四策略理論卡 · 來源顯示曲線</h2><div class="sub">這是 owner 策略卡的「當日持倉成分等權顯示報酬」，不是可投資 NAV，也不將每日百分比複利串接。資料只到 {{THEORY_ASOF}}。</div>{{THEORY_CHART}}</article>
+<article class="panel full"><h2>已實現 vs 未實現 · 完整損益拆解</h2><div class="sub">畫面上其他地方的「損益」都是<b>未實現</b>，只算還在手上的部位。已平倉的成交不會出現在庫存表裡，但現金已經確定變動 —— 那筆錢的盈虧在這裡。sleeve 曲線一直都含這兩塊，這張表只是把它拆開讓你看得到。已實現＝實收現金 − 實付成本（含手續費與證交稅）；未實現＝目前可變現值 − 在庫帳面成本，兩者不重複計算。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">已實現損益</th><th class="num">平倉筆數</th><th class="num">未實現損益</th><th class="num">在庫成本</th><th class="num">合計損益</th><th class="num">對 50 萬報酬</th></tr></thead><tbody>{{PNL_SPLIT_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">逐筆平倉明細 · FIFO 對沖，一次賣出跨多筆買進會拆成多列</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">買進</th><th class="num">賣出</th><th class="num">持有</th><th class="num">成本 → 實收</th><th class="num">已實現損益</th></tr></thead><tbody>{{CLOSED_LOTS}}</tbody></table></div></article>
 <article class="panel full"><h2>實際 vs 理論 · 四策略差異</h2><div class="sub">「差異」只在共同截止日 {{THEORY_ASOF}} 計算：實際 50 萬 sleeve 可變現報酬 − 理論卡等權顯示報酬。這是描述性 implementation gap，權重與現金比率不同，不冒充 alpha。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際累計<br>{{ASOF}}</th><th class="num">實際損益</th><th class="num">實際<br>{{THEORY_ASOF}}</th><th class="num">理論卡<br>{{THEORY_ASOF}}</th><th class="num">差異<br>pp</th><th class="num">實際/理論<br>持股數</th><th class="num">MDD</th><th class="num">Sharpe</th></tr></thead><tbody>{{STRATEGY_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>日／週／月／季／年／YTD／累計</h2><div class="sub">basis：{{ANALYSIS_BASIS}}。近一月、季、年若沒有足夠實際觀察就顯示 N/A，不用同一批股票倒推。</div><div class="period-grid">{{PERIOD_CARDS}}</div></article>
 <article class="panel full" id="risk-metrics"><h2>Sharpe／MDD／Alpha／Beta · 完整績效風險衡量</h2><div class="sub">以四策略實際合計曲線計算。MDD 已可計算；Sharpe、Sortino、Alpha、Beta、IR 與 Tracking Error 因尚未滿 20 筆日報酬而顯示 N/A。</div><div class="status-grid">{{RISK_METRICS}}</div></article>
@@ -1422,7 +1556,7 @@ def build() -> tuple[Path, dict[str, Any]]:
 <article class="panel full"><h2>持股明細</h2><div class="sub">現值與損益完全對上 owner 貼入小計；配置比例由現值重新計算。</div><div class="table-wrap"><table><thead><tr><th>股票</th><th class="num">股數</th><th class="num">成本均價</th><th class="num">現價</th><th class="num">今日漲跌幅</th><th class="num">現值</th><th class="num">未實現損益</th><th class="num">獲利率</th><th class="num">配置</th></tr></thead><tbody>{{HOLDINGS_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>資料品質與限制</h2><div class="sub">畫面能否拿來做決策，先看資料是否足夠。</div><div class="quality"><article><b class="positive">PASS · 庫存小計</b><p>15 檔股數、現值、成本與損益均對上 owner 快照。</p></article><article><b class="positive">PASS · 四策略成交歸屬</b><p>22 筆買賣重建後的活動股數與 8/24 庫存一致，但排除不在成交簿的 2886 1 股。</p></article><article><b class="positive">PASS · 重疊股拆分</b><p>1709：突破 3,644／融資 305 股；2301：YOY 261／投信 365 股；3702 賣出損益納入 YOY。</p></article><article><b class="negative">CHECK · 成本口徑差</b><p>成交簿在庫實付 NT$1,178,519；快照在庫成本（排除 2886）NT$1,177,866，差 NT$653。四策略損益以逐筆成交現金流為準。</p></article><article><b class="negative">CHECK · YOY 來源矛盾</b><p>8/24 表頭 +3.7%，六檔可見數字平均 +4.33%，差 +0.63pp；兩者原樣保留，等待來源端說明。</p></article><article><b class="negative">SHORT SAMPLE · 風險統計</b><p>目前僅 {{RISK_OBS}} 筆實際日報酬；MDD 可描述，Sharpe、Alpha、Beta 等尚不顯示數字。</p></article><article><b class="positive">CURRENT · 理論卡</b><p>四策略來源均更新到 {{THEORY_ASOF}}，與目前實際估值同日。</p></article><article><b class="negative">GAP · 8/21 策略卡</b><p>未收到 8/21 來源圖，因此保留空缺，不用前值或行情補造策略卡。</p></article><article><b class="positive">SAFE · 公開唯讀</b><p>HTML builder 無券商登入或下單；每日 updater 只讀 TWSE／TPEx 公開收盤行情。</p></article></div></article>
 </section>
-<footer class="footer"><span><a href="claude/" style="color:var(--green);text-decoration:none">Claude 版精進盤點 →</a> · 口徑：252 trading days · rf=0 · CAGR 365.25 calendar days · Alpha=daily OLS intercept×252</span><span>生成時間：<span class="mono">{{GENERATED_AT}}</span></span></footer>
+<footer class="footer"><span><a href="mainline2/" style="color:var(--green);text-decoration:none">主線二 未持有訊號追蹤 →</a> · <a href="claude/" style="color:var(--green);text-decoration:none">Claude 版精進盤點 →</a> · 口徑：252 trading days · rf=0 · CAGR 365.25 calendar days · Alpha=daily OLS intercept×252</span><span>生成時間：<span class="mono">{{GENERATED_AT}}</span></span></footer>
 </main></body></html>"""
 
     top_winner = max(holdings, key=lambda row: row["unrealized_pnl_twd"])
@@ -1456,6 +1590,8 @@ def build() -> tuple[Path, dict[str, Any]]:
         "{{DRAWDOWN}}": drawdown_visual(analysis_curve),
         "{{MONTHLY_HEATMAP}}": monthly_heatmap(analysis_curve),
         "{{SLIPPAGE_TABLE}}": slippage_table(slippage_rows),
+        "{{PNL_SPLIT_TABLE}}": pnl_split_table(pnl_breakdown),
+        "{{CLOSED_LOTS}}": closed_lot_table(pnl_breakdown["_lots"]),
         "{{RISK_SCATTER}}": risk_scatter,
         "{{CONTRIBUTION_WATERFALL}}": contribution_waterfall,
         "{{RETURN_DISTRIBUTION}}": return_distribution,

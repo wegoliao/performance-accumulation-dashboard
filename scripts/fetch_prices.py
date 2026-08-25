@@ -36,6 +36,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INPUTS = ROOT / "inputs"
 OUTPUT = ROOT / "output"
 LEDGER_PATH = INPUTS / "positions_ledger.csv"
+WATCHLIST_PATH = INPUTS / "watchlist.csv"
 PRICE_PATH = INPUTS / "price_history.csv"
 BENCHMARK_PATH = INPUTS / "benchmark_nav.csv"
 
@@ -81,6 +82,18 @@ def load_universe() -> list[dict[str, str]]:
         raise FetchError(f"{LEDGER_PATH.name} is empty; nothing to fetch")
     seen: dict[str, dict[str, str]] = {}
     for row in rows:
+        code = (row.get("stock_code") or "").strip()
+        if not code:
+            continue
+        seen.setdefault(
+            code,
+            {
+                "stock_code": code,
+                "stock_name": (row.get("stock_name") or "").strip(),
+                "market": (row.get("market") or "TWSE").strip().upper() or "TWSE",
+            },
+        )
+    for row in read_csv(WATCHLIST_PATH):
         code = (row.get("stock_code") or "").strip()
         if not code:
             continue

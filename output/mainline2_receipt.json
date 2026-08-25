@@ -1,0 +1,131 @@
+{
+  "generated_at": "2026-08-26T01:04:15",
+  "signal_asof": "2026-08-25",
+  "price_asof": "2026-08-25",
+  "profile_window": [
+    "2026-02-02",
+    "2026-08-25"
+  ],
+  "mainline2_count": 7,
+  "mainline1_positions": 15,
+  "roster": [
+    {
+      "strategy_id": "MARGIN",
+      "stock_code": "1714",
+      "stock_name": "和桐",
+      "status": "OK",
+      "close": 16.5,
+      "entry_price": 12.1,
+      "poc": 9.890227272727273,
+      "value_low": 8.98,
+      "value_high": 16.990000000000002,
+      "close_percentile": 0.6211972208728483,
+      "in_value_area": true,
+      "avg_volume_20d": 19573468.5,
+      "slot_participation": 0.0001548168649977918
+    },
+    {
+      "strategy_id": "MARGIN",
+      "stock_code": "2030",
+      "stock_name": "彰源",
+      "status": "OK",
+      "close": 23.65,
+      "entry_price": 18.0,
+      "poc": 18.3625,
+      "value_low": 15.495454545454546,
+      "value_high": 19.647727272727273,
+      "close_percentile": 0.9943154187164109,
+      "in_value_area": false,
+      "avg_volume_20d": 3264642.8,
+      "slot_participation": 0.0006475945560912758
+    },
+    {
+      "strategy_id": "MARGIN",
+      "stock_code": "3046",
+      "stock_name": "建基",
+      "status": "OK",
+      "close": 57.2,
+      "entry_price": 57.7,
+      "poc": 57.725568181818176,
+      "value_low": 50.05681818181818,
+      "value_high": 61.211363636363636,
+      "close_percentile": 0.5863815726750442,
+      "in_value_area": true,
+      "avg_volume_20d": 602703.15,
+      "slot_participation": 0.001450342302219383
+    },
+    {
+      "strategy_id": "MARGIN",
+      "stock_code": "3605",
+      "stock_name": "宏致",
+      "status": "OK",
+      "close": 116.5,
+      "entry_price": 108.0,
+      "poc": 89.39772727272728,
+      "value_low": 65.81818181818181,
+      "value_high": 96.0,
+      "close_percentile": 0.9087491363806177,
+      "in_value_area": false,
+      "avg_volume_20d": 11568826.4,
+      "slot_participation": 3.7098365427648146e-05
+    },
+    {
+      "strategy_id": "MARGIN",
+      "stock_code": "6213",
+      "stock_name": "聯茂",
+      "status": "OK",
+      "close": 530.0,
+      "entry_price": 424.0,
+      "poc": 271.875,
+      "value_low": 163.77272727272725,
+      "value_high": 410.8636363636364,
+      "close_percentile": 0.9931011624732435,
+      "in_value_area": false,
+      "avg_volume_20d": 16141090.3,
+      "slot_participation": 5.844687123862347e-06
+    },
+    {
+      "strategy_id": "MARGIN",
+      "stock_code": "6570",
+      "stock_name": "維田",
+      "status": "OK",
+      "close": 52.9,
+      "entry_price": 56.9,
+      "poc": 59.335795454545455,
+      "value_low": 47.98068181818182,
+      "value_high": 65.5,
+      "close_percentile": 0.4274208366920139,
+      "in_value_area": true,
+      "avg_volume_20d": 240900.0,
+      "slot_participation": 0.003923535010879962
+    },
+    {
+      "strategy_id": "MARGIN",
+      "stock_code": "6603",
+      "stock_name": "富強鑫",
+      "status": "OK",
+      "close": 26.25,
+      "entry_price": 27.0,
+      "poc": 25.68693181818182,
+      "value_low": 22.664772727272727,
+      "value_high": 27.142045454545453,
+      "close_percentile": 0.6989291329261558,
+      "in_value_area": true,
+      "avg_volume_20d": 2596500.0,
+      "slot_participation": 0.0007335882552520335
+    }
+  ],
+  "fill_landing": {
+    "buy_count": 22,
+    "sell_count": 1,
+    "buy_mean_range_position": 0.4007533686442999,
+    "sell_mean_range_position": 0.8888888888888888,
+    "buy_mean_vs_close": -0.007515318997234954
+  },
+  "boundaries": [
+    "PAPER_TRACK_ONLY",
+    "NO_BROKER_LOGIN",
+    "NO_ORDER_PATH",
+    "VOLUME_PROFILE_IS_DAILY_BAR_APPROXIMATION"
+  ]
+}
