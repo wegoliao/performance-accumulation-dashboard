@@ -42,6 +42,7 @@ BENCHMARK_PATH = INPUTS / "benchmark_nav.csv"
 TWSE_STOCK_DAY = "https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY"
 TWSE_TAIEX = "https://www.twse.com.tw/rwd/zh/TAIEX/MI_5MINS_HIST"
 TPEX_STOCK_DAY = "https://www.tpex.org.tw/www/zh-tw/afterTrading/tradingStock"
+TWSE_OPENAPI_DAY_ALL = "https://openapi.twse.com.tw/v1/exchangeReport/STOCK_DAY_ALL"
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) quant-grill-lab/66-readonly"
 PRICE_FIELDS = ["asof_date", "stock_code", "close", "open", "high", "low", "volume", "source"]
@@ -108,18 +109,42 @@ def ledger_start() -> date:
 # ---------------------------------------------------------------------- http
 
 
+class _KeepGetOnRedirect(urllib.request.HTTPRedirectHandler):
+    """Follow 307/308 as a GET.
+
+    TWSE answers datacenter IPs (GitHub Actions runners live on Azure) with a
+    307 rather than the JSON payload. urllib will not re-issue the request
+    unless the redirect is handled explicitly, which is why the scheduled job
+    saw "HTTP Error 307" while the same call worked from a desktop.
+    """
+
+    def http_error_307(self, req, fp, code, msg, headers):  # noqa: D102
+        return self.http_error_302(req, fp, code, msg, headers)
+
+    http_error_308 = http_error_307
+
+
+_OPENER = urllib.request.build_opener(_KeepGetOnRedirect)
+
+
 def get_json(url: str, params: dict[str, str], attempts: int = 3) -> dict[str, Any]:
     query = urllib.parse.urlencode(params)
     request = urllib.request.Request(
         f"{url}?{query}",
-        headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+        headers={
+            "User-Agent": USER_AGENT,
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8",
+            "Referer": "https://www.twse.com.tw/zh/trading/historical/stock-day.html",
+            "Connection": "close",
+        },
     )
-    context = ssl.create_default_context()
     last_error: Exception | None = None
     for attempt in range(attempts):
         try:
-            with urllib.request.urlopen(request, timeout=30, context=context) as response:
-                return json.loads(response.read().decode("utf-8"))
+            with _OPENER.open(request, timeout=30) as response:
+                payload = response.read().decode("utf-8")
+            return json.loads(payload)
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
             last_error = exc
             time.sleep(DEFAULT_DELAY * (attempt + 2))
@@ -136,6 +161,19 @@ def roc_to_date(value: str) -> date:
         raise FetchError(f"unparseable ROC date: {value!r}")
     year, month, day = (part.strip() for part in parts)
     return date(int(year) + 1911, int(month), int(day))
+
+
+
+def roc_compact_to_date(value: str) -> date:
+    """Parse an unpunctuated ROC stamp such as '1150824' -> 2026-08-24.
+
+    The OpenAPI feed uses this form while STOCK_DAY uses '115/08/24'. Reading
+    it as AD YYYYMMDD silently yields year 1150 and drops every row.
+    """
+    text = str(value).strip()
+    if len(text) < 6 or not text.isdigit():
+        raise FetchError(f"unparseable compact ROC date: {value!r}")
+    return date(int(text[:-4]) + 1911, int(text[-4:-2]), int(text[-2:]))
 
 
 def to_number(value: str) -> float | None:
@@ -257,6 +295,55 @@ def fetch_symbol_month(code: str, market: str, month: date) -> tuple[list[dict[s
     return [], market
 
 
+def fetch_openapi_latest(codes: set[str]) -> list[dict[str, Any]]:
+    """One-shot fallback for the most recent close.
+
+    The per-symbol STOCK_DAY endpoint is the only way to reach history, but it
+    is also the one TWSE 307s from datacenter IPs. This OpenAPI feed returns
+    every listed stock for the latest session in a single call and carries its
+    own Date field, so the daily job can still land today's close when the
+    month-by-month path is being turned away. It cannot backfill.
+    """
+    request = urllib.request.Request(
+        TWSE_OPENAPI_DAY_ALL,
+        headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+    )
+    try:
+        with _OPENER.open(request, timeout=30) as response:
+            payload = json.loads(response.read().decode("utf-8-sig"))
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
+        raise FetchError(f"{TWSE_OPENAPI_DAY_ALL} failed: {exc}") from exc
+    if not isinstance(payload, list) or not payload:
+        raise FetchError("OpenAPI STOCK_DAY_ALL returned no rows")
+
+    rows: list[dict[str, Any]] = []
+    for raw in payload:
+        code = str(raw.get("Code", "")).strip()
+        if code not in codes:
+            continue
+        close = to_number(str(raw.get("ClosingPrice", "")))
+        raw_date = str(raw.get("Date", "")).strip()
+        if close is None or not raw_date:
+            continue
+        try:
+            day = roc_compact_to_date(raw_date)
+        except (FetchError, ValueError):
+            continue
+        rows.append(
+            {
+                "asof_date": day.isoformat(),
+                "stock_code": code,
+                "close": f"{close:.4f}",
+                "open": _fmt(to_number(str(raw.get("OpeningPrice", "")))),
+                "high": _fmt(to_number(str(raw.get("HighestPrice", "")))),
+                "low": _fmt(to_number(str(raw.get("LowestPrice", "")))),
+                "volume": str(int(to_number(str(raw.get("TradeVolume", ""))) or 0)),
+                "source": "TWSE_OPENAPI_STOCK_DAY_ALL",
+            }
+        )
+    return rows
+
+
 # -------------------------------------------------------------------- merge
 
 
@@ -336,14 +423,60 @@ def run(start: date, end: date, delay: float, only: set[str] | None = None) -> d
         if kept == 0:
             failures.append(f"{code}: no rows in {start}..{end}")
 
+    # If the per-symbol path was turned away for recent data, try the one-shot
+    # OpenAPI feed before giving up on today's close.
+    stock_codes = {item["stock_code"] for item in targets if item["stock_code"] != "TAIEX"}
+    fetched_dates = {row["asof_date"] for row in collected}
+    if failures and stock_codes and (not fetched_dates or max(fetched_dates) < end.isoformat()):
+        try:
+            recovered = [
+                row
+                for row in fetch_openapi_latest(stock_codes)
+                if start.isoformat() <= row["asof_date"] <= end.isoformat()
+            ]
+        except FetchError as exc:
+            failures.append(f"openapi fallback: {exc}")
+            recovered = []
+        if recovered:
+            collected.extend(recovered)
+            recovered_day = max(row["asof_date"] for row in recovered)
+            print(
+                f"[fallback] OpenAPI recovered {len(recovered)} rows for {recovered_day}",
+                flush=True,
+            )
+            for code in {row["stock_code"] for row in recovered}:
+                per_symbol.setdefault(code, {"rows": 0, "market": "TWSE", "name": code})
+                per_symbol[code]["rows"] += 1
+
     prices = merge_prices(existing, collected)
     write_csv(PRICE_PATH, PRICE_FIELDS, prices)
     benchmark_rows = rebuild_benchmark_nav(prices)
     write_csv(BENCHMARK_PATH, BENCHMARK_FIELDS, benchmark_rows)
 
     dates = sorted({row["asof_date"] for row in prices})
+    # The daily job only needs the newest session. A backfill month that 307s
+    # is a warning, not a build failure -- previously ANY failure exited 1 and
+    # took the whole scheduled workflow down with it.
+    in_window = [day for day in dates if start.isoformat() <= day <= end.isoformat()]
+    latest_day = in_window[-1] if in_window else None
+    covered_at_latest = (
+        {row["stock_code"] for row in prices if row["asof_date"] == latest_day}
+        if latest_day
+        else set()
+    )
+    missing_at_latest = sorted(
+        {item["stock_code"] for item in targets} - covered_at_latest
+    )
     receipt = {
-        "status": "SUCCESS" if not failures else "PARTIAL",
+        "status": (
+            "SUCCESS"
+            if latest_day and not missing_at_latest
+            else "PARTIAL"
+            if latest_day
+            else "FAILED"
+        ),
+        "latest_session": latest_day,
+        "missing_at_latest_session": missing_at_latest,
         "fetched_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "window": {"start": start.isoformat(), "end": end.isoformat()},
         "requested_symbols": len(targets),

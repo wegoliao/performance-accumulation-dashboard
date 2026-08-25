@@ -380,3 +380,25 @@ def test_real_2637_fill_landed_exactly_on_the_official_open() -> None:
     # It ran to 105.00 intraday but limit up was 106.81 -- it never locked up.
     assert row["hit_limit_up"] is False
     assert math.isclose(row["day_high"], 105.0)
+
+
+def test_roc_date_parsers_handle_both_official_formats() -> None:
+    """Regression: the OpenAPI feed stamps dates ROC-compact, not AD.
+
+    Reading '1150824' as AD YYYYMMDD yields year 1150 and silently drops
+    every row, which is exactly how the fallback failed the first time.
+    """
+    import fetch_prices
+
+    assert fetch_prices.roc_compact_to_date("1150824") == date(2026, 8, 24)
+    assert fetch_prices.roc_compact_to_date("1141231") == date(2025, 12, 31)
+    # STOCK_DAY uses the punctuated form for the same day.
+    assert fetch_prices.roc_to_date("115/08/24") == date(2026, 8, 24)
+    assert fetch_prices.roc_to_date("115年08月24日") == date(2026, 8, 24)
+
+    for bad in ("", "abc", "12"):
+        try:
+            fetch_prices.roc_compact_to_date(bad)
+        except fetch_prices.FetchError:
+            continue
+        raise AssertionError(f"{bad!r} should have failed closed")
