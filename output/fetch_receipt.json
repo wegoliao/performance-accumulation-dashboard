@@ -2,7 +2,8 @@
   "status": "SUCCESS",
   "latest_session": "2026-08-26",
   "missing_at_latest_session": [],
-  "fetched_at": "2026-08-26T23:12:38+08:00",
+  "missing_at_latest_session_watchlist_only": [],
+  "fetched_at": "2026-08-26T23:22:18+08:00",
   "window": {
     "start": "2026-08-26",
     "end": "2026-08-26"

@@ -91,18 +91,23 @@ def load_universe() -> list[dict[str, str]]:
                 "stock_code": code,
                 "stock_name": (row.get("stock_name") or "").strip(),
                 "market": (row.get("market") or "TWSE").strip().upper() or "TWSE",
+                "required": True,
             },
         )
     for row in read_csv(WATCHLIST_PATH):
         code = (row.get("stock_code") or "").strip()
         if not code:
             continue
+        # Watchlist names feed the mainline-2 volume profile only. A held
+        # position missing today's close is a broken dashboard; a watchlist
+        # name missing it is a cosmetic gap in a six-month histogram.
         seen.setdefault(
             code,
             {
                 "stock_code": code,
                 "stock_name": (row.get("stock_name") or "").strip(),
                 "market": (row.get("market") or "TWSE").strip().upper() or "TWSE",
+                "required": False,
             },
         )
     return [seen[code] for code in sorted(seen)]
@@ -426,7 +431,9 @@ def run(start: date, end: date, delay: float, only: set[str] | None = None) -> d
         if only and code not in only:
             continue
         if all(item["stock_code"] != code for item in targets):
-            targets.append({"stock_code": code, "stock_name": code, "market": "TWSE"})
+            targets.append(
+                {"stock_code": code, "stock_name": code, "market": "TWSE", "required": True}
+            )
 
     months = month_starts(start, end)
     existing = read_csv(PRICE_PATH)
@@ -498,7 +505,12 @@ def run(start: date, end: date, delay: float, only: set[str] | None = None) -> d
     # is a warning, not a build failure -- previously ANY failure exited 1 and
     # took the whole scheduled workflow down with it.
     latest_day = _latest_session(prices, start, end)
-    missing_at_latest = sorted(_missing_at_latest(prices, targets, start, end))
+    missing_all = _missing_at_latest(prices, targets, start, end)
+    optional_codes = {
+        item["stock_code"] for item in targets if not item.get("required", True)
+    }
+    missing_at_latest = sorted(missing_all - optional_codes)
+    missing_watchlist_only = sorted(missing_all & optional_codes)
     receipt = {
         "status": (
             "SUCCESS"
@@ -509,6 +521,8 @@ def run(start: date, end: date, delay: float, only: set[str] | None = None) -> d
         ),
         "latest_session": latest_day,
         "missing_at_latest_session": missing_at_latest,
+        # Reported, never fatal: nothing on the dashboard reads these.
+        "missing_at_latest_session_watchlist_only": missing_watchlist_only,
         "fetched_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "window": {"start": start.isoformat(), "end": end.isoformat()},
         "requested_symbols": len(targets),
@@ -565,6 +579,17 @@ def main(argv: list[str] | None = None) -> int:
     receipt = run(start, end, max(args.delay, 0.0), only)
     print(f"{receipt['status']}: {receipt['price_rows_total']} price rows, {receipt['trading_days']} trading days")
     print(f"COVERAGE: {receipt['coverage']['first']} .. {receipt['coverage']['last']}")
+    if receipt["missing_at_latest_session_watchlist_only"]:
+        print(
+            "NOTE: watchlist-only symbols missing at the latest session "
+            f"(not fatal): {receipt['missing_at_latest_session_watchlist_only']}"
+        )
+    if receipt["missing_at_latest_session"]:
+        print(
+            "MISSING_REQUIRED: "
+            f"{receipt['missing_at_latest_session']}",
+            file=sys.stderr,
+        )
     for failure in receipt["failures"]:
         print(f"WARN: {failure}", file=sys.stderr)
     return 0 if receipt["status"] == "SUCCESS" else 1
