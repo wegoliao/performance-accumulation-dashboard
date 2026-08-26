@@ -1,18 +1,18 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-08-26T01:04:59+08:00",
-  "source_data_asof": "2026-08-24",
-  "actual_valuation_asof": "2026-08-25",
+  "generated_at": "2026-08-26T23:18:18+08:00",
+  "source_data_asof": "2026-08-26",
+  "actual_valuation_asof": "2026-08-26",
   "source_capture_time": null,
   "source_status": "USER_PASTED_INTRADAY_SNAPSHOT",
   "snapshot_reconciliation": "PASS",
   "inputs": {
-    "holdings_snapshot_2026-08-24.csv": {
-      "sha256": "c614b85760311c311b28d488cedfd4dff6a5773cf1abbcbc7ccdd7157391cf5e",
-      "rows": 15
+    "holdings_snapshot_2026-08-26.csv": {
+      "sha256": "62551ee7f5ea1a7207824119883380a0432354755af580621e9b5de95d7aaba5",
+      "rows": 16
     },
-    "snapshot_summary_2026-08-24.csv": {
-      "sha256": "d43adbea0142280728432432b5563a1adf0d0e200cd806b1f78bde5afc042cd3",
+    "snapshot_summary_2026-08-26.csv": {
+      "sha256": "00f888dc2a5b0d9e389459ec9827bdc8815f5e106bec487426f9426c48f67df2",
       "rows": 1
     },
     "account_nav.csv": {
@@ -24,58 +24,58 @@
       "rows": 0
     },
     "benchmark_nav.csv": {
-      "sha256": "51293f09fb2a69414449013a40fa612832233ef89e7135390aa8954815b2b4f0",
-      "rows": 486
+      "sha256": "d81891cbc6fe1e488395d8365039f7d1ba1af24a7849ed14464be065439037e5",
+      "rows": 488
     },
     "actual_fills.csv": {
       "sha256": "e63698c1fb4457463de22cdef73b3335166b6d02cdc1d0c013a427a9fb15de27",
       "rows": 23
     },
     "strategy_card_returns.csv": {
-      "sha256": "ea60da4dd22da6877135b307c399aed60fbbb4717a9c64cdeaffa929df6f7800",
-      "rows": 44
+      "sha256": "a87596d7d1223482cba5fee956c825fabe52801935e65becf126d5dd5b80231e",
+      "rows": 48
     },
     "strategy_position_marks.csv": {
       "sha256": "4fc2f7225996426e23425afd5205a98771d533ec3f0e1db29318d494d2e36299",
       "rows": 6
     },
     "latest_strategy_signals.csv": {
-      "sha256": "c618fc6c80f7d9785f7b6e93a19a8feee8df17b5c4b065f72dd8c6cd745c42c1",
+      "sha256": "92f5029a62aaa15bea50bab98eb6f85e7b5e46b03fce65305072fd81dc5f80b2",
       "rows": 25
     }
   },
   "snapshot": {
-    "shares": 12169.0,
-    "yesterday_shares": 12169.0,
-    "current_value_twd": 1218013.0,
-    "cost_basis_twd": 1177906.0,
-    "unrealized_pnl_twd": 40107.0,
-    "positions": 15,
-    "unrealized_return": 0.03404940631934976,
-    "estimated_daily_price_contribution_twd": 24217.550000000003,
-    "estimated_gross_daily_return": 0.02019484156390432,
-    "gross_current_mark_value_twd": 1223412.4,
-    "gross_previous_mark_value_twd": 1199194.8499999999,
-    "max_weight": 0.1468531124052042,
-    "hhi": 0.08137823083107056,
-    "effective_positions": 12.288298600099276,
-    "winning_positions": 9,
+    "shares": 13169.0,
+    "yesterday_shares": 13169.0,
+    "current_value_twd": 1343532.0,
+    "cost_basis_twd": 1275590.0,
+    "unrealized_pnl_twd": 67942.0,
+    "positions": 16,
+    "unrealized_return": 0.05326319585446734,
+    "estimated_daily_price_contribution_twd": 16909.65,
+    "estimated_gross_daily_return": 0.012689434153962493,
+    "gross_current_mark_value_twd": 1349486.8,
+    "gross_previous_mark_value_twd": 1332577.1500000001,
+    "max_weight": 0.14241045244921594,
+    "hhi": 0.07700493359400118,
+    "effective_positions": 12.986180927995784,
+    "winning_positions": 10,
     "losing_positions": 6,
-    "winning_position_ratio": 0.6,
-    "source_subtotal_return": 0.034,
+    "winning_position_ratio": 0.625,
+    "source_subtotal_return": 0.0533,
     "reconciliation": "PASS"
   },
   "history": {
     "account_nav_observations": 1,
     "account_return_observations": 0,
-    "analysis_return_observations": 11,
+    "analysis_return_observations": 12,
     "analysis_basis": "ACTUAL_FOUR_STRATEGY_LIQUIDATION_NAV",
     "mtm_diagnostics": {
       "status": "OK",
-      "covered_days": 243,
+      "covered_days": 244,
       "skipped_days": 0,
       "first_covered": "2025-08-25",
-      "last_covered": "2026-08-25",
+      "last_covered": "2026-08-26",
       "missing": [],
       "calendar_source": "TAIEX",
       "basis": "SIMULATED_CONSTANT_HOLDINGS"
@@ -111,33 +111,33 @@
     ],
     "basket_lane": {
       "basis": "SIMULATED_CONSTANT_HOLDINGS",
-      "observations": 242,
+      "observations": 243,
       "status": "OK",
       "metrics": {
-        "total_return": 0.8134451312531656,
-        "cagr": 0.8141846066984693,
-        "volatility": 0.28887266857742916,
-        "sharpe": 2.2926132315963925,
-        "sortino": 3.141947528941598,
+        "total_return": 0.8364567238380269,
+        "cagr": 0.8341707129461575,
+        "volatility": 0.2884572325003134,
+        "sharpe": 2.3320868229130993,
+        "sortino": 3.1914484036084008,
         "max_drawdown": -0.1500379585723164,
-        "calmar": 5.426524157258796,
+        "calmar": 5.559731156593268,
         "worst_day": -0.06507305374302819,
-        "positive_day_ratio": 0.5743801652892562
+        "positive_day_ratio": 0.5761316872427984
       },
       "relative_to_TAIEX": {
-        "alpha": 0.09375714118080831,
-        "beta": 0.8314133216820566,
-        "r_squared": 0.6072011065510996,
-        "tracking_error": 0.18671203344940449,
-        "information_ratio": -0.11526607880093007,
-        "overlap_returns": 242.0
+        "alpha": 0.09385905079839765,
+        "beta": 0.831432139463714,
+        "r_squared": 0.6076965355536106,
+        "tracking_error": 0.18633598293915815,
+        "information_ratio": -0.12611063379488693,
+        "overlap_returns": 243.0
       },
       "capture": {
-        "up_capture": 0.8608029022147511,
+        "up_capture": 0.8608302381890915,
         "down_capture": 0.8024142071114451,
-        "up_days": 138.0,
+        "up_days": 139.0,
         "down_days": 104.0,
-        "hit_rate_vs_benchmark": 0.4628099173553719
+        "hit_rate_vs_benchmark": 0.4609053497942387
       },
       "drawdown": {
         "max_drawdown": -0.1500379585723164,
@@ -148,15 +148,15 @@
         "current_drawdown": 0.0
       },
       "benchmark_TAIEX": {
-        "total_return": 0.8605574407123009,
-        "cagr": 0.8613488252222135,
-        "volatility": 0.27074207413288387,
-        "sharpe": 2.52563207391333,
-        "sortino": 3.6825949498711705,
+        "total_return": 0.8878734031431728,
+        "cagr": 0.8854167016297976,
+        "volatility": 0.27045686173497424,
+        "sharpe": 2.574185973057082,
+        "sortino": 3.7494368313760775,
         "max_drawdown": -0.16355180219477772,
-        "calmar": 5.266519926184688,
+        "calmar": 5.413677438878563,
         "worst_day": -0.06473887769375475,
-        "positive_day_ratio": 0.5702479338842975
+        "positive_day_ratio": 0.5720164609053497
       }
     },
     "strategy_series": [
@@ -165,44 +165,51 @@
       "TRUST",
       "YOY"
     ],
-    "strategy_card_asof": "2026-08-25",
+    "strategy_card_asof": "2026-08-26",
     "latest_strategy_signals": {
-      "asof_date": "2026-08-25",
-      "planned_effective_date": null,
-      "planned_actions": [],
+      "asof_date": "2026-08-26",
+      "planned_effective_date": "2026-08-27",
+      "planned_actions": [
+        {
+          "strategy_id": "TRUST",
+          "stock_code": "2606",
+          "signal": "出",
+          "actual_fill_status": "WAITING_ACTUAL_FILL"
+        }
+      ],
       "quality": {
-        "asof_date": "2026-08-25",
+        "asof_date": "2026-08-26",
         "TRUST": {
-          "header_return_pct": 6.0,
-          "visible_member_mean_pct": 6.0,
-          "gap_pp": 0.0,
+          "header_return_pct": 4.0,
+          "visible_member_mean_pct": 4.0200000000000005,
+          "gap_pp": 0.020000000000000462,
           "held_or_exit_count": 5,
           "new_entry_count": 0,
-          "exit_count": 0,
+          "exit_count": 1,
           "status": "PASS"
         },
         "YOY": {
-          "header_return_pct": 3.5,
-          "visible_member_mean_pct": 4.083333333333332,
-          "gap_pp": 0.5833333333333321,
+          "header_return_pct": 5.099999999999994,
+          "visible_member_mean_pct": 5.900000000000001,
+          "gap_pp": 0.8000000000000069,
           "held_or_exit_count": 6,
           "new_entry_count": 0,
           "exit_count": 0,
           "status": "SOURCE_CHECKSUM_MISMATCH"
         },
         "MARGIN": {
-          "header_return_pct": 8.900000000000006,
-          "visible_member_mean_pct": 8.86,
-          "gap_pp": -0.04000000000000625,
+          "header_return_pct": 10.200000000000003,
+          "visible_member_mean_pct": 10.25,
+          "gap_pp": 0.04999999999999716,
           "held_or_exit_count": 10,
           "new_entry_count": 0,
           "exit_count": 0,
           "status": "PASS"
         },
         "BREAKOUT": {
-          "header_return_pct": 5.5,
-          "visible_member_mean_pct": 5.5,
-          "gap_pp": 0.0,
+          "header_return_pct": 9.799999999999997,
+          "visible_member_mean_pct": 9.750000000000002,
+          "gap_pp": -0.04999999999999538,
           "held_or_exit_count": 4,
           "new_entry_count": 0,
           "exit_count": 0,
@@ -213,7 +220,7 @@
     "strategy_diagnostics": {
       "TRUST": {
         "cash_twd": 81151.0,
-        "liquidation_value_twd": 434179.5,
+        "liquidation_value_twd": 431885.5,
         "active_positions": {
           "3044": 200.0,
           "2609": 1000.0,
@@ -224,7 +231,7 @@
       },
       "YOY": {
         "cash_twd": 78012.0,
-        "liquidation_value_twd": 425129.9,
+        "liquidation_value_twd": 432577.8,
         "active_positions": {
           "2397": 1045.0,
           "2301": 261.0,
@@ -236,7 +243,7 @@
       },
       "MARGIN": {
         "cash_twd": 342854.0,
-        "liquidation_value_twd": 152791.75,
+        "liquidation_value_twd": 150312.5,
         "active_positions": {
           "2354": 788.0,
           "1709": 305.0,
@@ -245,7 +252,7 @@
       },
       "BREAKOUT": {
         "cash_twd": 210522.0,
-        "liquidation_value_twd": 314551.0,
+        "liquidation_value_twd": 328711.4,
         "active_positions": {
           "1709": 3644.0,
           "2408": 198.0,
@@ -253,21 +260,19 @@
         }
       },
       "reconciliation": "PASS_EXCLUDING_UNASSIGNED_2886",
-      "reconciled_asof": "2026-08-24",
-      "post_snapshot_positions": {
-        "2637": 1000.0
-      },
+      "reconciled_asof": "2026-08-26",
+      "post_snapshot_positions": {},
       "unassigned": {
         "2886": 1.0
       },
       "last_fill_date": "2026-08-25",
-      "valuation_asof": "2026-08-25",
+      "valuation_asof": "2026-08-26",
       "valuation_basis": "OFFICIAL_CLOSE_ESTIMATED_LIQUIDATION_CARRY_FORWARD_POSITIONS",
-      "bundle_current_pnl_twd": 39191.149999999674,
-      "active_fill_cash_out_twd": 1178519.0,
-      "source_active_cost_ex_unassigned_twd": 1177866.0,
-      "active_cost_basis_gap_twd": 653.0,
-      "post_snapshot_fill_cash_out_twd": 97939.0
+      "bundle_current_pnl_twd": 56026.19999999972,
+      "active_fill_cash_out_twd": 1276458.0,
+      "source_active_cost_ex_unassigned_twd": 1275550.0,
+      "active_cost_basis_gap_twd": 908.0,
+      "post_snapshot_fill_cash_out_twd": 0
     },
     "legacy_strategy_series": [],
     "benchmark_series": [
@@ -278,13 +283,13 @@
     "risk_metric_status": "WAITING_MIN_20_RETURNS",
     "relative_metric_status": "WAITING_MIN_20_COMMON_RETURNS",
     "period_returns": {
-      "今日": 0.005297951082764207,
-      "近一週": 0.012455284727225235,
+      "今日": 0.008255748854147482,
+      "近一週": 0.023790297753613077,
       "近一月": null,
       "近一季": null,
       "近一年": null,
-      "YTD": 0.019595574999999865,
-      "累計": 0.019595574999999865
+      "YTD": 0.028013099999999902,
+      "累計": 0.028013099999999902
     }
   },
   "safety": {

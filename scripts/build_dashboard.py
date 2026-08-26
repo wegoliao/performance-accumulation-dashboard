@@ -32,8 +32,6 @@ ROLLING_WINDOW = analytics.ROLLING_WINDOW
 ROOT = Path(__file__).resolve().parents[1]
 INPUTS = ROOT / "inputs"
 OUTPUT = ROOT / "output"
-HOLDINGS_PATH = INPUTS / "holdings_snapshot_2026-08-24.csv"
-SUMMARY_PATH = INPUTS / "snapshot_summary_2026-08-24.csv"
 ACCOUNT_NAV_PATH = INPUTS / "account_nav.csv"
 STRATEGY_NAV_PATH = INPUTS / "strategy_nav.csv"
 BENCHMARK_NAV_PATH = INPUTS / "benchmark_nav.csv"
@@ -44,6 +42,7 @@ SIGNAL_FILLS_PATH = INPUTS / "signal_fills.csv"
 STRATEGY_CARD_PATH = INPUTS / "strategy_card_returns.csv"
 STRATEGY_MARKS_PATH = INPUTS / "strategy_position_marks.csv"
 LATEST_STRATEGY_SIGNALS_PATH = INPUTS / "latest_strategy_signals.csv"
+SIGNAL_HISTORY_PATH = INPUTS / "signal_history.csv"
 BENCHMARK_LABELS = {"TAIEX": "加權指數", "0050": "0050 元大台灣50"}
 STRATEGY_LABELS = {
     "TRUST": "投信",
@@ -62,6 +61,23 @@ EXPECTED_CARD_MEMBERS_LATEST = {
 
 class InputError(ValueError):
     """Input contract violation that must fail closed."""
+
+
+def _latest_snapshot(prefix: str) -> Path:
+    """Newest dated snapshot, so a new day only needs a new file.
+
+    Pinning the filename meant every fresh paste from the owner required a
+    code edit, and forgetting that edit would silently republish yesterday's
+    holdings under today's date.
+    """
+    found = sorted(INPUTS.glob(f"{prefix}_????-??-??.csv"))
+    if not found:
+        raise InputError(f"no {prefix}_YYYY-MM-DD.csv in {INPUTS}")
+    return found[-1]
+
+
+HOLDINGS_PATH = _latest_snapshot("holdings_snapshot")
+SUMMARY_PATH = _latest_snapshot("snapshot_summary")
 
 
 def read_csv(path: Path) -> list[dict[str, str]]:
@@ -1344,6 +1360,74 @@ def slippage_table(rows: list[dict[str, Any]]) -> str:
     )
 
 
+def update_timeline(
+    fills: list[dict[str, Any]],
+    prices: dict[str, list[tuple[date, float]]],
+    days_shown: int = 18,
+) -> tuple[str, str]:
+    """One row per feed, one column per session. Returns (grid, summary line).
+
+    The owner updates by hand every day, so the question that actually matters
+    is not "what is today's number" but "which day is each number from". A gap
+    in a row here is a day the dashboard is quietly carrying forward.
+    """
+    feeds: list[tuple[str, str, set[date]]] = []
+
+    signal_days: set[date] = set()
+    if SIGNAL_HISTORY_PATH.exists():
+        signal_days = {parse_date(row["asof_date"]) for row in read_csv(SIGNAL_HISTORY_PATH)}
+    signal_days |= {row["asof_date"] for row in load_latest_strategy_signals()}
+    feeds.append(("策略卡", "owner 每日四張卡", signal_days))
+
+    snapshot_days = set()
+    for path in sorted(INPUTS.glob("holdings_snapshot_????-??-??.csv")):
+        snapshot_days.add(parse_date(path.stem.rsplit("_", 1)[1]))
+    feeds.append(("庫存快照", "owner 貼入的券商庫存", snapshot_days))
+
+    feeds.append(("實際成交", "actual_fills.csv", {row["date"] for row in fills}))
+
+    price_days = {day for points in prices.values() for day, _ in points}
+    feeds.append(("官方收盤", "TWSE／TPEx", price_days))
+
+    every_day = sorted(set().union(*(days for _, _, days in feeds)))
+    window = every_day[-days_shown:]
+    if not window:
+        return '<p class="neutral">尚無任何更新紀錄。</p>', "—"
+
+    head = "".join(
+        f'<th class="tl-d"><span>{day.strftime("%m/%d")}</span></th>' for day in window
+    )
+    body: list[str] = []
+    for label, note, days in feeds:
+        latest = max(days) if days else None
+        cells = "".join(
+            f'<td class="tl-c{" on" if day in days else ""}"></td>' for day in window
+        )
+        stale = latest is not None and latest < window[-1]
+        body.append(
+            "<tr>"
+            f'<td class="tl-n"><b>{html.escape(label)}</b><br><small>{html.escape(note)}</small></td>'
+            f"{cells}"
+            f'<td class="tl-l{" warn" if stale else ""}">'
+            f'{latest.isoformat() if latest else "—"}</td>'
+            "</tr>"
+        )
+
+    grid = (
+        '<div class="table-wrap"><table class="timeline"><thead><tr>'
+        '<th class="tl-n">資料來源</th>' + head + '<th class="tl-l">最新</th>'
+        "</tr></thead><tbody>" + "".join(body) + "</tbody></table></div>"
+    )
+    freshest = {label: (max(days) if days else None) for label, _, days in feeds}
+    newest = max(day for day in freshest.values() if day)
+    behind = [label for label, day in freshest.items() if day and day < newest]
+    summary = (
+        f"最新一次更新 {newest.isoformat()}"
+        + (f"；落後的來源：{'、'.join(behind)}" if behind else "；四個來源同日到齊")
+    )
+    return grid, summary
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -1405,21 +1489,39 @@ def build() -> tuple[Path, dict[str, Any]]:
     }
     theory_asof = min(curve[-1][0] for curve in card_curves.values())
     actual_bundle_pnl = strategy_diagnostics["bundle_current_pnl_twd"]
+    timeline_grid, timeline_summary = update_timeline(fills, prices)
+    realized_total = pnl_breakdown["_totals"]["realized_pnl_twd"]
+    combined_pnl = snapshot["unrealized_pnl_twd"] + realized_total
 
     header_cards = "".join(
         [
             metric_card("庫存現值", f"NT$ {fmt_ntd(snapshot['current_value_twd'])}", "來源畫面『現值』小計"),
             metric_card("付出成本", f"NT$ {fmt_ntd(snapshot['cost_basis_twd'])}", "來源畫面『付出成本』小計"),
             metric_card(
-                "累積未實現損益",
+                "在庫未實現損益",
                 f"NT$ {fmt_ntd(snapshot['unrealized_pnl_twd'], sign=True)}",
-                "現值 − 付出成本",
+                "現值 − 付出成本；只算還在手上的部位",
                 css_value_class(snapshot["unrealized_pnl_twd"]),
+            ),
+            metric_card(
+                "已實現損益",
+                f"NT$ {fmt_ntd(realized_total, sign=True)}",
+                (
+                    f"{len(pnl_breakdown['_lots'])} 筆平倉的實收現金 − 實付成本；"
+                    "賣掉的部位不在庫存表裡，但錢已經動了"
+                ),
+                css_value_class(realized_total),
+            ),
+            metric_card(
+                "累積總損益",
+                f"NT$ {fmt_ntd(combined_pnl, sign=True)}",
+                "在庫未實現 + 已實現；這才是開戶至今的實際結果",
+                css_value_class(combined_pnl),
             ),
             metric_card(
                 "累積未實現報酬",
                 fmt_pct(snapshot["unrealized_return"], sign=True),
-                "未實現損益 ÷ 付出成本",
+                "在庫未實現損益 ÷ 付出成本；分母不含已平倉部位",
                 css_value_class(snapshot["unrealized_return"] or 0),
             ),
             metric_card(
@@ -1523,6 +1625,18 @@ def build() -> tuple[Path, dict[str, Any]]:
 <style>
 :root{--ink:#ecf4ef;--muted:#9eaaa5;--panel:#14231f;--panel2:#192c27;--line:#2a4039;--green:#57d3a2;--red:#ff7f7f;--gold:#f5bd58;--blue:#72a7ff;--bg:#0b1512}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#18362d 0,transparent 34%),var(--bg);color:var(--ink);font-family:"Segoe UI","Noto Sans TC",sans-serif;line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:34px 24px 70px}.eyebrow{color:var(--green);font-weight:700;letter-spacing:.16em;font-size:12px;text-transform:uppercase}.hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;margin:8px 0 24px}.hero h1{font-size:clamp(34px,5vw,64px);line-height:1.02;margin:0;letter-spacing:-.04em}.hero p{max-width:560px;color:var(--muted);margin:8px 0 0}.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.badge{border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-size:12px;color:var(--muted)}.badge.good{border-color:#2c7259;color:var(--green)}.badge.warn{border-color:#745c2c;color:var(--gold)}.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.metric-card,.panel{background:linear-gradient(145deg,rgba(25,44,39,.94),rgba(17,31,27,.94));border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,.18)}.metric-card{padding:18px;min-height:132px}.metric-label{font-size:13px;color:var(--muted)}.metric-value{font-size:25px;font-weight:750;margin:10px 0 4px;white-space:nowrap}.metric-note{font-size:12px;color:var(--muted)}.positive{color:var(--green)!important}.negative{color:var(--red)!important}.neutral{color:var(--muted)!important}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.panel{padding:22px;overflow:hidden}.panel.full{grid-column:1/-1}.panel h2{font-size:20px;margin:0 0 4px}.panel .sub{color:var(--muted);font-size:13px;margin-bottom:18px}.callout{border-left:3px solid var(--gold);background:#2a2618;border-radius:8px;padding:12px 14px;color:#eadfbe;margin:16px 0}.bar-row{display:grid;grid-template-columns:150px 1fr 92px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.bar-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bar-track{height:12px;background:#0d1915;border-radius:999px;position:relative;overflow:hidden}.bar-axis{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#607169}.bar-fill{position:absolute;top:2px;bottom:2px;border-radius:999px}.bar-fill.positive{background:var(--green)}.bar-fill.negative{background:var(--red)}.bar-fill.neutral{background:#607169}.bar-value{text-align:right;font-variant-numeric:tabular-nums}.allocation-row{display:grid;grid-template-columns:150px 1fr 54px;gap:10px;align-items:center;font-size:12px;margin:8px 0}.allocation-track{height:8px;background:#0d1915;border-radius:99px;overflow:hidden}.allocation-track span{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--green));border-radius:99px}.allocation-row strong{text-align:right}.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.status-metric{background:#0f1d19;border:1px solid var(--line);border-radius:12px;padding:13px}.status-metric>div{font-size:12px}.status-metric strong{display:block;font-size:20px;margin:6px 0}.status-metric small{display:block;color:var(--muted);font-size:10px}.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px}.status-dot.ok{background:var(--green);box-shadow:0 0 10px var(--green)}.status-dot.waiting{background:var(--gold);box-shadow:0 0 10px var(--gold)}.period-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}.period-card{background:#0f1d19;border:1px solid var(--line);border-radius:14px;padding:15px}.period-card span,.period-card small{display:block;color:var(--muted);font-size:11px}.period-card b{display:block;font-size:21px;margin:7px 0}.period-bar-row{display:grid;grid-template-columns:82px 1fr 70px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.period-bar-track{height:10px;background:#0d1915;border-radius:99px;overflow:hidden}.period-bar-track i{display:block;height:100%;border-radius:99px}.period-bar-track i.positive{background:var(--green)}.period-bar-track i.negative{background:var(--red)}.period-kind{font-size:12px;color:var(--muted);margin-bottom:10px}.range-track{height:8px;background:#0d1915;border-radius:99px;position:relative;margin:4px 0 5px;border:1px solid var(--line)}.range-fill{position:absolute;top:-3px;width:3px;height:12px;background:var(--gold);border-radius:2px;box-shadow:0 0 6px var(--gold)}.mini-empty{min-height:180px;border:1px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--gold);text-align:center;padding:20px}.heat-wrap{overflow:auto}.heatmap{min-width:850px}.heatmap td{text-align:center;font-variant-numeric:tabular-nums;border:3px solid var(--panel);border-radius:7px}.heat-empty{background:#0f1d19;color:#5f6e68}.drawdown-head{display:flex;justify-content:space-between;margin-bottom:8px}.drawdown-chart{width:100%;height:auto;background:#0f1d19;border-radius:12px}.empty-chart{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}.empty-chart b{color:var(--gold)}.empty-chart p{margin:4px;max-width:540px}.empty-icon{font-size:48px;color:var(--green)}.line-chart{width:100%;height:auto;background:#0f1d19;border-radius:12px}.grid-line{stroke:#2a4039;stroke-width:1}.axis-text{fill:#899791;font-size:11px}.chart-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;color:var(--muted)}.chart-legend i{display:inline-block;width:18px;height:3px;margin-right:6px;vertical-align:middle}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:10px 8px;white-space:nowrap}td{padding:10px 8px;border-bottom:1px solid rgba(42,64,57,.55)}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}small{color:var(--muted)}.quality{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.quality article{background:#0f1d19;border-radius:12px;padding:15px;border:1px solid var(--line)}.quality b{display:block;margin-bottom:5px}.quality p{font-size:12px;color:var(--muted);margin:0}.footer{margin-top:22px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:20px}.mono{font-family:Consolas,monospace}.section-gap{margin-top:16px}@media(max-width:1050px){.metrics{grid-template-columns:repeat(3,1fr)}.period-grid{grid-template-columns:repeat(4,1fr)}.status-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.wrap{padding:22px 14px 50px}.hero{display:block}.grid{grid-template-columns:1fr}.panel.full{grid-column:auto}.metrics{grid-template-columns:repeat(2,1fr)}.period-grid{grid-template-columns:repeat(2,1fr)}.status-grid,.quality{grid-template-columns:1fr}.bar-row{grid-template-columns:100px 1fr 78px}.allocation-row{grid-template-columns:100px 1fr 48px}.metric-value{font-size:20px}}@media print{body{background:#fff;color:#111}.metric-card,.panel{box-shadow:none;background:#fff;border-color:#ccc}.metric-note,.panel .sub,small,.footer{color:#555}.positive{color:#087f5b!important}.negative{color:#c92a2a!important}}
+
+table.timeline{min-width:0}
+table.timeline td,table.timeline th{padding:5px 3px;border-bottom:1px solid var(--line)}
+.tl-n{min-width:120px;white-space:nowrap}
+.tl-d{text-align:center;font-size:10px;padding:4px 2px !important;color:var(--muted)}
+.tl-d span{writing-mode:vertical-rl;text-orientation:mixed}
+.tl-c{width:16px;padding:5px 2px !important}
+.tl-c::after{content:"";display:block;width:11px;height:11px;margin:0 auto;border-radius:3px;
+  background:var(--line)}
+.tl-c.on::after{background:var(--green)}
+.tl-l{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px}
+.tl-l.warn{color:var(--gold);font-weight:700}
 </style>
 <style>
 .badges a{text-decoration:none}
@@ -1540,6 +1654,7 @@ def build() -> tuple[Path, dict[str, Any]]:
 <article class="panel full"><h2>訊號 → 成交 · 履約落差帳</h2><div class="sub">策略卡報的是訊號價，帳戶付的是成交價，中間的差就是「這個策略能不能被執行」的全部答案。正的 bp 代表對自己不利。累積夠多筆之後，才知道策略卡報酬要打幾折。</div>{{SLIPPAGE_TABLE}}</article>
 <article class="panel full"><h2>四策略實際績效 · 累積曲線</h2><div class="sub">每個 sleeve 以 NT$50 萬現金起始，用實際成交、費稅、已實現損益與每日可變現價值重建；合計初始資金 NT$200 萬。</div>{{LINE_CHART}}</article>
 <article class="panel full"><h2>四策略理論卡 · 來源顯示曲線</h2><div class="sub">這是 owner 策略卡的「當日持倉成分等權顯示報酬」，不是可投資 NAV，也不將每日百分比複利串接。資料只到 {{THEORY_ASOF}}。</div>{{THEORY_CHART}}</article>
+<article class="panel full"><h2>每日更新時間軸</h2><div class="sub">四個來源，各自有自己的更新節奏。實心格代表那一天有這個來源的資料；空格代表沒有，而不是「和前一天一樣」。右欄的日期若比最後一欄舊，代表這個來源正在落後，畫面上與它有關的數字都還停在那一天。{{TIMELINE_SUMMARY}}。</div>{{UPDATE_TIMELINE}}</article>
 <article class="panel full"><h2>已實現 vs 未實現 · 完整損益拆解</h2><div class="sub">畫面上其他地方的「損益」都是<b>未實現</b>，只算還在手上的部位。已平倉的成交不會出現在庫存表裡，但現金已經確定變動 —— 那筆錢的盈虧在這裡。sleeve 曲線一直都含這兩塊，這張表只是把它拆開讓你看得到。已實現＝實收現金 − 實付成本（含手續費與證交稅）；未實現＝目前可變現值 − 在庫帳面成本，兩者不重複計算。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">已實現損益</th><th class="num">平倉筆數</th><th class="num">未實現損益</th><th class="num">在庫成本</th><th class="num">合計損益</th><th class="num">對 50 萬報酬</th></tr></thead><tbody>{{PNL_SPLIT_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">逐筆平倉明細 · FIFO 對沖，一次賣出跨多筆買進會拆成多列</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">買進</th><th class="num">賣出</th><th class="num">持有</th><th class="num">成本 → 實收</th><th class="num">已實現損益</th></tr></thead><tbody>{{CLOSED_LOTS}}</tbody></table></div></article>
 <article class="panel full"><h2>實際 vs 理論 · 四策略差異</h2><div class="sub">「差異」只在共同截止日 {{THEORY_ASOF}} 計算：實際 50 萬 sleeve 可變現報酬 − 理論卡等權顯示報酬。這是描述性 implementation gap，權重與現金比率不同，不冒充 alpha。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際累計<br>{{ASOF}}</th><th class="num">實際損益</th><th class="num">實際<br>{{THEORY_ASOF}}</th><th class="num">理論卡<br>{{THEORY_ASOF}}</th><th class="num">差異<br>pp</th><th class="num">實際/理論<br>持股數</th><th class="num">MDD</th><th class="num">Sharpe</th></tr></thead><tbody>{{STRATEGY_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>日／週／月／季／年／YTD／累計</h2><div class="sub">basis：{{ANALYSIS_BASIS}}。近一月、季、年若沒有足夠實際觀察就顯示 N/A，不用同一批股票倒推。</div><div class="period-grid">{{PERIOD_CARDS}}</div></article>
@@ -1590,6 +1705,8 @@ def build() -> tuple[Path, dict[str, Any]]:
         "{{DRAWDOWN}}": drawdown_visual(analysis_curve),
         "{{MONTHLY_HEATMAP}}": monthly_heatmap(analysis_curve),
         "{{SLIPPAGE_TABLE}}": slippage_table(slippage_rows),
+        "{{UPDATE_TIMELINE}}": timeline_grid,
+        "{{TIMELINE_SUMMARY}}": timeline_summary,
         "{{PNL_SPLIT_TABLE}}": pnl_split_table(pnl_breakdown),
         "{{CLOSED_LOTS}}": closed_lot_table(pnl_breakdown["_lots"]),
         "{{RISK_SCATTER}}": risk_scatter,

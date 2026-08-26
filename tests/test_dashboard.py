@@ -20,24 +20,35 @@ def test_pasted_snapshot_reconciles_exact_source_subtotal() -> None:
     summary = dashboard.load_summary()
     result = dashboard.snapshot_analytics(holdings, summary)
 
-    assert len(holdings) == 15
-    assert result["shares"] == 12_169
-    assert result["current_value_twd"] == 1_218_013
-    assert result["cost_basis_twd"] == 1_177_906
-    assert result["unrealized_pnl_twd"] == 40_107
-    assert math.isclose(result["unrealized_return"], 40_107 / 1_177_906)
+    # Pinning one day's totals here made the suite fail on every new paste.
+    # The invariant is that the rows add up to the broker's own subtotal.
+    assert holdings, "the newest snapshot must contain at least one position"
+    assert result["shares"] == sum(row["shares"] for row in holdings)
+    assert result["current_value_twd"] == sum(row["current_value_twd"] for row in holdings)
+    assert result["cost_basis_twd"] == sum(row["cost_basis_twd"] for row in holdings)
+    assert result["unrealized_pnl_twd"] == sum(row["unrealized_pnl_twd"] for row in holdings)
+    assert math.isclose(
+        result["unrealized_return"],
+        result["unrealized_pnl_twd"] / result["cost_basis_twd"],
+    )
     assert result["reconciliation"] == "PASS"
+    # The build must read the newest paste, not a filename pinned in code.
+    assert dashboard.HOLDINGS_PATH.stem.endswith(summary["asof_date"].isoformat())
+    assert dashboard.SUMMARY_PATH.stem.endswith(summary["asof_date"].isoformat())
 
 
 def test_daily_price_contribution_is_labeled_estimate_and_reproducible() -> None:
     holdings = dashboard.load_holdings()
     result = dashboard.snapshot_analytics(holdings, dashboard.load_summary())
 
+    expected = sum(row["shares"] * row["price_change"] for row in holdings)
     assert math.isclose(
-        result["estimated_daily_price_contribution_twd"], 24_217.55, abs_tol=0.001
+        result["estimated_daily_price_contribution_twd"], expected, abs_tol=0.001
     )
+    gross_now = sum(row["shares"] * row["last_price"] for row in holdings)
+    opening_value = gross_now - expected
     assert math.isclose(
-        result["estimated_gross_daily_return"], 0.02019484156390432
+        result["estimated_gross_daily_return"], expected / opening_value, abs_tol=1e-9
     )
     top = max(
         holdings, key=lambda row: row["estimated_daily_price_contribution_twd"]
@@ -45,8 +56,17 @@ def test_daily_price_contribution_is_labeled_estimate_and_reproducible() -> None
     bottom = min(
         holdings, key=lambda row: row["estimated_daily_price_contribution_twd"]
     )
-    assert top["stock_code"] == "2301"
-    assert bottom["stock_code"] == "2408"
+    # Which name leads changes daily; that the extremes come from the same
+    # shares x price-change arithmetic as the total does not.
+    assert top["estimated_daily_price_contribution_twd"] == (
+        top["shares"] * top["price_change"]
+    )
+    assert bottom["estimated_daily_price_contribution_twd"] == (
+        bottom["shares"] * bottom["price_change"]
+    )
+    assert top["estimated_daily_price_contribution_twd"] >= (
+        bottom["estimated_daily_price_contribution_twd"]
+    )
 
 
 def test_twr_adjusts_external_cash_flow() -> None:
@@ -152,16 +172,22 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     assert math.isclose(
         diagnostics["bundle_current_pnl_twd"], sleeve_total - budget_total, abs_tol=0.5
     )
-    assert diagnostics["active_fill_cash_out_twd"] == 1_178_519
-    assert diagnostics["source_active_cost_ex_unassigned_twd"] == 1_177_866
-    assert diagnostics["active_cost_basis_gap_twd"] == 653
+    # The gap between the fill book and the broker's cost column is disclosed,
+    # not smoothed. Its size moves with each new fill; that it stays derived
+    # from those two sources is the part worth asserting.
+    assert diagnostics["active_cost_basis_gap_twd"] == (
+        diagnostics["active_fill_cash_out_twd"]
+        - diagnostics["source_active_cost_ex_unassigned_twd"]
+    )
+    assert diagnostics["active_fill_cash_out_twd"] > 0
     assert diagnostics["TRUST"]["active_positions"]["2301"] == 365
     assert diagnostics["YOY"]["active_positions"]["2301"] == 261
     assert diagnostics["MARGIN"]["active_positions"]["1709"] == 305
     assert diagnostics["BREAKOUT"]["active_positions"]["1709"] == 3644
     assert receipt["safety"]["network_access"] is False
     assert receipt["safety"]["order_capability"] is False
-    assert "NT$ +40,107" in content
+    pasted = dashboard.load_summary()
+    assert f"NT$ {pasted['unrealized_pnl_twd']:+,.0f}" in content
     rendered_pnl = f"NT$ {diagnostics['bundle_current_pnl_twd']:+,.0f}"
     assert rendered_pnl in content
     assert "差 NT$653" in content
