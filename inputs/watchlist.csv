@@ -7,3 +7,4 @@ stock_code,stock_name,strategy_id,track,market,note
 6570,維田,MARGIN,MAINLINE2,TPEX,融資卡成員；整戶零部位
 6603,富強鑫,MARGIN,MAINLINE2,TWSE,融資卡成員；整戶零部位
 3702,大聯大,YOY,CLOSED,TWSE,已平倉；保留行情供成交落點與已實現損益對照
+6727,亞泰金屬,TRUST,PLANNED_ENTRY,TWSE,2026-08-27 投信卡新進場訊號；進場價「明開」＝2026-08-28 開盤

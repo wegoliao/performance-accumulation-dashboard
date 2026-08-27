@@ -1215,13 +1215,21 @@ def drawdown_visual(curve: list[tuple[date, float]]) -> str:
     )
 
 
-def line_chart(series: dict[str, list[tuple[date, float]]]) -> str:
+def line_chart(series: dict[str, list[tuple[date, float]]], chart_id: str = "curve") -> str:
+    """Rebased-to-100 curves with a hover readout.
+
+    Every line starts at 100 on the first shared session, so what the eye
+    compares is percentage move from that day, not absolute money -- a NT$500k
+    sleeve and an index level are otherwise unplottable together. The readout
+    on hover carries both the rebased level and the move from 100, because
+    "102.4" and "+2.4%" are the same fact and the second one is the one people
+    actually reason about.
+    """
     usable = {name: normalize_curve(values) for name, values in series.items() if len(values) >= 2}
     if not usable:
         return (
             '<div class="empty-chart"><div class="empty-icon">↗</div>'
-            '<b>WAITING_HISTORY</b><p>目前只有 2026-08-24 單一庫存快照。</p>'
-            '<p>加入至少兩日 account NAV 後才會出現累積曲線；至少 20 筆日報酬後才顯示風險統計。</p></div>'
+            '<b>WAITING_HISTORY</b><p>至少要有兩個交易日的資料才畫得出累積曲線。</p></div>'
         )
     all_points = [(day, value) for values in usable.values() for day, value in values]
     dates = sorted({point[0] for point in all_points})
@@ -1229,44 +1237,104 @@ def line_chart(series: dict[str, list[tuple[date, float]]]) -> str:
     date_span = max((max_date - min_date).days, 1)
     values = [point[1] for point in all_points]
     low, high = min(values), max(values)
-    padding = max((high - low) * 0.12, 1.0)
+    padding = max((high - low) * 0.14, 0.6)
     low -= padding
     high += padding
-    width, height = 920, 300
-    left, top, right, bottom = 58, 24, 20, 42
+
+    width, height = 940, 330
+    left, top, right, bottom = 56, 20, 108, 46
     plot_w, plot_h = width - left - right, height - top - bottom
-    colors = ["#57d3a2", "#f5bd58", "#72a7ff", "#d689ff", "#ff7f7f"]
+
+    def x_of(day: date) -> float:
+        return left + ((day - min_date).days / date_span) * plot_w
+
+    def y_of(value: float) -> float:
+        return top + (high - value) / (high - low) * plot_h
+
+    # Seven hues far apart on the wheel; the combined line and the benchmarks
+    # used to collide on green, which made the one number that matters the
+    # hardest to find.
+    palette = {
+        "四策略實際合計": "#ffffff",
+        "實際·投信": "#f5bd58",
+        "實際·YOY": "#4d9dff",
+        "實際·融資": "#c77dff",
+        "實際·突破": "#ff6b6b",
+        "Benchmark·加權指數": "#2fbf9b",
+        "Benchmark·0050 元大台灣50": "#8d99ae",
+    }
+    fallback = ["#57d3a2", "#f5bd58", "#72a7ff", "#d689ff", "#ff7f7f", "#2fbf9b", "#8d99ae"]
+
     grid: list[str] = []
-    for i in range(5):
-        y = top + plot_h * i / 4
-        value = high - (high - low) * i / 4
+    for index in range(5):
+        y = top + plot_h * index / 4
+        value = high - (high - low) * index / 4
         grid.append(
             f'<line x1="{left}" y1="{y:.1f}" x2="{width-right}" y2="{y:.1f}" class="grid-line"/>'
             f'<text x="{left-8}" y="{y+4:.1f}" class="axis-text" text-anchor="end">{value:.1f}</text>'
         )
+    # the 100 baseline: every line starts here, so it is the only level that
+    # separates "made money" from "lost money" at a glance
+    if low < 100.0 < high:
+        y100 = y_of(100.0)
+        grid.append(
+            f'<line x1="{left}" y1="{y100:.1f}" x2="{width-right}" y2="{y100:.1f}" class="base-line"/>'
+            f'<text x="{width-right+6}" y="{y100+4:.1f}" class="axis-text base-tag">100</text>'
+        )
+
     paths: list[str] = []
     legend: list[str] = []
+    payload: list[str] = []
     for index, (name, points) in enumerate(usable.items()):
-        color = colors[index % len(colors)]
-        coords: list[str] = []
-        for day, value in points:
-            x = left + ((day - min_date).days / date_span) * plot_w
-            y = top + (high - value) / (high - low) * plot_h
-            coords.append(f"{x:.1f},{y:.1f}")
+        color = palette.get(name, fallback[index % len(fallback)])
+        emphasis = 3.4 if name == "四策略實際合計" else 2.1
+        coords = " ".join(f"{x_of(day):.1f},{y_of(value):.1f}" for day, value in points)
         paths.append(
-            f'<polyline points="{" ".join(coords)}" fill="none" stroke="{color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>'
+            f'<polyline points="{coords}" fill="none" stroke="{color}" '
+            f'stroke-width="{emphasis}" stroke-linejoin="round" stroke-linecap="round" '
+            f'data-line="{index}"/>'
         )
-        legend.append(f'<span><i style="background:{color}"></i>{html.escape(name)}</span>')
+        last = points[-1][1]
+        legend.append(
+            f'<span class="lg" data-line="{index}"><i style="background:{color}"></i>'
+            f'{html.escape(name)}<b class="lg-v">{last - 100:+.2f}%</b></span>'
+        )
+        series_points = ",".join(
+            f'["{day.isoformat()}",{value:.4f}]' for day, value in points
+        )
+        payload.append(
+            f'{{"name":{json.dumps(name, ensure_ascii=False)},"color":"{color}",'
+            f'"points":[{series_points}]}}'
+        )
+
+    data = "[" + ",".join(payload) + "]"
+    geom = (
+        f'{{"left":{left},"top":{top},"plotW":{plot_w},"plotH":{plot_h},'
+        f'"low":{low:.6f},"high":{high:.6f},"minDate":"{min_date.isoformat()}",'
+        f'"span":{date_span},"width":{width},"height":{height}}}'
+    )
     return (
-        '<div class="chart-legend">' + "".join(legend) + '</div>'
-        f'<svg class="line-chart" viewBox="0 0 {width} {height}" role="img" aria-label="績效累積曲線">'
+        f'<div class="chart-box" id="{chart_id}">'
+        '<div class="chart-legend">' + "".join(legend) + "</div>"
+        f'<div class="chart-frame">'
+        f'<svg class="line-chart" viewBox="0 0 {width} {height}" role="img" '
+        f'aria-label="績效累積曲線，全部以起始日 100 為基準">'
         + "".join(grid)
         + "".join(paths)
-        + f'<text x="{left}" y="{height-12}" class="axis-text">{min_date.isoformat()}</text>'
-        + f'<text x="{width-right}" y="{height-12}" class="axis-text" text-anchor="end">{max_date.isoformat()}</text>'
-        + "</svg>"
+        + f'<line class="crosshair" x1="0" y1="{top}" x2="0" y2="{top+plot_h}" style="opacity:0"/>'
+        + f'<g class="hover-dots"></g>'
+        + f'<text x="{left}" y="{height-14}" class="axis-text">{min_date.isoformat()}</text>'
+        + f'<text x="{width-right}" y="{height-14}" class="axis-text" text-anchor="end">'
+        f'{max_date.isoformat()}</text>'
+        + f'<rect class="hit" x="{left}" y="{top}" width="{plot_w}" height="{plot_h}" '
+        'fill="transparent"/>'
+        "</svg>"
+        '<div class="tip" hidden></div>'
+        "</div>"
+        f'<script type="application/json" class="chart-data">'
+        f'{{"series":{data},"geom":{geom}}}</script>'
+        "</div>"
     )
-
 
 def holdings_table(holdings: list[dict[str, Any]]) -> str:
     rows: list[str] = []
@@ -1428,6 +1496,70 @@ def update_timeline(
     return grid, summary
 
 
+def cost_basis_gap_rows(
+    fills: list[dict[str, Any]], holdings: list[dict[str, Any]]
+) -> tuple[str, int]:
+    """Per-stock disagreement between settled cash and the broker's cost column.
+
+    Book cost is FIFO-reduced so a partial exit does not leave a phantom
+    balance. A non-zero row is not an error to fix: it is an event the fill
+    book has not been told about -- a dividend, a basis reset, a fee the
+    broker booked differently -- and it should stay visible until someone
+    explains it.
+    """
+    positions: dict[str, float] = defaultdict(float)
+    book: dict[str, float] = defaultdict(float)
+    for fill in sorted(fills, key=lambda row: row["date"]):
+        code = fill["stock_code"].strip()
+        if fill["side"] == "BUY":
+            positions[code] += fill["shares"]
+            book[code] += fill["cash_out"]
+        else:
+            unit = book[code] / positions[code]
+            book[code] -= unit * fill["shares"]
+            positions[code] -= fill["shares"]
+
+    snapshot = {
+        row["stock_code"].strip(): (row["cost_basis_twd"], row["shares"], row["stock_name"])
+        for row in holdings
+    }
+    rows: list[str] = []
+    total = 0.0
+    for code in sorted(set(positions) | set(snapshot)):
+        held = positions.get(code, 0.0)
+        if held <= 1e-9 and code not in snapshot:
+            continue
+        fill_cost = book.get(code, 0.0)
+        source_cost, shares, name = snapshot.get(code, (0.0, 0.0, ""))
+        gap = fill_cost - source_cost
+        if abs(gap) < 0.5:
+            continue
+        total += gap
+        per_share = gap / shares if shares else None
+        rows.append(
+            "<tr>"
+            f"<td>{code} {html.escape(name)}</td>"
+            f'<td class="num">{fmt_ntd(fill_cost)}</td>'
+            f'<td class="num">{fmt_ntd(source_cost)}</td>'
+            f'<td class="num {css_value_class(gap)}"><b>{fmt_ntd(gap, sign=True)}</b></td>'
+            f'<td class="num">{shares:,.0f}</td>'
+            f'<td class="num">{f"{per_share:+,.4f}" if per_share is not None else "—"}</td>'
+            "</tr>"
+        )
+    if not rows:
+        return (
+            '<tr><td colspan="6" class="neutral">成交簿與券商成本欄完全一致。</td></tr>',
+            0,
+        )
+    rows.append(
+        '<tr style="border-top:2px solid var(--line)"><td><b>合計</b></td>'
+        '<td class="num">—</td><td class="num">—</td>'
+        f'<td class="num {css_value_class(total)}"><b>{fmt_ntd(total, sign=True)}</b></td>'
+        '<td class="num">—</td><td class="num">—</td></tr>'
+    )
+    return "".join(rows), len(rows) - 1
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -1481,8 +1613,19 @@ def build() -> tuple[Path, dict[str, Any]]:
     series["四策略實際合計"] = actual_curve
     for strategy_id, curve in actual_strategy_curves.items():
         series[f"實際·{STRATEGY_LABELS[strategy_id]}"] = curve
-    if preferred_benchmark and benchmark_analysis_curve:
-        series[f"Benchmark·{BENCHMARK_LABELS.get(preferred_benchmark, preferred_benchmark)}"] = benchmark_analysis_curve
+    # Both benchmarks, not just the preferred one. 0050 is what the owner could
+    # actually have bought instead; TAIEX is the market. They answer different
+    # questions and the gap between them is itself informative.
+    for benchmark_id in ("TAIEX", "0050"):
+        if benchmark_id not in benchmark_curves:
+            continue
+        aligned = slice_and_normalize(
+            benchmark_curves[benchmark_id],
+            analysis_curve[0][0],
+            analysis_curve[-1][0],
+        )
+        if aligned:
+            series[f"Benchmark·{BENCHMARK_LABELS.get(benchmark_id, benchmark_id)}"] = aligned
     theory_series = {
         f"理論卡·{STRATEGY_LABELS[strategy_id]}": curve
         for strategy_id, curve in card_curves.items()
@@ -1490,6 +1633,7 @@ def build() -> tuple[Path, dict[str, Any]]:
     theory_asof = min(curve[-1][0] for curve in card_curves.values())
     actual_bundle_pnl = strategy_diagnostics["bundle_current_pnl_twd"]
     timeline_grid, timeline_summary = update_timeline(fills, prices)
+    cost_gap_rows, cost_gap_count = cost_basis_gap_rows(fills, holdings)
     realized_total = pnl_breakdown["_totals"]["realized_pnl_twd"]
     combined_pnl = snapshot["unrealized_pnl_twd"] + realized_total
 
@@ -1637,6 +1781,30 @@ table.timeline td,table.timeline th{padding:5px 3px;border-bottom:1px solid var(
 .tl-c.on::after{background:var(--green)}
 .tl-l{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px}
 .tl-l.warn{color:var(--gold);font-weight:700}
+
+.chart-box{position:relative}
+.chart-frame{position:relative}
+.chart-legend .lg{cursor:pointer;user-select:none;transition:opacity .12s}
+.chart-legend .lg.off{opacity:.32}
+.chart-legend .lg-v{margin-left:6px;font-variant-numeric:tabular-nums;font-weight:700}
+.base-line{stroke:var(--muted);stroke-width:1.2;stroke-dasharray:5 4;opacity:.75}
+.base-tag{fill:var(--muted);font-weight:700}
+.crosshair{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3;pointer-events:none}
+.hover-dots circle{pointer-events:none}
+polyline[data-line].off{opacity:.08}
+.hit{cursor:crosshair}
+.tip{position:absolute;pointer-events:none;z-index:5;min-width:186px;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:9px 11px;font-size:12.5px;box-shadow:0 8px 26px rgba(0,0,0,.42)}
+.tip[hidden]{display:none}
+.tip .tip-d{font-weight:700;margin-bottom:6px;font-variant-numeric:tabular-nums;
+  padding-bottom:5px;border-bottom:1px solid var(--line)}
+.tip .tip-r{display:flex;align-items:center;gap:7px;line-height:1.75;white-space:nowrap}
+.tip .tip-r i{width:9px;height:9px;border-radius:2px;flex:none}
+.tip .tip-r .n{flex:1;overflow:hidden;text-overflow:ellipsis}
+.tip .tip-r .v{font-variant-numeric:tabular-nums;font-weight:700}
+.tip .tip-r .p{font-variant-numeric:tabular-nums;min-width:56px;text-align:right}
+.tip .up{color:var(--green)} .tip .down{color:var(--red)}
 </style>
 <style>
 .badges a{text-decoration:none}
@@ -1654,6 +1822,7 @@ table.timeline td,table.timeline th{padding:5px 3px;border-bottom:1px solid var(
 <article class="panel full"><h2>訊號 → 成交 · 履約落差帳</h2><div class="sub">策略卡報的是訊號價，帳戶付的是成交價，中間的差就是「這個策略能不能被執行」的全部答案。正的 bp 代表對自己不利。累積夠多筆之後，才知道策略卡報酬要打幾折。</div>{{SLIPPAGE_TABLE}}</article>
 <article class="panel full"><h2>四策略實際績效 · 累積曲線</h2><div class="sub">每個 sleeve 以 NT$50 萬現金起始，用實際成交、費稅、已實現損益與每日可變現價值重建；合計初始資金 NT$200 萬。</div>{{LINE_CHART}}</article>
 <article class="panel full"><h2>四策略理論卡 · 來源顯示曲線</h2><div class="sub">這是 owner 策略卡的「當日持倉成分等權顯示報酬」，不是可投資 NAV，也不將每日百分比複利串接。資料只到 {{THEORY_ASOF}}。</div>{{THEORY_CHART}}</article>
+<article class="panel full"><h2>成本口徑落差 · 逐檔拆解</h2><div class="sub">成交簿記的是實際付出的現金（價金＋手續費），券商『付出成本』欄記的是它自己的成本基礎。兩者不一致時，這裡列出是哪一檔、差多少、每股差多少。<b>差額不是要去抹平的誤差，是成交簿還不知道的事件</b> —— 配息、成本重算、券商用不同方式記費用。在有人解釋它之前，它應該一直看得見。四策略實績一律以逐筆成交現金流為準。</div><div class="table-wrap"><table><thead><tr><th>股票</th><th class="num">成交簿成本</th><th class="num">券商成本欄</th><th class="num">差額</th><th class="num">股數</th><th class="num">每股差</th></tr></thead><tbody>{{COST_GAP_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>每日更新時間軸</h2><div class="sub">四個來源，各自有自己的更新節奏。實心格代表那一天有這個來源的資料；空格代表沒有，而不是「和前一天一樣」。右欄的日期若比最後一欄舊，代表這個來源正在落後，畫面上與它有關的數字都還停在那一天。{{TIMELINE_SUMMARY}}。</div>{{UPDATE_TIMELINE}}</article>
 <article class="panel full"><h2>已實現 vs 未實現 · 完整損益拆解</h2><div class="sub">畫面上其他地方的「損益」都是<b>未實現</b>，只算還在手上的部位。已平倉的成交不會出現在庫存表裡，但現金已經確定變動 —— 那筆錢的盈虧在這裡。sleeve 曲線一直都含這兩塊，這張表只是把它拆開讓你看得到。已實現＝實收現金 − 實付成本（含手續費與證交稅）；未實現＝目前可變現值 − 在庫帳面成本，兩者不重複計算。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">已實現損益</th><th class="num">平倉筆數</th><th class="num">未實現損益</th><th class="num">在庫成本</th><th class="num">合計損益</th><th class="num">對 50 萬報酬</th></tr></thead><tbody>{{PNL_SPLIT_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">逐筆平倉明細 · FIFO 對沖，一次賣出跨多筆買進會拆成多列</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">買進</th><th class="num">賣出</th><th class="num">持有</th><th class="num">成本 → 實收</th><th class="num">已實現損益</th></tr></thead><tbody>{{CLOSED_LOTS}}</tbody></table></div></article>
 <article class="panel full"><h2>實際 vs 理論 · 四策略差異</h2><div class="sub">「差異」只在共同截止日 {{THEORY_ASOF}} 計算：實際 50 萬 sleeve 可變現報酬 − 理論卡等權顯示報酬。這是描述性 implementation gap，權重與現金比率不同，不冒充 alpha。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際累計<br>{{ASOF}}</th><th class="num">實際損益</th><th class="num">實際<br>{{THEORY_ASOF}}</th><th class="num">理論卡<br>{{THEORY_ASOF}}</th><th class="num">差異<br>pp</th><th class="num">實際/理論<br>持股數</th><th class="num">MDD</th><th class="num">Sharpe</th></tr></thead><tbody>{{STRATEGY_TABLE}}</tbody></table></div></article>
@@ -1672,7 +1841,110 @@ table.timeline td,table.timeline th{padding:5px 3px;border-bottom:1px solid var(
 <article class="panel full"><h2>資料品質與限制</h2><div class="sub">畫面能否拿來做決策，先看資料是否足夠。</div><div class="quality"><article><b class="positive">PASS · 庫存小計</b><p>15 檔股數、現值、成本與損益均對上 owner 快照。</p></article><article><b class="positive">PASS · 四策略成交歸屬</b><p>22 筆買賣重建後的活動股數與 8/24 庫存一致，但排除不在成交簿的 2886 1 股。</p></article><article><b class="positive">PASS · 重疊股拆分</b><p>1709：突破 3,644／融資 305 股；2301：YOY 261／投信 365 股；3702 賣出損益納入 YOY。</p></article><article><b class="negative">CHECK · 成本口徑差</b><p>成交簿在庫實付 NT$1,178,519；快照在庫成本（排除 2886）NT$1,177,866，差 NT$653。四策略損益以逐筆成交現金流為準。</p></article><article><b class="negative">CHECK · YOY 來源矛盾</b><p>8/24 表頭 +3.7%，六檔可見數字平均 +4.33%，差 +0.63pp；兩者原樣保留，等待來源端說明。</p></article><article><b class="negative">SHORT SAMPLE · 風險統計</b><p>目前僅 {{RISK_OBS}} 筆實際日報酬；MDD 可描述，Sharpe、Alpha、Beta 等尚不顯示數字。</p></article><article><b class="positive">CURRENT · 理論卡</b><p>四策略來源均更新到 {{THEORY_ASOF}}，與目前實際估值同日。</p></article><article><b class="negative">GAP · 8/21 策略卡</b><p>未收到 8/21 來源圖，因此保留空缺，不用前值或行情補造策略卡。</p></article><article><b class="positive">SAFE · 公開唯讀</b><p>HTML builder 無券商登入或下單；每日 updater 只讀 TWSE／TPEx 公開收盤行情。</p></article></div></article>
 </section>
 <footer class="footer"><span><a href="mainline2/" style="color:var(--green);text-decoration:none">主線二 未持有訊號追蹤 →</a> · <a href="claude/" style="color:var(--green);text-decoration:none">Claude 版精進盤點 →</a> · 口徑：252 trading days · rf=0 · CAGR 365.25 calendar days · Alpha=daily OLS intercept×252</span><span>生成時間：<span class="mono">{{GENERATED_AT}}</span></span></footer>
-</main></body></html>"""
+</main><script>
+(function () {
+  // The chart is a static SVG; this only adds a readout. If it fails to run,
+  // the curves are still fully readable -- nothing here is load-bearing.
+  document.querySelectorAll(".chart-box").forEach(function (box) {
+    var raw = box.querySelector(".chart-data");
+    var svg = box.querySelector("svg");
+    var tip = box.querySelector(".tip");
+    var frame = box.querySelector(".chart-frame");
+    if (!raw || !svg || !tip) return;
+    var cfg;
+    try { cfg = JSON.parse(raw.textContent); } catch (err) { return; }
+    var g = cfg.geom;
+    var series = cfg.series;
+    var hidden = {};
+    var dots = svg.querySelector(".hover-dots");
+    var cross = svg.querySelector(".crosshair");
+
+    var days = [];
+    series.forEach(function (line) {
+      line.points.forEach(function (pt) {
+        if (days.indexOf(pt[0]) === -1) days.push(pt[0]);
+      });
+    });
+    days.sort();
+    var base = new Date(g.minDate + "T00:00:00Z").getTime();
+    var DAY = 86400000;
+    function xOf(iso) {
+      var d = (new Date(iso + "T00:00:00Z").getTime() - base) / DAY;
+      return g.left + (d / g.span) * g.plotW;
+    }
+    function yOf(v) {
+      return g.top + (g.high - v) / (g.high - g.low) * g.plotH;
+    }
+
+    function move(evt) {
+      var rect = svg.getBoundingClientRect();
+      var px = (evt.clientX - rect.left) / rect.width * g.width;
+      var best = null, bestDist = Infinity;
+      days.forEach(function (iso) {
+        var d = Math.abs(xOf(iso) - px);
+        if (d < bestDist) { bestDist = d; best = iso; }
+      });
+      if (!best) return;
+      var bx = xOf(best);
+      cross.setAttribute("x1", bx); cross.setAttribute("x2", bx);
+      cross.style.opacity = "1";
+
+      var rows = "", marks = "";
+      series.forEach(function (line, i) {
+        if (hidden[i]) return;
+        var hit = null;
+        for (var k = 0; k < line.points.length; k++) {
+          if (line.points[k][0] === best) { hit = line.points[k][1]; break; }
+        }
+        if (hit === null) return;
+        var move = hit - 100;
+        var cls = move > 0 ? "up" : (move < 0 ? "down" : "");
+        rows += '<div class="tip-r"><i style="background:' + line.color + '"></i>'
+          + '<span class="n">' + line.name + '</span>'
+          + '<span class="v">' + hit.toFixed(2) + '</span>'
+          + '<span class="p ' + cls + '">' + (move >= 0 ? "+" : "") + move.toFixed(2) + '%</span></div>';
+        marks += '<circle cx="' + bx.toFixed(1) + '" cy="' + yOf(hit).toFixed(1)
+          + '" r="3.6" fill="' + line.color + '" stroke="var(--panel)" stroke-width="1.4"/>';
+      });
+      dots.innerHTML = marks;
+      tip.innerHTML = '<div class="tip-d">' + best + '　<span style="font-weight:400;opacity:.7">'
+        + '相對 ' + g.minDate + ' 進場</span></div>' + rows;
+      tip.hidden = false;
+
+      var fw = frame.clientWidth;
+      var leftPx = bx / g.width * fw + 16;
+      if (leftPx + tip.offsetWidth > fw) leftPx = bx / g.width * fw - tip.offsetWidth - 16;
+      tip.style.left = Math.max(0, leftPx) + "px";
+      tip.style.top = Math.max(0, (evt.clientY - frame.getBoundingClientRect().top) - tip.offsetHeight / 2) + "px";
+    }
+
+    function leave() {
+      tip.hidden = true;
+      cross.style.opacity = "0";
+      dots.innerHTML = "";
+    }
+
+    svg.addEventListener("mousemove", move);
+    svg.addEventListener("mouseleave", leave);
+    svg.addEventListener("touchmove", function (e) {
+      if (e.touches.length) { move(e.touches[0]); e.preventDefault(); }
+    }, { passive: false });
+    svg.addEventListener("touchend", leave);
+
+    box.querySelectorAll(".chart-legend .lg").forEach(function (tag) {
+      tag.addEventListener("click", function () {
+        var i = tag.getAttribute("data-line");
+        hidden[i] = !hidden[i];
+        tag.classList.toggle("off", !!hidden[i]);
+        var line = svg.querySelector('polyline[data-line="' + i + '"]');
+        if (line) line.classList.toggle("off", !!hidden[i]);
+        leave();
+      });
+    });
+  });
+})();
+</script>
+</body></html>"""
 
     top_winner = max(holdings, key=lambda row: row["unrealized_pnl_twd"])
     top_loser = min(holdings, key=lambda row: row["unrealized_pnl_twd"])
@@ -1693,7 +1965,7 @@ table.timeline td,table.timeline th{padding:5px 3px;border-bottom:1px solid var(
         "{{THEORY_ASOF_COMPACT}}": theory_asof.isoformat(),
         "{{HEADER_CARDS}}": header_cards,
         "{{LINE_CHART}}": line_chart(series),
-        "{{THEORY_CHART}}": line_chart(theory_series),
+        "{{THEORY_CHART}}": line_chart(theory_series, "theory"),
         "{{LATEST_SIGNAL_CARDS}}": latest_signal_cards(latest_signals, card_curves),
         "{{PLANNED_SIGNALS}}": planned_signal_table(latest_signals),
         "{{STRATEGY_TABLE}}": strategy_comparison_table(
@@ -1705,6 +1977,7 @@ table.timeline td,table.timeline th{padding:5px 3px;border-bottom:1px solid var(
         "{{DRAWDOWN}}": drawdown_visual(analysis_curve),
         "{{MONTHLY_HEATMAP}}": monthly_heatmap(analysis_curve),
         "{{SLIPPAGE_TABLE}}": slippage_table(slippage_rows),
+        "{{COST_GAP_ROWS}}": cost_gap_rows,
         "{{UPDATE_TIMELINE}}": timeline_grid,
         "{{TIMELINE_SUMMARY}}": timeline_summary,
         "{{PNL_SPLIT_TABLE}}": pnl_split_table(pnl_breakdown),
