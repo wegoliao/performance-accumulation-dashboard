@@ -87,6 +87,10 @@ def closed_lots(fills: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
                     "holding_days": (fill["date"] - lot["date"]).days,
                     "buy_trade_id": lot["trade_id"],
                     "sell_trade_id": fill.get("trade_id", ""),
+                    # A provisional exit is priced at a published close, not at
+                    # a real fill; every surface reporting it must be able to
+                    # say so, so the flag travels with the lot.
+                    "provisional": bool(fill.get("provisional")),
                 }
             )
             lot["shares"] -= matched

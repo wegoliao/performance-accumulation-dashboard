@@ -43,6 +43,7 @@ STRATEGY_CARD_PATH = INPUTS / "strategy_card_returns.csv"
 STRATEGY_MARKS_PATH = INPUTS / "strategy_position_marks.csv"
 LATEST_STRATEGY_SIGNALS_PATH = INPUTS / "latest_strategy_signals.csv"
 SIGNAL_HISTORY_PATH = INPUTS / "signal_history.csv"
+UNRECORDED_EVENTS_PATH = INPUTS / "unrecorded_events.csv"
 BENCHMARK_LABELS = {"TAIEX": "加權指數", "0050": "0050 元大台灣50"}
 STRATEGY_LABELS = {
     "TRUST": "投信",
@@ -337,6 +338,103 @@ def normalize_curve(curve: list[tuple[date, float]]) -> list[tuple[date, float]]
         return []
     base = curve[0][1]
     return [(day, value / base * 100.0) for day, value in curve]
+
+
+def load_unrecorded_exits(
+    path: Path = UNRECORDED_EVENTS_PATH,
+) -> list[dict[str, Any]]:
+    """Exits the snapshot proves happened but the fill book cannot price.
+
+    Each becomes a PROVISIONAL sell marked at that session's official close.
+    The close is not a claim about the actual fill: it is a published, neutral
+    stand-in, and the range it sits inside is carried alongside so the reader
+    can see how wrong it could be.
+    """
+    if not path.exists():
+        return []
+    rows: list[dict[str, Any]] = []
+    for raw in read_csv(path):
+        if raw.get("status", "").strip() != "WAITING_FILL_CONFIRMATION":
+            continue
+        if raw.get("event", "").strip() != "POSITION_LEFT_SNAPSHOT":
+            continue
+        day = parse_date(raw["detected_date"])
+        shares = required_float(raw["shares"], "unrecorded.shares")
+        close = required_float(raw["session_close"], "unrecorded.session_close")
+        low = optional_float(raw.get("session_low"), "unrecorded.session_low")
+        high = optional_float(raw.get("session_high"), "unrecorded.session_high")
+        consideration = shares * close
+        fee = math.floor(consideration * 0.001425)
+        tax = math.floor(consideration * 0.003)
+        rows.append(
+            {
+                "trade_id": f"PROVISIONAL-{raw['stock_code'].strip()}-{day:%Y%m%d}",
+                "strategy_id": raw["strategy_id"].strip(),
+                "stock_code": raw["stock_code"].strip(),
+                "stock_name": raw.get("stock_name", "").strip(),
+                "side": "SELL",
+                "date": day,
+                "fill_price": close,
+                "shares": shares,
+                "consideration": consideration,
+                "fee": float(fee),
+                "tax": float(tax),
+                "cash_out": 0.0,
+                "cash_in": consideration - fee - tax,
+                "source": "PROVISIONAL_MARK_AT_OFFICIAL_CLOSE",
+                "provisional": True,
+                "range_low": low,
+                "range_high": high,
+                "last_known_cost_twd": optional_float(
+                    raw.get("last_known_cost_twd"), "unrecorded.last_known_cost_twd"
+                ),
+                "note": raw.get("note", "").strip(),
+            }
+        )
+    return rows
+
+
+def provisional_banner(exits: list[dict[str, Any]]) -> str:
+    if not exits:
+        return ""
+    rows: list[str] = []
+    for row in exits:
+        low, high = row["range_low"], row["range_high"]
+        if low is not None and high is not None:
+            span = (high - low) * row["shares"]
+            band = (
+                f'{low:g} – {high:g}，200 股區間可能相差 NT$ {span:,.0f}'
+                if row["shares"] == 200
+                else f'{low:g} – {high:g}，{row["shares"]:,.0f} 股區間可能相差 NT$ {span:,.0f}'
+            )
+        else:
+            band = "當日區間未知"
+        rows.append(
+            "<tr>"
+            f'<td>{row["date"].isoformat()}</td>'
+            f'<td>{row["stock_code"]} {html.escape(row["stock_name"])}</td>'
+            f'<td class="num">{row["shares"]:,.0f}</td>'
+            f'<td class="num">{fmt_ntd(row["last_known_cost_twd"] or 0)}</td>'
+            f'<td class="num">{row["fill_price"]:g}</td>'
+            f"<td>{html.escape(band)}</td>"
+            "</tr>"
+        )
+    return (
+        '<article class="panel full" style="border-color:var(--gold)">'
+        '<h2 style="color:var(--gold)">⚠ 待確認成交 · 這些數字還不是最終值</h2>'
+        '<div class="sub">庫存快照顯示部位已經離開，但成交回報還沒進到成交簿，'
+        "所以<b>實際成交價目前不知道</b>。賣出的現金流無法從庫存表反推 —— 快照只記還在手上的東西。"
+        "在收到回報之前，這些部位<b>暫時以當日官方收盤價計價</b>，並標成 PROVISIONAL。"
+        "收盤價不是對成交價的猜測，它是一個公開、中性的替代值，右欄同時列出當日高低區間，"
+        "讓你看得到它可能差多少。這些部位<b>不列入履約落差與成交落點統計</b>，"
+        "因為那兩張表衡量的是執行品質，而這裡沒有執行紀錄可以衡量。"
+        "回報一到，把它寫進 <code>actual_fills.csv</code> 並從 "
+        "<code>unrecorded_events.csv</code> 移除，數字就會自動變成最終值。</div>"
+        '<div class="table-wrap"><table><thead><tr><th>偵測日</th><th>股票</th>'
+        '<th class="num">股數</th><th class="num">最後已知成本</th>'
+        '<th class="num">暫計價格</th><th>當日區間與不確定範圍</th>'
+        "</tr></thead><tbody>" + "".join(rows) + "</tbody></table></div></article>"
+    )
 
 
 def load_actual_fills(path: Path = ACTUAL_FILLS_PATH) -> list[dict[str, Any]]:
@@ -812,10 +910,15 @@ def closed_lot_table(lots: list[dict[str, Any]]) -> str:
     for lot in sorted(lots, key=lambda row: row["sell_date"], reverse=True):
         cls = css_value_class(lot["realized_pnl_twd"])
         label = STRATEGY_LABELS.get(lot["strategy_id"], lot["strategy_id"])
+        tag = (
+            '<br><small style="color:var(--gold)">待確認 · 以收盤價暫計</small>'
+            if lot.get("provisional")
+            else ""
+        )
         rows.append(
             "<tr>"
             f"<td>{html.escape(label)}</td>"
-            f'<td>{lot["stock_code"]} {html.escape(lot["stock_name"])}</td>'
+            f'<td>{lot["stock_code"]} {html.escape(lot["stock_name"])}{tag}</td>'
             f'<td class="num">{lot["shares"]:,.0f}</td>'
             f'<td class="num">{lot["buy_date"].isoformat()}'
             f'<br><small>@{lot["buy_price"]:g}</small></td>'
@@ -1560,6 +1663,230 @@ def cost_basis_gap_rows(
     return "".join(rows), len(rows) - 1
 
 
+def implementation_bridge(
+    fills: list[dict[str, Any]],
+    prices: dict[str, list[tuple[date, float]]],
+    card_curves: dict[str, list[tuple[date, float]]],
+    latest_signals: list[dict[str, Any]],
+    asof: date,
+) -> dict[str, Any]:
+    """Decompose each sleeve's gap against its own card into three exact terms."""
+    lots = realized.as_of(realized.closed_lots(fills), asof)
+    realized_by = realized.by_strategy(lots)
+    card_entry = {
+        (row["strategy_id"], row["stock_code"].strip()): row.get("entry_price")
+        for row in latest_signals
+    }
+    card_members: dict[str, set[str]] = defaultdict(set)
+    for row in latest_signals:
+        card_members[row["strategy_id"]].add(row["stock_code"].strip())
+
+    out: dict[str, Any] = {}
+    for strategy_id in STRATEGY_LABELS:
+        held: dict[str, float] = defaultdict(float)
+        book: dict[str, float] = defaultdict(float)
+        for fill in sorted(fills, key=lambda row: row["date"]):
+            if fill["strategy_id"] != strategy_id or fill["date"] > asof:
+                continue
+            code = fill["stock_code"].strip()
+            if fill["side"] == "BUY":
+                held[code] += fill["shares"]
+                book[code] += fill["cash_out"]
+            else:
+                unit = book[code] / held[code]
+                book[code] -= unit * fill["shares"]
+                held[code] -= fill["shares"]
+
+        names: list[dict[str, Any]] = []
+        position_cost = 0.0
+        position_value = 0.0
+        for code, shares in sorted(held.items()):
+            if shares <= 1e-9:
+                continue
+            history = [value for day, value in prices.get(code, []) if day <= asof]
+            if not history:
+                continue
+            close = history[-1]
+            value = estimated_liquidation_value(shares, close)
+            cost = book[code]
+            position_cost += cost
+            position_value += value
+            entry = card_entry.get((strategy_id, code))
+            paid = cost / shares
+            names.append(
+                {
+                    "stock_code": code,
+                    "shares": shares,
+                    "paid": paid,
+                    "card_entry": entry,
+                    "entry_gap": (paid / entry - 1.0) if entry else None,
+                    "close": close,
+                    "cost_twd": cost,
+                    "value_twd": value,
+                    "return_pct": value / cost - 1.0 if cost else None,
+                    "on_card": code in card_members.get(strategy_id, set()),
+                }
+            )
+
+        budget = STRATEGY_BUDGET_TWD
+        weight = position_cost / budget if budget else 0.0
+        r_positions = (position_value / position_cost - 1.0) if position_cost else 0.0
+        realized_pnl = realized_by.get(strategy_id, {}).get("realized_pnl_twd", 0.0)
+        card_curve = card_curves.get(strategy_id) or []
+        r_card = (card_curve[-1][1] / 100.0 - 1.0) if card_curve else None
+
+        sleeve_return = weight * r_positions + realized_pnl / budget
+        if r_card is None:
+            terms = None
+        else:
+            terms = {
+                "selection_entry": weight * (r_positions - r_card),
+                "cash_drag": (weight - 1.0) * r_card,
+                "realized": realized_pnl / budget,
+            }
+
+        held_on_card = sum(1 for row in names if row["on_card"])
+        out[strategy_id] = {
+            "weight": weight,
+            "cash_twd": budget - position_cost + realized_pnl,
+            "position_cost_twd": position_cost,
+            "position_value_twd": position_value,
+            "r_positions": r_positions,
+            "r_card": r_card,
+            "sleeve_return": sleeve_return,
+            "gap": (sleeve_return - r_card) if r_card is not None else None,
+            "terms": terms,
+            "names": names,
+            "card_members": len(card_members.get(strategy_id, set())),
+            "held_on_card": held_on_card,
+            "realized_pnl_twd": realized_pnl,
+        }
+    return out
+
+
+def bridge_table(bridge: dict[str, Any]) -> str:
+    rows: list[str] = []
+    for strategy_id, label in STRATEGY_LABELS.items():
+        row = bridge[strategy_id]
+        terms = row["terms"]
+        if terms is None:
+            rows.append(
+                f"<tr><td><b>{html.escape(label)}</b></td>"
+                '<td colspan="8" class="neutral">理論卡尚無曲線，無法比較</td></tr>'
+            )
+            continue
+        rows.append(
+            "<tr>"
+            f"<td><b>{html.escape(label)}</b><br>"
+            f'<small>卡上 {row["card_members"]} 檔，持有其中 {row["held_on_card"]} 檔</small></td>'
+            f'<td class="num">{fmt_pct(row["r_card"], sign=True)}</td>'
+            f'<td class="num {css_value_class(row["sleeve_return"])}">'
+            f'<b>{fmt_pct(row["sleeve_return"], sign=True)}</b></td>'
+            f'<td class="num {css_value_class(row["gap"])}"><b>'
+            f'{row["gap"] * 100:+.2f}pp</b></td>'
+            f'<td class="num {css_value_class(terms["selection_entry"])}">'
+            f'{terms["selection_entry"] * 100:+.2f}pp</td>'
+            f'<td class="num {css_value_class(terms["cash_drag"])}">'
+            f'{terms["cash_drag"] * 100:+.2f}pp</td>'
+            f'<td class="num {css_value_class(terms["realized"])}">'
+            f'{terms["realized"] * 100:+.2f}pp</td>'
+            f'<td class="num">{fmt_pct(row["weight"])}</td>'
+            f'<td class="num">{fmt_ntd(row["cash_twd"])}</td>'
+            "</tr>"
+        )
+    return "".join(rows)
+
+
+def entry_gap_table(bridge: dict[str, Any]) -> str:
+    rows: list[str] = []
+    for strategy_id, label in STRATEGY_LABELS.items():
+        for name in bridge[strategy_id]["names"]:
+            if name["card_entry"] is None:
+                continue
+            gap = name["entry_gap"]
+            rows.append(
+                "<tr>"
+                f"<td>{html.escape(label)}</td>"
+                f'<td>{name["stock_code"]}</td>'
+                f'<td class="num">{name["shares"]:,.0f}</td>'
+                f'<td class="num">{name["card_entry"]:,.2f}</td>'
+                f'<td class="num">{name["paid"]:,.2f}</td>'
+                f'<td class="num {css_value_class(-gap)}"><b>{gap * 100:+.2f}%</b></td>'
+                f'<td class="num">{name["close"]:,.2f}</td>'
+                f'<td class="num {css_value_class(name["return_pct"])}">'
+                f'{fmt_pct(name["return_pct"], sign=True)}</td>'
+                "</tr>"
+            )
+    if not rows:
+        return '<tr><td colspan="8" class="neutral">卡片尚未提供可比對的進場價。</td></tr>'
+    return "".join(rows)
+
+
+def accrual_panel(
+    analysis_curve: list[tuple[date, float]],
+    fills: list[dict[str, Any]],
+    slippage_rows: list[dict[str, Any]],
+    lots: list[dict[str, Any]],
+    signal_days: int,
+) -> str:
+    """Progress toward every sample threshold this page enforces."""
+    settled = [row for row in fills if not row.get("provisional")]
+    returns = max(len(analysis_curve) - 1, 0)
+    gauges = [
+        (
+            "風險統計",
+            returns,
+            MIN_RISK_RETURN_OBS,
+            "Sharpe、Sortino、Alpha、Beta、Information Ratio、Tracking Error",
+            "日報酬",
+        ),
+        (
+            "執行品質結論",
+            len(settled),
+            30,
+            "成交落點的平均值才有統計意義，才能談要不要改下單方式",
+            "確定成交",
+        ),
+        (
+            "履約折扣估計",
+            len(slippage_rows),
+            20,
+            "訊號價到成交價的平均折損，用來把策略卡報酬打折",
+            "訊號→成交配對",
+        ),
+        (
+            "勝率與期望值",
+            len(lots),
+            20,
+            "平倉勝率、平均獲利／虧損、賺賠比",
+            "平倉",
+        ),
+        (
+            "策略卡穩定度",
+            signal_days,
+            20,
+            "卡片表頭與成分股平均的落差是不是系統性的",
+            "策略卡日",
+        ),
+    ]
+    cards: list[str] = []
+    for title, have, need, unlocks, unit in gauges:
+        ratio = min(have / need, 1.0) if need else 1.0
+        done = have >= need
+        remaining = max(need - have, 0)
+        state = "解鎖" if done else f"還差 {remaining} 筆"
+        cards.append(
+            f'<div class="gauge{" on" if done else ""}">'
+            f'<div class="g-top"><b>{html.escape(title)}</b>'
+            f'<span class="g-state">{state}</span></div>'
+            f'<div class="g-bar"><span style="width:{ratio * 100:.1f}%"></span></div>'
+            f'<div class="g-num">{have} / {need} {html.escape(unit)}</div>'
+            f'<div class="g-note">{html.escape(unlocks)}</div>'
+            "</div>"
+        )
+    return '<div class="gauges">' + "".join(cards) + "</div>"
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -1574,6 +1901,10 @@ def build() -> tuple[Path, dict[str, Any]]:
     benchmark_curves = load_grouped_levels(BENCHMARK_NAV_PATH, "benchmark_id", "level")
     prices = analytics.load_price_history(PRICE_HISTORY_PATH)
     fills = load_actual_fills()
+    provisional_exits = load_unrecorded_exits()
+    # Downstream code sees one fill book. The provisional flag rides along on
+    # the rows so every surface that reports execution quality can drop them.
+    fills = sorted(fills + provisional_exits, key=lambda row: row["date"])
     card_curves = load_strategy_cards()
     latest_signals = load_latest_strategy_signals()
     signal_quality = latest_signal_quality(latest_signals, card_curves)
@@ -1634,7 +1965,15 @@ def build() -> tuple[Path, dict[str, Any]]:
     actual_bundle_pnl = strategy_diagnostics["bundle_current_pnl_twd"]
     timeline_grid, timeline_summary = update_timeline(fills, prices)
     cost_gap_rows, cost_gap_count = cost_basis_gap_rows(fills, holdings)
+    signal_day_count = len({
+        row["asof_date"]
+        for row in (read_csv(SIGNAL_HISTORY_PATH) if SIGNAL_HISTORY_PATH.exists() else [])
+    })
+    bridge = implementation_bridge(
+        fills, prices, card_curves, latest_signals, actual_asof
+    )
     realized_total = pnl_breakdown["_totals"]["realized_pnl_twd"]
+    provisional_lots = sum(1 for l in pnl_breakdown["_lots"] if l.get("provisional"))
     combined_pnl = snapshot["unrealized_pnl_twd"] + realized_total
 
     header_cards = "".join(
@@ -1653,13 +1992,18 @@ def build() -> tuple[Path, dict[str, Any]]:
                 (
                     f"{len(pnl_breakdown['_lots'])} 筆平倉的實收現金 − 實付成本；"
                     "賣掉的部位不在庫存表裡，但錢已經動了"
+                    + (f"。其中 {provisional_lots} 筆以收盤價暫計，等回報"
+                       if provisional_lots else "")
                 ),
                 css_value_class(realized_total),
             ),
             metric_card(
                 "累積總損益",
                 f"NT$ {fmt_ntd(combined_pnl, sign=True)}",
-                "在庫未實現 + 已實現；這才是開戶至今的實際結果",
+                (
+                    "在庫未實現 + 已實現；這才是開戶至今的實際結果"
+                    + ("（含暫計，尚未定案）" if provisional_lots else "")
+                ),
                 css_value_class(combined_pnl),
             ),
             metric_card(
@@ -1805,6 +2149,18 @@ polyline[data-line].off{opacity:.08}
 .tip .tip-r .v{font-variant-numeric:tabular-nums;font-weight:700}
 .tip .tip-r .p{font-variant-numeric:tabular-nums;min-width:56px;text-align:right}
 .tip .up{color:var(--green)} .tip .down{color:var(--red)}
+
+.gauges{display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:12px}
+.gauge{background:var(--raise);border:1px solid var(--line);border-radius:11px;padding:14px 15px}
+.gauge.on{border-color:var(--green)}
+.g-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px}
+.g-state{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.gauge.on .g-state{color:var(--green);font-weight:700}
+.g-bar{height:6px;border-radius:3px;background:var(--line);margin:9px 0 7px;overflow:hidden}
+.g-bar span{display:block;height:100%;background:var(--accent);border-radius:3px}
+.gauge.on .g-bar span{background:var(--green)}
+.g-num{font-size:12.5px;font-variant-numeric:tabular-nums;font-weight:700}
+.g-note{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:5px}
 </style>
 <style>
 .badges a{text-decoration:none}
@@ -1817,14 +2173,17 @@ polyline[data-line].off{opacity:.08}
 <section class="hero"><div><h1>績效累積圖</h1><p>實際績效已改用 2026-08-10 起始、2026-08-11 起逐筆成交的四策略 equity curve。不再把今日持股倒推一年。理論卡與實際線分開標示截止日。</p><div class="badges"><span class="badge good">ACTUAL_FILLS_RECONCILED</span><span class="badge good">THEORY_ASOF_{{THEORY_ASOF_COMPACT}}</span><span class="badge warn">RISK_SAMPLE_{{RISK_OBS}}_RETURNS</span><span class="badge">NO_BROKER · NO_ORDER</span><a class="badge good" href="inputs/four_strategy_daily_signals.xlsx" download>下載 Excel 主檔</a></div></div><div><b>四策略估值日</b><br><span class="mono">{{ASOF}}</span><br><small>owner 庫存快照 {{SNAPSHOT_ASOF}}；理論卡 {{THEORY_ASOF}}</small></div></section>
 <section class="metrics">{{HEADER_CARDS}}</section>
 <section class="grid">
+{{PROVISIONAL_BANNER}}
 <article class="panel full"><h2>最新四策略卡 · {{SIGNAL_ASOF}} 收盤</h2><div class="sub">來源圖逐列保存。紅／綠方向已轉成帶正負號報酬；{{PLANNED_DATE}} 的「進／出」是計畫訊號，不是成交。</div><div class="strategy-card-grid">{{LATEST_SIGNAL_CARDS}}</div></article>
 <article class="panel full"><h2>{{PLANNED_DATE}} 計畫進出 · 等待實際成交</h2><div class="sub">沒有成交時間、價格、股數與費稅前，不寫入 actual_fills.csv，也不改實際績效曲線。</div>{{PLANNED_SIGNALS}}</article>
 <article class="panel full"><h2>訊號 → 成交 · 履約落差帳</h2><div class="sub">策略卡報的是訊號價，帳戶付的是成交價，中間的差就是「這個策略能不能被執行」的全部答案。正的 bp 代表對自己不利。累積夠多筆之後，才知道策略卡報酬要打幾折。</div>{{SLIPPAGE_TABLE}}</article>
 <article class="panel full"><h2>四策略實際績效 · 累積曲線</h2><div class="sub">每個 sleeve 以 NT$50 萬現金起始，用實際成交、費稅、已實現損益與每日可變現價值重建；合計初始資金 NT$200 萬。</div>{{LINE_CHART}}</article>
 <article class="panel full"><h2>四策略理論卡 · 來源顯示曲線</h2><div class="sub">這是 owner 策略卡的「當日持倉成分等權顯示報酬」，不是可投資 NAV，也不將每日百分比複利串接。資料只到 {{THEORY_ASOF}}。</div>{{THEORY_CHART}}</article>
 <article class="panel full"><h2>成本口徑落差 · 逐檔拆解</h2><div class="sub">成交簿記的是實際付出的現金（價金＋手續費），券商『付出成本』欄記的是它自己的成本基礎。兩者不一致時，這裡列出是哪一檔、差多少、每股差多少。<b>差額不是要去抹平的誤差，是成交簿還不知道的事件</b> —— 配息、成本重算、券商用不同方式記費用。在有人解釋它之前，它應該一直看得見。四策略實績一律以逐筆成交現金流為準。</div><div class="table-wrap"><table><thead><tr><th>股票</th><th class="num">成交簿成本</th><th class="num">券商成本欄</th><th class="num">差額</th><th class="num">股數</th><th class="num">每股差</th></tr></thead><tbody>{{COST_GAP_ROWS}}</tbody></table></div></article>
+<article class="panel full"><h2>資料累積 · 還差多少才說得出話</h2><div class="sub">每一個顯示 <code>N/A</code> 的統計，背後都有一個樣本門檻。在門檻之前它不是壞掉，是還不知道 —— 而「不知道」和「不好」是兩件事。這裡把每天堆疊的資料換算成進度：現在有幾筆、需要幾筆、到了會解鎖什麼。<b>暫計成交不計入</b>，因為那不是真的執行紀錄。</div>{{ACCRUAL}}</article>
 <article class="panel full"><h2>每日更新時間軸</h2><div class="sub">四個來源，各自有自己的更新節奏。實心格代表那一天有這個來源的資料；空格代表沒有，而不是「和前一天一樣」。右欄的日期若比最後一欄舊，代表這個來源正在落後，畫面上與它有關的數字都還停在那一天。{{TIMELINE_SUMMARY}}。</div>{{UPDATE_TIMELINE}}</article>
 <article class="panel full"><h2>已實現 vs 未實現 · 完整損益拆解</h2><div class="sub">畫面上其他地方的「損益」都是<b>未實現</b>，只算還在手上的部位。已平倉的成交不會出現在庫存表裡，但現金已經確定變動 —— 那筆錢的盈虧在這裡。sleeve 曲線一直都含這兩塊，這張表只是把它拆開讓你看得到。已實現＝實收現金 − 實付成本（含手續費與證交稅）；未實現＝目前可變現值 − 在庫帳面成本，兩者不重複計算。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">已實現損益</th><th class="num">平倉筆數</th><th class="num">未實現損益</th><th class="num">在庫成本</th><th class="num">合計損益</th><th class="num">對 50 萬報酬</th></tr></thead><tbody>{{PNL_SPLIT_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">逐筆平倉明細 · FIFO 對沖，一次賣出跨多筆買進會拆成多列</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">買進</th><th class="num">賣出</th><th class="num">持有</th><th class="num">成本 → 實收</th><th class="num">已實現損益</th></tr></thead><tbody>{{CLOSED_LOTS}}</tbody></table></div></article>
+<article class="panel full"><h2>實施落差橋 · 為什麼帳戶沒有做出策略卡的成績</h2><div class="sub">只說「差幾 pp」沒有用，因為你不知道該修哪裡。這裡把差距<b>完全拆成三項相加</b>：<br><code>差距 = 選股與進場價差 ＋ 現金拖累 ＋ 已實現貢獻</code><br><b>選股與進場價差</b>＝你持有的那些，表現與卡片等權報酬的落差（含你買貴或買便宜）。<b>現金拖累</b>＝sleeve 只投入了一部分，卡片假設 100% 投入；卡片賺錢時，沒投入的那部分一定拖後腿。<b>已實現貢獻</b>＝已平倉那些對 50 萬本金的貢獻。三項都不是估算：投入比重來自成交簿，持股報酬來自官方收盤扣掉出場費稅，卡片報酬來自你自己的卡片表頭。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">理論卡</th><th class="num">實際 sleeve</th><th class="num">差距</th><th class="num">選股與<br>進場價差</th><th class="num">現金<br>拖累</th><th class="num">已實現<br>貢獻</th><th class="num">投入<br>比重</th><th class="num">閒置現金</th></tr></thead><tbody>{{BRIDGE_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">進場價差 · 卡片假設你付的 vs 你實際付的</div><div class="sub" style="margin-bottom:12px">「實付均價」是成交簿的在庫帳面成本 ÷ 股數，含手續費，所以它一定略高於成交價本身 —— 那正是重點：卡片的進場價不含任何成本。綠色代表你買得比卡片便宜，紅色代表買貴。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">卡片進場</th><th class="num">實付均價</th><th class="num">進場價差</th><th class="num">現價</th><th class="num">在庫報酬<br>（扣出場費稅）</th></tr></thead><tbody>{{ENTRY_GAP_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>實際 vs 理論 · 四策略差異</h2><div class="sub">「差異」只在共同截止日 {{THEORY_ASOF}} 計算：實際 50 萬 sleeve 可變現報酬 − 理論卡等權顯示報酬。這是描述性 implementation gap，權重與現金比率不同，不冒充 alpha。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際累計<br>{{ASOF}}</th><th class="num">實際損益</th><th class="num">實際<br>{{THEORY_ASOF}}</th><th class="num">理論卡<br>{{THEORY_ASOF}}</th><th class="num">差異<br>pp</th><th class="num">實際/理論<br>持股數</th><th class="num">MDD</th><th class="num">Sharpe</th></tr></thead><tbody>{{STRATEGY_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>日／週／月／季／年／YTD／累計</h2><div class="sub">basis：{{ANALYSIS_BASIS}}。近一月、季、年若沒有足夠實際觀察就顯示 N/A，不用同一批股票倒推。</div><div class="period-grid">{{PERIOD_CARDS}}</div></article>
 <article class="panel full" id="risk-metrics"><h2>Sharpe／MDD／Alpha／Beta · 完整績效風險衡量</h2><div class="sub">以四策略實際合計曲線計算。MDD 已可計算；Sharpe、Sortino、Alpha、Beta、IR 與 Tracking Error 因尚未滿 20 筆日報酬而顯示 N/A。</div><div class="status-grid">{{RISK_METRICS}}</div></article>
@@ -1977,6 +2336,12 @@ polyline[data-line].off{opacity:.08}
         "{{DRAWDOWN}}": drawdown_visual(analysis_curve),
         "{{MONTHLY_HEATMAP}}": monthly_heatmap(analysis_curve),
         "{{SLIPPAGE_TABLE}}": slippage_table(slippage_rows),
+        "{{PROVISIONAL_BANNER}}": provisional_banner(provisional_exits),
+        "{{ACCRUAL}}": accrual_panel(
+            analysis_curve, fills, slippage_rows, pnl_breakdown["_lots"], signal_day_count
+        ),
+        "{{BRIDGE_TABLE}}": bridge_table(bridge),
+        "{{ENTRY_GAP_TABLE}}": entry_gap_table(bridge),
         "{{COST_GAP_ROWS}}": cost_gap_rows,
         "{{UPDATE_TIMELINE}}": timeline_grid,
         "{{TIMELINE_SUMMARY}}": timeline_summary,

@@ -1,0 +1,2 @@
+detected_date,event,strategy_id,stock_code,stock_name,shares,last_known_cost_twd,session_open,session_high,session_low,session_close,status,note
+2026-08-28,POSITION_LEFT_SNAPSHOT,TRUST,3044,健鼎,200,99141,486.0000,499.0000,483.5000,490.0000,WAITING_FILL_CONFIRMATION,庫存消失但成交簿沒有對應賣出；成交價不可從快照反推，不得臆測

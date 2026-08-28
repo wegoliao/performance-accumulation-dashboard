@@ -1,0 +1,2 @@
+asof_date,shares,yesterday_shares,current_value_twd,buy_value_today_twd,sell_value_today_twd,cost_basis_twd,unrealized_pnl_twd,unrealized_return_pct,currency,source
+2026-08-28,12158,11969,1282708,99225,0,1203069,79639,6.62,TWD,USER_PASTED_SUBTOTAL

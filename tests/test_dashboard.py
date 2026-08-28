@@ -308,12 +308,21 @@ def test_real_data_bundle_stays_on_one_valuation_basis_through_snapshot_day() ->
     column already carries fee+tax, so the audited 'fake +0.27pp' claim does
     not reproduce (the real two-path gap was ~NT$17 of rounding).
     """
-    fills = dashboard.load_actual_fills()
+    # The fill book the build actually uses: settled fills plus any provisional
+    # exit standing in for a confirmation that has not arrived. Reading only
+    # the settled half here would test a book the page never renders.
+    fills = sorted(
+        dashboard.load_actual_fills() + dashboard.load_unrecorded_exits(),
+        key=lambda row: row["date"],
+    )
     prices = dashboard.analytics.load_price_history(dashboard.PRICE_HISTORY_PATH)
     holdings = dashboard.load_holdings()
+    # The snapshot's own date, not a pinned one -- the build discovers the
+    # newest paste, so pinning a day here would fail on every new one.
+    asof = holdings[0]["asof_date"]
 
     curves, bundle, diagnostics = dashboard.build_four_strategy_actual(
-        fills, prices, holdings, date(2026, 8, 24)
+        fills, prices, holdings, asof
     )
 
     assert diagnostics["reconciliation"] == "PASS_EXCLUDING_UNASSIGNED_2886"
@@ -321,8 +330,22 @@ def test_real_data_bundle_stays_on_one_valuation_basis_through_snapshot_day() ->
         diagnostics["valuation_basis"]
         == "OFFICIAL_CLOSE_ESTIMATED_LIQUIDATION_CARRY_FORWARD_POSITIONS"
     )
-    assert math.isclose(bundle[-1][1], 101.4222, abs_tol=0.001)
-    assert math.isclose(diagnostics["bundle_current_pnl_twd"], 28_444.55, abs_tol=0.5)
+    # One basis for the whole curve: the bundle level and the P&L it implies
+    # must be the same statement, on the snapshot day as on every other day.
+    budget = dashboard.STRATEGY_BUDGET_TWD * len(dashboard.STRATEGY_LABELS)
+    assert math.isclose(
+        bundle[-1][1],
+        (budget + diagnostics["bundle_current_pnl_twd"]) / budget * 100.0,
+        abs_tol=0.001,
+    )
+    sleeve_total = sum(
+        diagnostics[strategy_id]["cash_twd"]
+        + diagnostics[strategy_id]["liquidation_value_twd"]
+        for strategy_id in dashboard.STRATEGY_LABELS
+    )
+    assert math.isclose(
+        diagnostics["bundle_current_pnl_twd"], sleeve_total - budget, abs_tol=0.5
+    )
 
 
 def test_slippage_ledger_measures_execution_against_the_right_reference() -> None:
