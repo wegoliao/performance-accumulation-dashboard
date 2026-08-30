@@ -24,6 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import analytics  # noqa: E402  (local module, loaded by path)
 import charts  # noqa: E402
 import realized  # noqa: E402
+import strategy_gap  # noqa: E402
 
 
 TRADING_DAYS = 252
@@ -1822,6 +1823,180 @@ def entry_gap_table(bridge: dict[str, Any]) -> str:
     return "".join(rows)
 
 
+def gap_lens_cards(report: dict[str, Any]) -> str:
+    """Owner-facing summary of the descriptive strategy/actual gap report."""
+    summary = report["summary"]
+    vs_bench = summary["combined_vs_benchmarks"]
+    execution_ok = summary["execution_status"] == "OK_MIN_30"
+    return "".join(
+        [
+            metric_card(
+                "四策略實際",
+                fmt_pct(summary["combined_actual_return"], sign=True),
+                "成交現金流＋每日可變現價值",
+                css_value_class(summary["combined_actual_return"]),
+            ),
+            metric_card(
+                "四卡平均顯示",
+                fmt_pct(summary["combined_card_return"], sign=True),
+                "來源卡表頭平均；不是可投資 NAV",
+                css_value_class(summary["combined_card_return"]),
+            ),
+            metric_card(
+                "實施落差",
+                f'{summary["combined_gap"] * 100:+.2f}pp',
+                "實際 − 四卡平均；描述性，不是 alpha",
+                css_value_class(summary["combined_gap"]),
+            ),
+            metric_card(
+                "策略成員覆蓋",
+                f'{summary["covered_members"]}/{summary["card_members"]}',
+                f'同策略持有覆蓋 {fmt_pct(summary["coverage_fraction"])}',
+            ),
+            metric_card(
+                "資金投入",
+                fmt_pct(summary["deployed_fraction"]),
+                "四個 sleeve 在庫成本 ÷ NT$200 萬",
+            ),
+            metric_card(
+                "相對加權指數",
+                fmt_pct(vs_bench.get("TAIEX"), sign=True),
+                "同起訖日實際合計 − TAIEX",
+                css_value_class(vs_bench.get("TAIEX") or 0.0),
+            ),
+            metric_card(
+                "相對 0050",
+                fmt_pct(vs_bench.get("0050"), sign=True),
+                "同起訖日實際合計 − 0050",
+                css_value_class(vs_bench.get("0050") or 0.0),
+            ),
+            metric_card(
+                "訊號成交樣本",
+                f'{summary["execution_observations"]}/30',
+                "可歸因到訊號的確定成交；未滿 30 不下執行結論",
+                "positive" if execution_ok else "neutral",
+            ),
+        ]
+    )
+
+
+def _code_chips(codes: list[str], kind: str = "") -> str:
+    if not codes:
+        return '<span class="neutral">—</span>'
+    return "".join(
+        f'<span class="code-chip {kind}">{html.escape(code)}</span>' for code in codes
+    )
+
+
+def gap_driver_table(report: dict[str, Any]) -> str:
+    rows: list[str] = []
+    for strategy_id, label in STRATEGY_LABELS.items():
+        row = report["strategies"][strategy_id]
+        drivers = row["drivers"]
+        dominant = row["dominant_driver"] or "—"
+        execution = row["execution"]
+        rows.append(
+            "<tr>"
+            f"<td><b>{html.escape(label)}</b><br><small>{strategy_id}</small></td>"
+            f'<td class="num {css_value_class(row["actual_return"])}">'
+            f'{fmt_pct(row["actual_return"], sign=True)}</td>'
+            f'<td class="num">{fmt_pct(row["card_return"], sign=True)}</td>'
+            f'<td class="num {css_value_class(row["gap"])}"><b>'
+            f'{row["gap"] * 100:+.2f}pp</b></td>'
+            f'<td><b>{html.escape(dominant)}</b><br><small>'
+            f'{drivers.get(dominant, 0.0) * 100:+.2f}pp</small></td>'
+            f'<td class="num">{fmt_pct(row["deployed_fraction"])}</td>'
+            f'<td class="num">{row["covered_members"]}/{row["card_members"]}</td>'
+            f'<td class="num {css_value_class(row["active_vs_benchmarks"].get("TAIEX") or 0.0)}">'
+            f'{fmt_pct(row["active_vs_benchmarks"].get("TAIEX"), sign=True)}</td>'
+            f'<td class="num {css_value_class(row["active_vs_benchmarks"].get("0050") or 0.0)}">'
+            f'{fmt_pct(row["active_vs_benchmarks"].get("0050"), sign=True)}</td>'
+            f'<td class="num">{execution["observations"]}<br><small>'
+            f'{fmt_num(execution["average_signal_slippage_bp"], 0)} bp</small></td>'
+            "</tr>"
+        )
+    return "".join(rows)
+
+
+def coverage_lens_table(report: dict[str, Any]) -> str:
+    rows: list[str] = []
+    for strategy_id, label in STRATEGY_LABELS.items():
+        row = report["strategies"][strategy_id]
+        missing_note = (
+            fmt_pct(row["missing_card_average_return"], sign=True)
+            if row["missing_card_average_return"] is not None
+            else "—"
+        )
+        rows.append(
+            "<tr>"
+            f"<td><b>{html.escape(label)}</b></td>"
+            f'<td>{_code_chips(row["covered_codes"], "covered")}</td>'
+            f'<td>{_code_chips(row["missing_codes"], "missing")}'
+            f'<br><small>卡上顯示平均 {missing_note}</small></td>'
+            f'<td>{_code_chips(row["stale_codes"], "stale")}</td>'
+            f'<td>{_code_chips(row["planned_entry_codes"], "planned")}</td>'
+            f'<td>{_code_chips(row["planned_exit_codes"], "planned")}</td>'
+            f'<td class="num">{fmt_pct(row["weighted_entry_gap"], sign=True)}</td>'
+            f'<td class="num">{fmt_ntd(row["cash_twd"])}</td>'
+            "</tr>"
+        )
+    return "".join(rows)
+
+
+def gap_history_chart(report: dict[str, Any]) -> str:
+    """Small multi-line chart of actual minus card on source-card dates."""
+    histories = {
+        strategy_id: row["gap_history"]
+        for strategy_id, row in report["strategies"].items()
+        if row["gap_history"]
+    }
+    if not histories:
+        return '<div class="mini-empty">沒有共同日期，無法畫 gap 歷史。</div>'
+    dates = sorted({point["date"] for rows in histories.values() for point in rows})
+    values = [point["gap_pp"] for rows in histories.values() for point in rows] + [0.0]
+    low, high = min(values), max(values)
+    pad = max((high - low) * 0.12, 0.5)
+    low, high = low - pad, high + pad
+    width, height = 940.0, 300.0
+    left, right, top, bottom = 64.0, 916.0, 22.0, 262.0
+
+    def x_of(day: str) -> float:
+        return left if len(dates) == 1 else left + dates.index(day) / (len(dates) - 1) * (right - left)
+
+    def y_of(value: float) -> float:
+        return bottom - (value - low) / (high - low) * (bottom - top)
+
+    colors = {"TRUST": "#f5bd58", "YOY": "#4d9dff", "MARGIN": "#c77dff", "BREAKOUT": "#ff6b6b"}
+    paths: list[str] = []
+    legend: list[str] = []
+    for strategy_id, rows in histories.items():
+        points = " ".join(f'{x_of(row["date"]):.1f},{y_of(row["gap_pp"]):.1f}' for row in rows)
+        color = colors[strategy_id]
+        latest = rows[-1]["gap_pp"]
+        paths.append(
+            f'<polyline points="{points}" fill="none" stroke="{color}" '
+            'stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
+        )
+        legend.append(
+            f'<span><i style="background:{color}"></i>{html.escape(STRATEGY_LABELS[strategy_id])}'
+            f' <b class="{css_value_class(latest)}">{latest:+.2f}pp</b></span>'
+        )
+    zero_y = y_of(0.0)
+    return (
+        '<div class="chart-legend">' + "".join(legend) + "</div>"
+        '<svg class="line-chart" viewBox="0 0 940 300" role="img" '
+        'aria-label="各策略實際報酬減策略卡顯示報酬的歷史">'
+        f'<line x1="{left}" y1="{zero_y:.1f}" x2="{right}" y2="{zero_y:.1f}" class="base-line"/>'
+        f'<text x="{left - 8}" y="{y_of(high - pad):.1f}" class="axis-text" text-anchor="end">{high - pad:+.1f}pp</text>'
+        f'<text x="{left - 8}" y="{zero_y + 4:.1f}" class="axis-text" text-anchor="end">0</text>'
+        f'<text x="{left - 8}" y="{y_of(low + pad) + 4:.1f}" class="axis-text" text-anchor="end">{low + pad:+.1f}pp</text>'
+        + "".join(paths)
+        + f'<text x="{left}" y="286" class="axis-text">{dates[0]}</text>'
+        + f'<text x="{right}" y="286" class="axis-text" text-anchor="end">{dates[-1]}</text>'
+        + "</svg>"
+    )
+
+
 def accrual_panel(
     analysis_curve: list[tuple[date, float]],
     fills: list[dict[str, Any]],
@@ -1969,8 +2144,21 @@ def build() -> tuple[Path, dict[str, Any]]:
         row["asof_date"]
         for row in (read_csv(SIGNAL_HISTORY_PATH) if SIGNAL_HISTORY_PATH.exists() else [])
     })
+    slippage_rows = analytics.build_slippage_ledger(
+        SIGNAL_FILLS_PATH, analytics.load_ohlc(PRICE_HISTORY_PATH)
+    )
     bridge = implementation_bridge(
         fills, prices, card_curves, latest_signals, actual_asof
+    )
+    gap_report = strategy_gap.analyze(
+        strategy_labels=STRATEGY_LABELS,
+        bridge=bridge,
+        latest_signals=latest_signals,
+        actual_curves=actual_strategy_curves,
+        card_curves=card_curves,
+        benchmark_curves=benchmark_curves,
+        slippage_rows=slippage_rows,
+        asof=actual_asof,
     )
     realized_total = pnl_breakdown["_totals"]["realized_pnl_twd"]
     provisional_lots = sum(1 for l in pnl_breakdown["_lots"] if l.get("provisional"))
@@ -2101,9 +2289,6 @@ def build() -> tuple[Path, dict[str, Any]]:
     basket_status = "OK" if basket_obs >= MIN_RISK_RETURN_OBS else "WAITING_MIN_20_RETURNS"
 
     basket_bench_metrics = performance_metrics(basket_benchmarks.get("TAIEX", []))
-    slippage_rows = analytics.build_slippage_ledger(
-        SIGNAL_FILLS_PATH, analytics.load_ohlc(PRICE_HISTORY_PATH)
-    )
     template = """<!doctype html>
 <html lang="zh-Hant-TW">
 <head>
@@ -2161,6 +2346,16 @@ polyline[data-line].off{opacity:.08}
 .gauge.on .g-bar span{background:var(--green)}
 .g-num{font-size:12.5px;font-variant-numeric:tabular-nums;font-weight:700}
 .g-note{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:5px}
+.gap-lenses{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.gap-lenses .metric-card{min-height:118px;background:#0f1d19}
+.code-chip{display:inline-block;margin:2px 4px 2px 0;padding:2px 7px;border-radius:999px;
+  border:1px solid var(--line);font-size:11px;font-family:Consolas,monospace}
+.code-chip.covered{color:var(--green);border-color:#2c7259;background:#10291f}
+.code-chip.missing{color:var(--red);border-color:#744141;background:#2b1717}
+.code-chip.stale{color:var(--gold);border-color:#745c2c;background:#292313}
+.code-chip.planned{color:var(--blue);border-color:#3e5d83;background:#142337}
+@media(max-width:1050px){.gap-lenses{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.gap-lenses{grid-template-columns:1fr}}
 </style>
 <style>
 .badges a{text-decoration:none}
@@ -2183,7 +2378,8 @@ polyline[data-line].off{opacity:.08}
 <article class="panel full"><h2>資料累積 · 還差多少才說得出話</h2><div class="sub">每一個顯示 <code>N/A</code> 的統計，背後都有一個樣本門檻。在門檻之前它不是壞掉，是還不知道 —— 而「不知道」和「不好」是兩件事。這裡把每天堆疊的資料換算成進度：現在有幾筆、需要幾筆、到了會解鎖什麼。<b>暫計成交不計入</b>，因為那不是真的執行紀錄。</div>{{ACCRUAL}}</article>
 <article class="panel full"><h2>每日更新時間軸</h2><div class="sub">四個來源，各自有自己的更新節奏。實心格代表那一天有這個來源的資料；空格代表沒有，而不是「和前一天一樣」。右欄的日期若比最後一欄舊，代表這個來源正在落後，畫面上與它有關的數字都還停在那一天。{{TIMELINE_SUMMARY}}。</div>{{UPDATE_TIMELINE}}</article>
 <article class="panel full"><h2>已實現 vs 未實現 · 完整損益拆解</h2><div class="sub">畫面上其他地方的「損益」都是<b>未實現</b>，只算還在手上的部位。已平倉的成交不會出現在庫存表裡，但現金已經確定變動 —— 那筆錢的盈虧在這裡。sleeve 曲線一直都含這兩塊，這張表只是把它拆開讓你看得到。已實現＝實收現金 − 實付成本（含手續費與證交稅）；未實現＝目前可變現值 − 在庫帳面成本，兩者不重複計算。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">已實現損益</th><th class="num">平倉筆數</th><th class="num">未實現損益</th><th class="num">在庫成本</th><th class="num">合計損益</th><th class="num">對 50 萬報酬</th></tr></thead><tbody>{{PNL_SPLIT_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">逐筆平倉明細 · FIFO 對沖，一次賣出跨多筆買進會拆成多列</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">買進</th><th class="num">賣出</th><th class="num">持有</th><th class="num">成本 → 實收</th><th class="num">已實現損益</th></tr></thead><tbody>{{CLOSED_LOTS}}</tbody></table></div></article>
-<article class="panel full"><h2>實施落差橋 · 為什麼帳戶沒有做出策略卡的成績</h2><div class="sub">只說「差幾 pp」沒有用，因為你不知道該修哪裡。這裡把差距<b>完全拆成三項相加</b>：<br><code>差距 = 選股與進場價差 ＋ 現金拖累 ＋ 已實現貢獻</code><br><b>選股與進場價差</b>＝你持有的那些，表現與卡片等權報酬的落差（含你買貴或買便宜）。<b>現金拖累</b>＝sleeve 只投入了一部分，卡片假設 100% 投入；卡片賺錢時，沒投入的那部分一定拖後腿。<b>已實現貢獻</b>＝已平倉那些對 50 萬本金的貢獻。三項都不是估算：投入比重來自成交簿，持股報酬來自官方收盤扣掉出場費稅，卡片報酬來自你自己的卡片表頭。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">理論卡</th><th class="num">實際 sleeve</th><th class="num">差距</th><th class="num">選股與<br>進場價差</th><th class="num">現金<br>拖累</th><th class="num">已實現<br>貢獻</th><th class="num">投入<br>比重</th><th class="num">閒置現金</th></tr></thead><tbody>{{BRIDGE_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">進場價差 · 卡片假設你付的 vs 你實際付的</div><div class="sub" style="margin-bottom:12px">「實付均價」是成交簿的在庫帳面成本 ÷ 股數，含手續費，所以它一定略高於成交價本身 —— 那正是重點：卡片的進場價不含任何成本。綠色代表你買得比卡片便宜，紅色代表買貴。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">卡片進場</th><th class="num">實付均價</th><th class="num">進場價差</th><th class="num">現價</th><th class="num">在庫報酬<br>（扣出場費稅）</th></tr></thead><tbody>{{ENTRY_GAP_TABLE}}</tbody></table></div></article>
+<article class="panel full"><h2>策略 vs 實際 · 八個角度的診斷</h2><div class="sub">策略卡是當日成員的等權顯示報酬；實際 sleeve 是成交現金流、真實權重、閒置現金、費稅與可變現估值。兩者不是同一種 NAV。這一區回答「差在哪裡」，但不把描述性 bridge 冒充因果歸因或 alpha。</div><div class="gap-lenses">{{GAP_LENS_CARDS}}</div><div class="period-kind">策略層診斷 · 同一起訖日</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際</th><th class="num">卡片</th><th class="num">Gap</th><th>最大描述項</th><th class="num">投入</th><th class="num">覆蓋</th><th class="num">vs TAIEX</th><th class="num">vs 0050</th><th class="num">訊號成交樣本</th></tr></thead><tbody>{{GAP_DRIVER_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">Gap 走勢 · 實際報酬 − 卡片顯示報酬（pp）</div>{{GAP_HISTORY_CHART}}<div class="section-gap"></div><div class="period-kind">成員與狀態 · 缺席不等於損失，未買標的不得虛構 counterfactual P&amp;L</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>同策略已覆蓋</th><th>卡上未持有</th><th>仍持有但已離卡</th><th>計畫進</th><th>計畫出</th><th class="num">實付 vs 卡價</th><th class="num">現金</th></tr></thead><tbody>{{COVERAGE_LENS_TABLE}}</tbody></table></div></article>
+<article class="panel full"><h2>實施落差橋 · 三項加總的描述性 bridge</h2><div class="sub">只說「差幾 pp」沒有用。這裡用一個<b>代數恆等式</b>把差距拆成三項：<br><code>差距 = 在庫組合與進場 ＋ 現金／未投入 ＋ 已實現</code><br>三項加總會精確回到「實際 − 卡片」，但分類不是因果實驗：第一項同時混合成員覆蓋、實際權重、進場時點、進場價與出場費稅；第二項假設用卡片表頭當作未投入資金的參考報酬；第三項來自平倉現金流。它適合找下一個要查的方向，不適合宣稱哪一項造成未來績效。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">理論卡</th><th class="num">實際 sleeve</th><th class="num">差距</th><th class="num">在庫組合<br>與進場</th><th class="num">現金／<br>未投入</th><th class="num">已實現<br>貢獻</th><th class="num">投入<br>比重</th><th class="num">閒置現金</th></tr></thead><tbody>{{BRIDGE_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">進場價差 · 卡片假設你付的 vs 你實際付的</div><div class="sub" style="margin-bottom:12px">「實付均價」是成交簿的在庫帳面成本 ÷ 股數，含手續費，所以它一定略高於成交價本身。綠色代表實付低於卡片進場價，紅色代表高於；它只描述成交，不代表那個價位是最佳進場。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">卡片進場</th><th class="num">實付均價</th><th class="num">進場價差</th><th class="num">現價</th><th class="num">在庫報酬<br>（扣出場費稅）</th></tr></thead><tbody>{{ENTRY_GAP_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>實際 vs 理論 · 四策略差異</h2><div class="sub">「差異」只在共同截止日 {{THEORY_ASOF}} 計算：實際 50 萬 sleeve 可變現報酬 − 理論卡等權顯示報酬。這是描述性 implementation gap，權重與現金比率不同，不冒充 alpha。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際累計<br>{{ASOF}}</th><th class="num">實際損益</th><th class="num">實際<br>{{THEORY_ASOF}}</th><th class="num">理論卡<br>{{THEORY_ASOF}}</th><th class="num">差異<br>pp</th><th class="num">實際/理論<br>持股數</th><th class="num">MDD</th><th class="num">Sharpe</th></tr></thead><tbody>{{STRATEGY_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>日／週／月／季／年／YTD／累計</h2><div class="sub">basis：{{ANALYSIS_BASIS}}。近一月、季、年若沒有足夠實際觀察就顯示 N/A，不用同一批股票倒推。</div><div class="period-grid">{{PERIOD_CARDS}}</div></article>
 <article class="panel full" id="risk-metrics"><h2>Sharpe／MDD／Alpha／Beta · 完整績效風險衡量</h2><div class="sub">以四策略實際合計曲線計算。MDD 已可計算；Sharpe、Sortino、Alpha、Beta、IR 與 Tracking Error 因尚未滿 20 筆日報酬而顯示 N/A。</div><div class="status-grid">{{RISK_METRICS}}</div></article>
@@ -2340,6 +2536,10 @@ polyline[data-line].off{opacity:.08}
         "{{ACCRUAL}}": accrual_panel(
             analysis_curve, fills, slippage_rows, pnl_breakdown["_lots"], signal_day_count
         ),
+        "{{GAP_LENS_CARDS}}": gap_lens_cards(gap_report),
+        "{{GAP_DRIVER_TABLE}}": gap_driver_table(gap_report),
+        "{{GAP_HISTORY_CHART}}": gap_history_chart(gap_report),
+        "{{COVERAGE_LENS_TABLE}}": coverage_lens_table(gap_report),
         "{{BRIDGE_TABLE}}": bridge_table(bridge),
         "{{ENTRY_GAP_TABLE}}": entry_gap_table(bridge),
         "{{COST_GAP_ROWS}}": cost_gap_rows,
@@ -2476,6 +2676,7 @@ polyline[data-line].off{opacity:.08}
                 "quality": signal_quality,
             },
             "strategy_diagnostics": strategy_diagnostics,
+            "strategy_actual_gap_report": gap_report,
             "legacy_strategy_series": sorted(legacy_strategy_curves),
             "benchmark_series": sorted(benchmark_curves),
             "performance_status": history_status,
