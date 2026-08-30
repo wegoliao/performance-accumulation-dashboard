@@ -76,7 +76,6 @@ def _execution_summary(
         ),
     }
 
-
 def analyze(
     *,
     strategy_labels: dict[str, str],
@@ -260,4 +259,3 @@ def analyze(
             "gap_history_observations": len(all_history_dates),
         },
     }
-

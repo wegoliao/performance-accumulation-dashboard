@@ -153,4 +153,3 @@ def test_current_gap_report_surfaces_missing_and_stale_names_without_inventing_p
         if row["strategy_id"] == "TRUST" and row["signal"] == "進"
     }
     assert planned == set(report["strategies"]["TRUST"]["planned_entry_codes"])
-
