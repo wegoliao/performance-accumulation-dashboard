@@ -1,8 +1,8 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-09-02T12:56:36+00:00",
+  "generated_at": "2026-09-03T12:59:42+00:00",
   "source_data_asof": "2026-08-28",
-  "actual_valuation_asof": "2026-09-02",
+  "actual_valuation_asof": "2026-09-03",
   "source_capture_time": null,
   "source_status": "USER_PASTED_INTRADAY_SNAPSHOT",
   "snapshot_reconciliation": "PASS",
@@ -24,8 +24,8 @@
       "rows": 0
     },
     "benchmark_nav.csv": {
-      "sha256": "2dd5d2508c1712770db1302e89b8a7ea2f92bbaf27fb6bb36b2306a2dadd5437",
-      "rows": 498
+      "sha256": "bdf9843b165153a54bd84a7d23072069da8d22ca2653d136369e2b478b976f31",
+      "rows": 500
     },
     "actual_fills.csv": {
       "sha256": "740c003a9efd92f432276e7311a9c68161fcd34f1e5a4daad5e6a9eeb060d6cd",
@@ -68,14 +68,14 @@
   "history": {
     "account_nav_observations": 1,
     "account_return_observations": 0,
-    "analysis_return_observations": 17,
+    "analysis_return_observations": 18,
     "analysis_basis": "ACTUAL_FOUR_STRATEGY_LIQUIDATION_NAV",
     "mtm_diagnostics": {
       "status": "OK",
-      "covered_days": 249,
+      "covered_days": 250,
       "skipped_days": 0,
       "first_covered": "2025-08-25",
-      "last_covered": "2026-09-02",
+      "last_covered": "2026-09-03",
       "missing": [],
       "calendar_source": "TAIEX",
       "basis": "SIMULATED_CONSTANT_HOLDINGS"
@@ -165,33 +165,33 @@
     ],
     "basket_lane": {
       "basis": "SIMULATED_CONSTANT_HOLDINGS",
-      "observations": 248,
+      "observations": 249,
       "status": "OK",
       "metrics": {
-        "total_return": 0.8449277780302924,
-        "cagr": 0.8215998792847186,
-        "volatility": 0.2857340541086182,
-        "sharpe": 2.3234039973004466,
-        "sortino": 3.167564067908822,
+        "total_return": 0.7983895770433453,
+        "cagr": 0.7738650903129849,
+        "volatility": 0.28653138735060724,
+        "sharpe": 2.2185374611947326,
+        "sortino": 3.0349199380706984,
         "max_drawdown": -0.1500379585723164,
-        "calmar": 5.47594680108046,
+        "calmar": 5.157795385092445,
         "worst_day": -0.06507305374302819,
-        "positive_day_ratio": 0.5725806451612904
+        "positive_day_ratio": 0.570281124497992
       },
       "relative_to_TAIEX": {
-        "alpha": 0.0936601884265689,
-        "beta": 0.8265750977859414,
-        "r_squared": 0.6055362952689247,
-        "tracking_error": 0.1854235514436496,
-        "information_ratio": -0.1400983352791772,
-        "overlap_returns": 248.0
+        "alpha": 0.07151862606841355,
+        "beta": 0.829221787301271,
+        "r_squared": 0.6043368963518204,
+        "tracking_error": 0.18597990476165258,
+        "information_ratio": -0.24019006867358106,
+        "overlap_returns": 249.0
       },
       "capture": {
         "up_capture": 0.8537396533060979,
-        "down_capture": 0.7939206822474142,
+        "down_capture": 0.8100147936529123,
         "up_days": 142.0,
-        "down_days": 106.0,
-        "hit_rate_vs_benchmark": 0.4596774193548387
+        "down_days": 107.0,
+        "hit_rate_vs_benchmark": 0.4578313253012048
       },
       "drawdown": {
         "max_drawdown": -0.1500379585723164,
@@ -199,18 +199,18 @@
         "trough_date": "2026-07-30",
         "recovery_date": "2026-08-05",
         "underwater_days": 15,
-        "current_drawdown": -0.0032928475827466164
+        "current_drawdown": -0.028434730282265508
       },
       "benchmark_TAIEX": {
-        "total_return": 0.9015528034738509,
-        "cagr": 0.8763299926747308,
-        "volatility": 0.26899844887867036,
-        "sharpe": 2.564524729548848,
-        "sortino": 3.740743622827731,
+        "total_return": 0.8889048159233,
+        "cagr": 0.8610067133446007,
+        "volatility": 0.26862167518419927,
+        "sharpe": 2.532748492002723,
+        "sortino": 3.7035398383419516,
         "max_drawdown": -0.16355180219477772,
-        "calmar": 5.3581188401157975,
+        "calmar": 5.264428161538736,
         "worst_day": -0.06473887769375475,
-        "positive_day_ratio": 0.5725806451612904
+        "positive_day_ratio": 0.570281124497992
       }
     },
     "strategy_series": [
@@ -274,7 +274,7 @@
     "strategy_diagnostics": {
       "TRUST": {
         "cash_twd": 152826.0,
-        "liquidation_value_twd": 374818.0,
+        "liquidation_value_twd": 360546.99999999994,
         "active_positions": {
           "2609": 1000.0,
           "2301": 365.0,
@@ -284,7 +284,7 @@
       },
       "YOY": {
         "cash_twd": 78012.0,
-        "liquidation_value_twd": 434170.2,
+        "liquidation_value_twd": 422436.80000000005,
         "active_positions": {
           "2397": 1045.0,
           "2301": 261.0,
@@ -296,7 +296,7 @@
       },
       "MARGIN": {
         "cash_twd": 342854.0,
-        "liquidation_value_twd": 158517.40000000002,
+        "liquidation_value_twd": 159491.84999999998,
         "active_positions": {
           "2354": 788.0,
           "1709": 305.0,
@@ -305,7 +305,7 @@
       },
       "BREAKOUT": {
         "cash_twd": 210522.0,
-        "liquidation_value_twd": 316585.0,
+        "liquidation_value_twd": 301724.8,
         "active_positions": {
           "1709": 3644.0,
           "2408": 198.0,
@@ -319,23 +319,23 @@
         "2886": 1.0
       },
       "last_fill_date": "2026-08-28",
-      "valuation_asof": "2026-09-02",
+      "valuation_asof": "2026-09-03",
       "valuation_basis": "OFFICIAL_CLOSE_ESTIMATED_LIQUIDATION_CARRY_FORWARD_POSITIONS",
-      "bundle_current_pnl_twd": 68304.59999999986,
+      "bundle_current_pnl_twd": 28414.450000000186,
       "active_fill_cash_out_twd": 1207886.0,
       "source_active_cost_ex_unassigned_twd": 1203029.0,
       "active_cost_basis_gap_twd": 4857.0,
       "post_snapshot_fill_cash_out_twd": 0
     },
     "strategy_actual_gap_report": {
-      "asof": "2026-09-02",
+      "asof": "2026-09-03",
       "method": "DESCRIPTIVE_EXACT_ALGEBRA_NOT_CAUSAL_ATTRIBUTION",
       "strategies": {
         "TRUST": {
           "label": "投信",
-          "actual_return": 0.05528799999999994,
+          "actual_return": 0.026746000000000075,
           "card_return": 0.050000000000000044,
-          "gap": 0.005287999999999897,
+          "gap": -0.02325399999999997,
           "deployed_fraction": 0.700554,
           "cash_twd": 152826.0,
           "realized_pnl_twd": 3103.0000000000055,
@@ -360,14 +360,14 @@
           "missing_card_average_return": 0.0,
           "weighted_entry_gap": 0.0006562563493480474,
           "drivers": {
-            "在庫組合與進場": 0.014054299999999898,
+            "在庫組合與進場": -0.014487699999999966,
             "現金／未投入": -0.014972300000000013,
             "已實現": 0.006206000000000011
           },
           "dominant_driver": "現金／未投入",
           "active_vs_benchmarks": {
-            "0050": 0.03082756834532379,
-            "TAIEX": 0.027778671899246703
+            "0050": 0.008040964028776992,
+            "TAIEX": 0.006071047030009297
           },
           "execution": {
             "observations": 2,
@@ -438,9 +438,9 @@
         },
         "YOY": {
           "label": "YOY",
-          "actual_return": 0.024364400000000036,
+          "actual_return": 0.0008975999999999602,
           "card_return": 0.04800000000000004,
-          "gap": -0.023635600000000007,
+          "gap": -0.047102400000000086,
           "deployed_fraction": 0.82197,
           "cash_twd": 78012.0,
           "realized_pnl_twd": -11003.000000000002,
@@ -463,14 +463,14 @@
           "missing_card_average_return": null,
           "weighted_entry_gap": -0.003027836570405621,
           "drivers": {
-            "在庫組合與進場": 0.006915840000000006,
+            "在庫組合與進場": -0.01655096000000007,
             "現金／未投入": -0.008545440000000008,
             "已實現": -0.022006000000000005
           },
           "dominant_driver": "已實現",
           "active_vs_benchmarks": {
-            "0050": -9.60316546761153e-05,
-            "TAIEX": -0.0031449281007532026
+            "0050": -0.017807435971223123,
+            "TAIEX": -0.01977735296999082
           },
           "execution": {
             "observations": 0,
@@ -541,9 +541,9 @@
         },
         "MARGIN": {
           "label": "融資",
-          "actual_return": 0.0027428000000000036,
+          "actual_return": 0.004691700000000001,
           "card_return": 0.121,
-          "gap": -0.11825719999999999,
+          "gap": -0.11630829999999999,
           "deployed_fraction": 0.314292,
           "cash_twd": 342854.0,
           "realized_pnl_twd": 0.0,
@@ -571,14 +571,14 @@
           "missing_card_average_return": 0.16,
           "weighted_entry_gap": -0.0018840956892702194,
           "drivers": {
-            "在庫組合與進場": -0.035286531999999995,
+            "在庫組合與進場": -0.033337632,
             "現金／未投入": -0.082970668,
             "已實現": 0.0
           },
           "dominant_driver": "現金／未投入",
           "active_vs_benchmarks": {
-            "0050": -0.021717631654676148,
-            "TAIEX": -0.024766528100753235
+            "0050": -0.014013335971223083,
+            "TAIEX": -0.01598325296999078
           },
           "execution": {
             "observations": 1,
@@ -649,9 +649,9 @@
         },
         "BREAKOUT": {
           "label": "突破",
-          "actual_return": 0.054214000000000026,
+          "actual_return": 0.02449360000000005,
           "card_return": 0.09499999999999997,
-          "gap": -0.04078599999999995,
+          "gap": -0.07050639999999993,
           "deployed_fraction": 0.578956,
           "cash_twd": 210522.0,
           "realized_pnl_twd": 0.0,
@@ -673,14 +673,14 @@
           "missing_card_average_return": 0.012,
           "weighted_entry_gap": -0.018531867512994973,
           "drivers": {
-            "在庫組合與進場": -0.0007868199999999617,
+            "在庫組合與進場": -0.030507219999999936,
             "現金／未投入": -0.03999917999999999,
             "已實現": 0.0
           },
           "dominant_driver": "現金／未投入",
           "active_vs_benchmarks": {
-            "0050": 0.029753568345323875,
-            "TAIEX": 0.026704671899246787
+            "0050": 0.0057885640287769664,
+            "TAIEX": 0.0038186470300092708
           },
           "execution": {
             "observations": 0,
@@ -751,20 +751,20 @@
         }
       },
       "benchmarks": {
-        "0050": 0.02446043165467615,
-        "TAIEX": 0.02750932810075324
+        "0050": 0.018705035971223083,
+        "TAIEX": 0.02067495296999078
       },
       "summary": {
-        "combined_actual_return": 0.034152300000000003,
+        "combined_actual_return": 0.014207225000000021,
         "combined_card_return": 0.07850000000000001,
-        "combined_gap": -0.04434770000000001,
+        "combined_gap": -0.064292775,
         "coverage_fraction": 0.64,
         "covered_members": 16,
         "card_members": 25,
         "deployed_fraction": 0.603943,
         "combined_vs_benchmarks": {
-          "0050": 0.009691868345323852,
-          "TAIEX": 0.006642971899246765
+          "0050": -0.004497810971223062,
+          "TAIEX": -0.006467727969990757
         },
         "execution_observations": 3,
         "execution_status": "WAITING_MIN_30_SIGNAL_FILLS",
@@ -780,13 +780,13 @@
     "risk_metric_status": "WAITING_MIN_20_RETURNS",
     "relative_metric_status": "WAITING_MIN_20_COMMON_RETURNS",
     "period_returns": {
-      "今日": -0.0017415789176477015,
-      "近一週": 0.005971908334631015,
+      "今日": -0.019286400078595722,
+      "近一週": -0.012076504301155144,
       "近一月": null,
       "近一季": null,
       "近一年": null,
-      "YTD": 0.03415229999999991,
-      "累計": 0.03415229999999991
+      "YTD": 0.014207225000000046,
+      "累計": 0.014207225000000046
     }
   },
   "safety": {
