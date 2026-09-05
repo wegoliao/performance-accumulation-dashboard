@@ -506,8 +506,16 @@ def load_latest_strategy_signals(
             raise InputError(f"duplicate or empty latest strategy signal: {key}")
         seen.add(key)
         signal = raw["signal"].strip()
-        if signal not in {"進", "抱", "出"}:
+        # The card began emitting short-side entries as "(進*)" -- brackets mean
+        # short, the star means it is a fresh signal. The owner does not trade
+        # that side, so those rows are kept, marked, and never turned into a
+        # planned action. Dropping them would hide the fact that the strategy
+        # now speaks a direction this account does not.
+        side = "SHORT" if signal.startswith("(") else "LONG"
+        action = signal.strip("()*")
+        if action not in {"進", "抱", "出"}:
             raise InputError(f"invalid signal for {key}: {signal!r}")
+        tradable = side == "LONG"
         direction = raw["direction"].strip()
         if direction not in {"+", "-"}:
             raise InputError(f"invalid direction for {key}: {direction!r}")
@@ -516,6 +524,9 @@ def load_latest_strategy_signals(
         expected = magnitude if direction == "+" else -magnitude
         if not math.isclose(signed, expected, abs_tol=0.001):
             raise InputError(f"signed return mismatch for {key}: {signed} vs {expected}")
+        raw["signal_side"] = side
+        raw["signal_action"] = action
+        raw["signal_tradable"] = "1" if tradable else ""
         effective_raw = raw.get("effective_date", "").strip()
         rows.append(
             {
@@ -2062,6 +2073,163 @@ def accrual_panel(
     return '<div class="gauges">' + "".join(cards) + "</div>"
 
 
+def discipline_ledger(
+    fills: list[dict[str, Any]],
+    prices: dict[str, list[tuple[date, float]]],
+    asof: date,
+) -> dict[str, Any]:
+    """Split closed lots into instructed exits and discretionary ones."""
+    instructed: set[tuple[str, str, date]] = set()
+    if SIGNAL_HISTORY_PATH.exists():
+        for raw in read_csv(SIGNAL_HISTORY_PATH):
+            action = raw.get("signal", "").strip().strip("()*")
+            if action != "出":
+                continue
+            instructed.add(
+                (
+                    raw["strategy_id"].strip(),
+                    raw["stock_code"].strip(),
+                    parse_date(raw["asof_date"]),
+                )
+            )
+
+    def was_instructed(strategy_id: str, code: str, sell_day: date) -> date | None:
+        days = [
+            day
+            for (sid, c, day) in instructed
+            if sid == strategy_id and c == code and day <= sell_day
+        ]
+        return max(days) if days else None
+
+    lots = realized.as_of(realized.closed_lots(fills), asof)
+    rows: list[dict[str, Any]] = []
+    for lot in lots:
+        code = lot["stock_code"]
+        history = [value for day, value in prices.get(code, []) if day <= asof]
+        mark = history[-1] if history else None
+        held_value = (
+            estimated_liquidation_value(lot["shares"], mark) if mark is not None else None
+        )
+        signal_day = was_instructed(lot["strategy_id"], code, lot["sell_date"])
+        rows.append(
+            {
+                **lot,
+                "instructed": signal_day is not None,
+                "signal_date": signal_day,
+                "mark": mark,
+                # What the same shares would be worth now, on the same
+                # liquidation basis used everywhere else on this page.
+                "hold_value_twd": held_value,
+                "hold_pnl_twd": (held_value - lot["cost_twd"]) if held_value is not None else None,
+                "decision_twd": (
+                    lot["proceeds_twd"] - held_value if held_value is not None else None
+                ),
+            }
+        )
+
+    def total(subset: list[dict[str, Any]], key: str) -> float:
+        return sum(row[key] for row in subset if row[key] is not None)
+
+    discretionary = [row for row in rows if not row["instructed"]]
+    directed = [row for row in rows if row["instructed"]]
+    return {
+        "rows": sorted(rows, key=lambda row: row["sell_date"], reverse=True),
+        "discretionary": discretionary,
+        "directed": directed,
+        "actual_realized": total(rows, "realized_pnl_twd"),
+        "discretionary_realized": total(discretionary, "realized_pnl_twd"),
+        "directed_realized": total(directed, "realized_pnl_twd"),
+        # Had every discretionary exit been left alone, realized would be only
+        # the instructed part and those positions would still be open.
+        "strategy_realized": total(directed, "realized_pnl_twd"),
+        "strategy_open_pnl": total(discretionary, "hold_pnl_twd"),
+        "decision_value": total(discretionary, "decision_twd"),
+        "asof": asof,
+    }
+
+
+def discipline_rows(ledger: dict[str, Any]) -> str:
+    out: list[str] = []
+    for row in ledger["rows"]:
+        if row["instructed"]:
+            tag = (
+                f'<span style="color:var(--green)">策略指示</span><br>'
+                f'<small>{row["signal_date"].isoformat()} 出</small>'
+            )
+        else:
+            tag = '<span style="color:var(--gold)">自主決定</span><br><small>卡片仍為抱</small>'
+        decision = row["decision_twd"]
+        prov = (
+            '<br><small style="color:var(--gold)">暫計</small>'
+            if row.get("provisional")
+            else ""
+        )
+        out.append(
+            "<tr>"
+            f'<td>{row["sell_date"].isoformat()}</td>'
+            f'<td>{html.escape(STRATEGY_LABELS.get(row["strategy_id"], ""))}</td>'
+            f'<td>{row["stock_code"]} {html.escape(row["stock_name"])}{prov}</td>'
+            f"<td>{tag}</td>"
+            f'<td class="num">{row["shares"]:,.0f}</td>'
+            f'<td class="num">{row["sell_price"]:g}</td>'
+            f'<td class="num {css_value_class(row["realized_pnl_twd"])}">'
+            f'<b>{fmt_ntd(row["realized_pnl_twd"], sign=True)}</b></td>'
+            f'<td class="num">{row["mark"]:g}</td>'
+            f'<td class="num {css_value_class(row["hold_pnl_twd"])}">'
+            f'{fmt_ntd(row["hold_pnl_twd"], sign=True)}</td>'
+            f'<td class="num {css_value_class(decision)}"><b>'
+            f'{fmt_ntd(decision, sign=True)}</b></td>'
+            "</tr>"
+        )
+    if not out:
+        return '<tr><td colspan="10" class="neutral">尚無平倉紀錄。</td></tr>'
+    return "".join(out)
+
+
+def discipline_cards(ledger: dict[str, Any]) -> str:
+    value = ledger["decision_value"]
+    n = len(ledger["discretionary"])
+    verdict = (
+        "提早出場到目前為止是賺的"
+        if value > 0
+        else ("提早出場到目前為止是虧的" if value < 0 else "打平")
+    )
+    return "".join(
+        [
+            metric_card(
+                "實際已實現",
+                f"NT$ {fmt_ntd(ledger['actual_realized'], sign=True)}",
+                f"{len(ledger['rows'])} 筆平倉，含策略指示與自主決定",
+                css_value_class(ledger["actual_realized"]),
+            ),
+            metric_card(
+                "策略指示的部分",
+                f"NT$ {fmt_ntd(ledger['directed_realized'], sign=True)}",
+                f"{len(ledger['directed'])} 筆有 出 訊號才賣",
+                css_value_class(ledger["directed_realized"]),
+            ),
+            metric_card(
+                "自主賣出的部分",
+                f"NT$ {fmt_ntd(ledger['discretionary_realized'], sign=True)}",
+                f"{n} 筆卡片仍寫「抱」時賣出",
+                css_value_class(ledger["discretionary_realized"]),
+            ),
+            metric_card(
+                "若沒賣，現在會是",
+                f"NT$ {fmt_ntd(ledger['strategy_open_pnl'], sign=True)}",
+                f"同樣股數持有到 {ledger['asof'].isoformat()} 的未實現損益",
+                css_value_class(ledger["strategy_open_pnl"]),
+            ),
+            metric_card(
+                "自主決策的價值",
+                f"NT$ {fmt_ntd(value, sign=True)}",
+                f"實收 − 若持有到今天的價值；{verdict}",
+                css_value_class(value),
+            ),
+        ]
+    )
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -2138,6 +2306,7 @@ def build() -> tuple[Path, dict[str, Any]]:
     }
     theory_asof = min(curve[-1][0] for curve in card_curves.values())
     actual_bundle_pnl = strategy_diagnostics["bundle_current_pnl_twd"]
+    discipline = discipline_ledger(fills, prices, actual_asof)
     timeline_grid, timeline_summary = update_timeline(fills, prices)
     cost_gap_rows, cost_gap_count = cost_basis_gap_rows(fills, holdings)
     signal_day_count = len({
@@ -2377,6 +2546,7 @@ polyline[data-line].off{opacity:.08}
 <article class="panel full"><h2>成本口徑落差 · 逐檔拆解</h2><div class="sub">成交簿記的是實際付出的現金（價金＋手續費），券商『付出成本』欄記的是它自己的成本基礎。兩者不一致時，這裡列出是哪一檔、差多少、每股差多少。<b>差額不是要去抹平的誤差，是成交簿還不知道的事件</b> —— 配息、成本重算、券商用不同方式記費用。在有人解釋它之前，它應該一直看得見。四策略實績一律以逐筆成交現金流為準。</div><div class="table-wrap"><table><thead><tr><th>股票</th><th class="num">成交簿成本</th><th class="num">券商成本欄</th><th class="num">差額</th><th class="num">股數</th><th class="num">每股差</th></tr></thead><tbody>{{COST_GAP_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>資料累積 · 還差多少才說得出話</h2><div class="sub">每一個顯示 <code>N/A</code> 的統計，背後都有一個樣本門檻。在門檻之前它不是壞掉，是還不知道 —— 而「不知道」和「不好」是兩件事。這裡把每天堆疊的資料換算成進度：現在有幾筆、需要幾筆、到了會解鎖什麼。<b>暫計成交不計入</b>，因為那不是真的執行紀錄。</div>{{ACCRUAL}}</article>
 <article class="panel full"><h2>每日更新時間軸</h2><div class="sub">四個來源，各自有自己的更新節奏。實心格代表那一天有這個來源的資料；空格代表沒有，而不是「和前一天一樣」。右欄的日期若比最後一欄舊，代表這個來源正在落後，畫面上與它有關的數字都還停在那一天。{{TIMELINE_SUMMARY}}。</div>{{UPDATE_TIMELINE}}</article>
+<article class="panel full"><h2>紀律帳 · 我的損益 vs 策略的損益</h2><div class="sub">每一筆賣出都對照 <code>signal_history</code> 分類：賣出當天或之前有 <b>出</b> 訊號的是<b>策略指示</b>，卡片仍寫「抱」時賣掉的是<b>自主決定</b>。自主決定的那些，反事實不需要模型 —— 股票已經賣了，「沒賣的話現在值多少」就是同樣股數乘上最新官方收盤，扣掉同一套出場費稅。兩者相減就是這個決策賺了或賠了多少。<br><b>這是記分，不是評判。</b>躲掉下跌的提早出場會顯示為正，少賺的會顯示為負，兩種用同一把尺量。目的是看出直覺到底有沒有加分，不是替任何一邊說話。</div>{{DISCIPLINE_CARDS}}<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>賣出日</th><th>策略</th><th>股票</th><th>依據</th><th class="num">股數</th><th class="num">賣價</th><th class="num">實際已實現</th><th class="num">現價</th><th class="num">若持有至今</th><th class="num">決策價值</th></tr></thead><tbody>{{DISCIPLINE_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>已實現 vs 未實現 · 完整損益拆解</h2><div class="sub">畫面上其他地方的「損益」都是<b>未實現</b>，只算還在手上的部位。已平倉的成交不會出現在庫存表裡，但現金已經確定變動 —— 那筆錢的盈虧在這裡。sleeve 曲線一直都含這兩塊，這張表只是把它拆開讓你看得到。已實現＝實收現金 − 實付成本（含手續費與證交稅）；未實現＝目前可變現值 − 在庫帳面成本，兩者不重複計算。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">已實現損益</th><th class="num">平倉筆數</th><th class="num">未實現損益</th><th class="num">在庫成本</th><th class="num">合計損益</th><th class="num">對 50 萬報酬</th></tr></thead><tbody>{{PNL_SPLIT_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">逐筆平倉明細 · FIFO 對沖，一次賣出跨多筆買進會拆成多列</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">買進</th><th class="num">賣出</th><th class="num">持有</th><th class="num">成本 → 實收</th><th class="num">已實現損益</th></tr></thead><tbody>{{CLOSED_LOTS}}</tbody></table></div></article>
 <article class="panel full"><h2>策略 vs 實際 · 八個角度的診斷</h2><div class="sub">策略卡是當日成員的等權顯示報酬；實際 sleeve 是成交現金流、真實權重、閒置現金、費稅與可變現估值。兩者不是同一種 NAV。這一區回答「差在哪裡」，但不把描述性 bridge 冒充因果歸因或 alpha。</div><div class="gap-lenses">{{GAP_LENS_CARDS}}</div><div class="period-kind">策略層診斷 · 同一起訖日</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際</th><th class="num">卡片</th><th class="num">Gap</th><th>最大描述項</th><th class="num">投入</th><th class="num">覆蓋</th><th class="num">vs TAIEX</th><th class="num">vs 0050</th><th class="num">訊號成交樣本</th></tr></thead><tbody>{{GAP_DRIVER_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">Gap 走勢 · 實際報酬 − 卡片顯示報酬（pp）</div>{{GAP_HISTORY_CHART}}<div class="section-gap"></div><div class="period-kind">成員與狀態 · 缺席不等於損失，未買標的不得虛構 counterfactual P&amp;L</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>同策略已覆蓋</th><th>卡上未持有</th><th>仍持有但已離卡</th><th>計畫進</th><th>計畫出</th><th class="num">實付 vs 卡價</th><th class="num">現金</th></tr></thead><tbody>{{COVERAGE_LENS_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>實施落差橋 · 三項加總的描述性 bridge</h2><div class="sub">只說「差幾 pp」沒有用。這裡用一個<b>代數恆等式</b>把差距拆成三項：<br><code>差距 = 在庫組合與進場 ＋ 現金／未投入 ＋ 已實現</code><br>三項加總會精確回到「實際 − 卡片」，但分類不是因果實驗：第一項同時混合成員覆蓋、實際權重、進場時點、進場價與出場費稅；第二項假設用卡片表頭當作未投入資金的參考報酬；第三項來自平倉現金流。它適合找下一個要查的方向，不適合宣稱哪一項造成未來績效。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">理論卡</th><th class="num">實際 sleeve</th><th class="num">差距</th><th class="num">在庫組合<br>與進場</th><th class="num">現金／<br>未投入</th><th class="num">已實現<br>貢獻</th><th class="num">投入<br>比重</th><th class="num">閒置現金</th></tr></thead><tbody>{{BRIDGE_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">進場價差 · 卡片假設你付的 vs 你實際付的</div><div class="sub" style="margin-bottom:12px">「實付均價」是成交簿的在庫帳面成本 ÷ 股數，含手續費，所以它一定略高於成交價本身。綠色代表實付低於卡片進場價，紅色代表高於；它只描述成交，不代表那個價位是最佳進場。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">卡片進場</th><th class="num">實付均價</th><th class="num">進場價差</th><th class="num">現價</th><th class="num">在庫報酬<br>（扣出場費稅）</th></tr></thead><tbody>{{ENTRY_GAP_TABLE}}</tbody></table></div></article>
@@ -2542,6 +2712,8 @@ polyline[data-line].off{opacity:.08}
         "{{COVERAGE_LENS_TABLE}}": coverage_lens_table(gap_report),
         "{{BRIDGE_TABLE}}": bridge_table(bridge),
         "{{ENTRY_GAP_TABLE}}": entry_gap_table(bridge),
+        "{{DISCIPLINE_CARDS}}": discipline_cards(discipline),
+        "{{DISCIPLINE_ROWS}}": discipline_rows(discipline),
         "{{COST_GAP_ROWS}}": cost_gap_rows,
         "{{UPDATE_TIMELINE}}": timeline_grid,
         "{{TIMELINE_SUMMARY}}": timeline_summary,

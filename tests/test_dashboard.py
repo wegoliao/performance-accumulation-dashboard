@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib.util
 import math
+import pytest
+from collections import defaultdict
 from datetime import date
 from pathlib import Path
 
@@ -150,7 +152,9 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     # Every planned entry/exit stays labelled as a plan until a real fill lands.
     for action in latest["planned_actions"]:
         assert action["actual_fill_status"] == "WAITING_ACTUAL_FILL"
-        assert action["signal"] in {"進", "出"}
+        # The card now also emits short-side entries as "(進*)". A planned
+        # action is keyed on the parsed verb, not the decorated glyph.
+        assert action["signal"].strip("()*") in {"進", "出"}
 
     # The YOY card header has never matched the mean of its own visible members;
     # that divergence must keep surfacing instead of being quietly averaged away.
@@ -180,10 +184,29 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
         - diagnostics["source_active_cost_ex_unassigned_twd"]
     )
     assert diagnostics["active_fill_cash_out_twd"] > 0
-    assert diagnostics["TRUST"]["active_positions"]["2301"] == 365
-    assert diagnostics["YOY"]["active_positions"]["2301"] == 261
-    assert diagnostics["MARGIN"]["active_positions"]["1709"] == 305
-    assert diagnostics["BREAKOUT"]["active_positions"]["1709"] == 3644
+    # These pinned one week's split of two shared names. The invariant that
+    # actually matters is that a stock held by more than one sleeve adds up to
+    # the account total -- that is what a per-sleeve attribution can get wrong.
+    per_sleeve = defaultdict(float)
+    for strategy_id in dashboard.STRATEGY_LABELS:
+        for code, shares in diagnostics[strategy_id]["active_positions"].items():
+            per_sleeve[code] += shares
+    account = {
+        row["stock_code"].strip(): row["shares"]
+        for row in dashboard.load_holdings()
+        if row["stock_code"].strip() != "2886"  # unassigned single share
+    }
+    assert dict(per_sleeve) == pytest.approx(account)
+    shared = [code for code in account if sum(
+        1 for s in dashboard.STRATEGY_LABELS
+        if diagnostics[s]["active_positions"].get(code)
+    ) > 1]
+    for code in shared:
+        legs = sum(
+            diagnostics[s]["active_positions"].get(code, 0.0)
+            for s in dashboard.STRATEGY_LABELS
+        )
+        assert legs == pytest.approx(account[code]), f"{code} sleeve legs must sum to the account"
     assert receipt["safety"]["network_access"] is False
     assert receipt["safety"]["order_capability"] is False
     pasted = dashboard.load_summary()

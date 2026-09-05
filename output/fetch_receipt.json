@@ -3,163 +3,129 @@
   "latest_session": "2026-09-04",
   "missing_at_latest_session": [],
   "missing_at_latest_session_watchlist_only": [],
-  "fetched_at": "2026-09-04T12:54:31+00:00",
+  "fetched_at": "2026-09-06T00:45:49+08:00",
   "window": {
-    "start": "2026-07-21",
+    "start": "2026-02-01",
     "end": "2026-09-04"
   },
-  "requested_symbols": 28,
-  "price_rows_total": 5733,
-  "price_rows_added_or_refreshed": 952,
+  "requested_symbols": 15,
+  "price_rows_total": 6665,
+  "price_rows_added_or_refreshed": 1642,
   "trading_days": 251,
   "coverage": {
     "first": "2025-08-25",
     "last": "2026-09-04"
   },
   "per_symbol": {
-    "1590": {
-      "rows": 34,
+    "1712": {
+      "rows": 142,
       "market": "TWSE",
-      "name": "亞德客-KY"
+      "name": "興農"
     },
-    "1709": {
-      "rows": 34,
+    "1717": {
+      "rows": 142,
       "market": "TWSE",
-      "name": "和益"
-    },
-    "1714": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "和桐"
-    },
-    "2030": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "彰源"
+      "name": "長興"
     },
     "2059": {
-      "rows": 34,
+      "rows": 142,
       "market": "TWSE",
       "name": "川湖"
     },
-    "2103": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "台橡"
-    },
     "2301": {
-      "rows": 34,
+      "rows": 142,
       "market": "TWSE",
       "name": "光寶科"
     },
-    "2354": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "鴻準"
-    },
     "2395": {
-      "rows": 34,
+      "rows": 142,
       "market": "TWSE",
       "name": "研華"
     },
-    "2397": {
-      "rows": 34,
+    "2466": {
+      "rows": 142,
       "market": "TWSE",
-      "name": "友通"
-    },
-    "2408": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "南亞科"
-    },
-    "2489": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "瑞軒"
-    },
-    "2606": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "裕民"
-    },
-    "2609": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "陽明"
-    },
-    "2637": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "慧洋-KY"
-    },
-    "2886": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "兆豐金"
-    },
-    "3006": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "晶豪科"
+      "name": "冠西電"
     },
     "3044": {
-      "rows": 34,
+      "rows": 142,
       "market": "TWSE",
       "name": "健鼎"
     },
-    "3046": {
-      "rows": 34,
+    "3055": {
+      "rows": 142,
       "market": "TWSE",
-      "name": "建碁"
+      "name": "蔚華科"
     },
-    "3605": {
-      "rows": 34,
+    "3231": {
+      "rows": 142,
       "market": "TWSE",
-      "name": "宏致"
+      "name": "緯創"
     },
     "3702": {
-      "rows": 34,
+      "rows": 142,
       "market": "TWSE",
       "name": "大聯大"
     },
-    "6213": {
-      "rows": 34,
+    "6108": {
+      "rows": 142,
       "market": "TWSE",
-      "name": "聯茂"
+      "name": "競國"
     },
-    "6570": {
-      "rows": 34,
-      "market": "TPEX",
-      "name": "維田"
-    },
-    "6603": {
-      "rows": 34,
-      "market": "TPEX",
-      "name": "富強鑫"
+    "6141": {
+      "rows": 78,
+      "market": "TWSE",
+      "name": "柏承"
     },
     "6672": {
-      "rows": 34,
+      "rows": 0,
       "market": "TWSE",
       "name": "騰輝電子-KY"
     },
-    "6727": {
-      "rows": 34,
-      "market": "TPEX",
-      "name": "亞泰金屬"
-    },
-    "0050": {
-      "rows": 34,
+    "6830": {
+      "rows": 1,
       "market": "TWSE",
-      "name": "0050"
+      "name": "汎銓"
     },
-    "TAIEX": {
-      "rows": 34,
-      "market": "TWSE_INDEX",
-      "name": "TAIEX"
+    "7827": {
+      "rows": 1,
+      "market": "TWSE",
+      "name": "漢康-KY創"
     }
   },
   "benchmark_rows": 502,
-  "failures": [],
+  "failures": [
+    "6141@2026-06: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6141@2026-07: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6141@2026-08: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6672@2026-02: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6672@2026-03: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6672@2026-04: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6672@2026-05: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6672@2026-06: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6672@2026-07: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6672@2026-08: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6672@2026-09: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6672: no rows in 2026-02-01..2026-09-04",
+    "6830@2026-02: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6830@2026-03: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6830@2026-04: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6830@2026-05: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6830@2026-06: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6830@2026-07: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6830@2026-08: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6830@2026-09: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "6830: no rows in 2026-02-01..2026-09-04",
+    "7827@2026-02: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "7827@2026-03: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "7827@2026-04: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "7827@2026-05: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "7827@2026-06: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "7827@2026-07: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "7827@2026-08: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "7827@2026-09: https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY failed after 3 attempts: HTTP Error 307: Temporary Redirect",
+    "7827: no rows in 2026-02-01..2026-09-04"
+  ],
   "endpoints": [
     "https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY",
     "https://www.twse.com.tw/rwd/zh/TAIEX/MI_5MINS_HIST",

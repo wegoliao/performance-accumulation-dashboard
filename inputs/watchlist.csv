@@ -9,3 +9,12 @@ stock_code,stock_name,strategy_id,track,market,note
 3702,大聯大,YOY,CLOSED,TWSE,已平倉；保留行情供成交落點與已實現損益對照
 6727,亞泰金屬,TRUST,PLANNED_ENTRY,TWSE,2026-08-27 投信卡新進場訊號；進場價「明開」＝2026-08-28 開盤
 2489,瑞軒,TRUST,PLANNED_ENTRY,TWSE,2026-08-28 投信卡新進場訊號；進場價「明開」＝2026-08-31 開盤
+1712,興農,MARGIN,HELD,TWSE,2026-09-02 融資卡進場訊號；09-03 實際買進
+1717,長興,TRUST,HELD,TWSE,2026-08-31 投信卡進場訊號；09-01 實際買進
+6108,競國,MARGIN,HELD,TWSE,2026-09-02 融資卡進場訊號；09-03 實際買進
+2466,冠西電,YOY,MAINLINE2_SHORT,TWSE,YOY 卡（進*）括號＝空頭部位；owner 指示先忽略
+3055,蔚華科,YOY,MAINLINE2_SHORT,TWSE,YOY 卡（進*）括號＝空頭部位；owner 指示先忽略
+6141,柏承,YOY,MAINLINE2_SHORT,TWSE,YOY 卡（進*）括號＝空頭部位；owner 指示先忽略
+6830,汎銓,YOY,MAINLINE2_SHORT,TWSE,YOY 卡（進*）括號＝空頭部位；owner 指示先忽略
+7827,漢康-KY創,YOY,MAINLINE2_SHORT,TWSE,YOY 卡（進*）括號＝空頭部位；owner 指示先忽略
+3231,緯創,TRUST,MAINLINE2,TWSE,2026-09-04 投信卡進場訊號「明開」；尚未買進

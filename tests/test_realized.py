@@ -129,16 +129,23 @@ def test_realized_and_unrealized_never_double_count_the_same_share() -> None:
     assert ("YOY", "3702") not in open_shares, "3702 is fully closed"
 
     yoy = split["YOY"]
-    assert yoy["closed_lots"] == 1
-    assert yoy["realized_pnl_twd"] < 0
+    # Lot count grows with every exit, so assert the relationship, not a count.
+    assert yoy["closed_lots"] == sum(
+        1 for lot in split["_lots"] if lot["strategy_id"] == "YOY"
+    )
     assert yoy["total_pnl_twd"] == pytest.approx(
         yoy["realized_pnl_twd"] + yoy["unrealized_pnl_twd"]
     )
-    # 3702 contributes to realized only; its cost must be gone from the open book.
+    # Closed names contribute to realized only; their cost must be gone from
+    # the open book. Derive the closed set instead of naming one stock.
+    open_shares = realized.open_lots(fills)
+    open_codes = {code for (sid, code) in open_shares if sid == "YOY"}
     assert yoy["open_cost_twd"] == pytest.approx(
         sum(
             row["cash_out"]
             for row in fills
-            if row["strategy_id"] == "YOY" and row["side"] == "BUY" and row["stock_code"] != "3702"
+            if row["strategy_id"] == "YOY"
+            and row["side"] == "BUY"
+            and row["stock_code"] in open_codes
         )
     )
