@@ -45,6 +45,7 @@ STRATEGY_MARKS_PATH = INPUTS / "strategy_position_marks.csv"
 LATEST_STRATEGY_SIGNALS_PATH = INPUTS / "latest_strategy_signals.csv"
 SIGNAL_HISTORY_PATH = INPUTS / "signal_history.csv"
 UNRECORDED_EVENTS_PATH = INPUTS / "unrecorded_events.csv"
+BROKER_REALIZED_PATH = INPUTS / "broker_realized.csv"
 BENCHMARK_LABELS = {"TAIEX": "加權指數", "0050": "0050 元大台灣50"}
 STRATEGY_LABELS = {
     "TRUST": "投信",
@@ -2230,6 +2231,154 @@ def discipline_cards(ledger: dict[str, Any]) -> str:
     )
 
 
+def broker_realized_reconciliation(fills: list[dict[str, Any]]) -> dict[str, Any]:
+    """Line up the broker's realized statement with our own settled-cash one."""
+    if not BROKER_REALIZED_PATH.exists():
+        return {"rows": [], "broker_total": 0.0, "book_total": 0.0, "gap": 0.0}
+
+    ours: dict[tuple[str, str, float], dict[str, float]] = defaultdict(
+        lambda: {"pnl": 0.0, "shares": 0.0, "cost": 0.0, "proceeds": 0.0}
+    )
+    for lot in realized.closed_lots(fills):
+        key = (lot["sell_date"].isoformat(), lot["stock_code"], round(lot["sell_price"], 4))
+        bucket = ours[key]
+        bucket["pnl"] += lot["realized_pnl_twd"]
+        bucket["shares"] += lot["shares"]
+        bucket["cost"] += lot["cost_twd"]
+        bucket["proceeds"] += lot["proceeds_twd"]
+
+    rows: list[dict[str, Any]] = []
+    broker_total = book_total = 0.0
+    for raw in read_csv(BROKER_REALIZED_PATH):
+        key = (
+            raw["sell_date"].strip(),
+            raw["stock_code"].strip(),
+            round(float(raw["sell_price"]), 4),
+        )
+        broker_pnl = required_float(raw["broker_realized_twd"], "broker.realized")
+        broker_cost = required_float(raw["broker_cost_twd"], "broker.cost")
+        broker_total += broker_pnl
+        mine = ours.get(key)
+        if mine:
+            book_total += mine["pnl"]
+        shares = required_float(raw["shares"], "broker.shares")
+        gap = broker_pnl - mine["pnl"] if mine else None
+        rows.append(
+            {
+                "sell_date": raw["sell_date"].strip(),
+                "stock_code": raw["stock_code"].strip(),
+                "stock_name": raw.get("stock_name", "").strip(),
+                "shares": shares,
+                "sell_price": float(raw["sell_price"]),
+                "broker_cost": broker_cost,
+                "broker_pnl": broker_pnl,
+                "book_cost": mine["cost"] if mine else None,
+                "book_pnl": mine["pnl"] if mine else None,
+                "gap": gap,
+                "per_share": (gap / shares) if gap is not None and shares else None,
+            }
+        )
+    return {
+        "rows": rows,
+        "broker_total": broker_total,
+        "book_total": book_total,
+        "gap": broker_total - book_total,
+    }
+
+
+def broker_recon_table(recon: dict[str, Any]) -> str:
+    if not recon["rows"]:
+        return '<tr><td colspan="8" class="neutral">尚未提供券商已實現對帳表。</td></tr>'
+    out: list[str] = []
+    for row in recon["rows"]:
+        gap = row["gap"]
+        note = "—"
+        if gap is None:
+            note = '<span class="neutral">成交簿無對應平倉</span>'
+        elif abs(gap) < 0.5:
+            note = '<span style="color:var(--green)">一致</span>'
+        elif row["per_share"] is not None and abs(abs(row["per_share"]) - 1.0) < 0.02:
+            note = f'每股 {row["per_share"]:+.4f}，配息調整成本'
+        else:
+            note = f'每股 {row["per_share"]:+.4f}，成本基礎差異'
+        out.append(
+            "<tr>"
+            f'<td>{row["sell_date"]}</td>'
+            f'<td>{row["stock_code"]} {html.escape(row["stock_name"])}</td>'
+            f'<td class="num">{row["shares"]:,.0f}</td>'
+            f'<td class="num">{row["sell_price"]:g}</td>'
+            f'<td class="num {css_value_class(row["broker_pnl"])}">'
+            f'{fmt_ntd(row["broker_pnl"], sign=True)}</td>'
+            f'<td class="num {css_value_class(row["book_pnl"])}">'
+            f'{fmt_ntd(row["book_pnl"], sign=True) if row["book_pnl"] is not None else "—"}</td>'
+            f'<td class="num {css_value_class(gap)}"><b>'
+            f'{fmt_ntd(gap, sign=True) if gap is not None else "—"}</b></td>'
+            f"<td>{note}</td>"
+            "</tr>"
+        )
+    out.append(
+        '<tr style="border-top:2px solid var(--line)"><td colspan="4"><b>合計</b></td>'
+        f'<td class="num {css_value_class(recon["broker_total"])}">'
+        f'<b>{fmt_ntd(recon["broker_total"], sign=True)}</b></td>'
+        f'<td class="num {css_value_class(recon["book_total"])}">'
+        f'<b>{fmt_ntd(recon["book_total"], sign=True)}</b></td>'
+        f'<td class="num {css_value_class(recon["gap"])}">'
+        f'<b>{fmt_ntd(recon["gap"], sign=True)}</b></td>'
+        "<td>差額全部落在已標示過成本異動的個股</td></tr>"
+    )
+    return "".join(out)
+
+
+def sharpe_standard_error(curve: list[tuple[date, float]]) -> dict[str, Any] | None:
+    """Lo (2002) IID standard error for an annualised Sharpe ratio.
+
+    Returns None below the sample gate, so this can never dress up a number
+    the rest of the page is refusing to show.
+    """
+    returns = [
+        curve[i][1] / curve[i - 1][1] - 1.0
+        for i in range(1, len(curve))
+        if curve[i - 1][1]
+    ]
+    n = len(returns)
+    if n < MIN_RISK_RETURN_OBS:
+        return None
+    mean = statistics.fmean(returns)
+    stdev = statistics.stdev(returns) if n > 1 else 0.0
+    if stdev <= 0:
+        return None
+    daily = mean / stdev
+    annual = daily * math.sqrt(TRADING_DAYS)
+    se_daily = math.sqrt((1.0 + 0.5 * daily * daily) / n)
+    se_annual = se_daily * math.sqrt(TRADING_DAYS)
+    return {
+        "sharpe": annual,
+        "stderr": se_annual,
+        "low": annual - 1.96 * se_annual,
+        "high": annual + 1.96 * se_annual,
+        "n": n,
+        "covers_zero": (annual - 1.96 * se_annual) <= 0.0 <= (annual + 1.96 * se_annual),
+    }
+
+
+def sharpe_band_note(band: dict[str, Any] | None) -> str:
+    if band is None:
+        return (
+            "尚未滿 20 筆日報酬，Sharpe 顯示 N/A。這不是壞掉，是還不知道。"
+        )
+    verdict = (
+        "區間涵蓋 0 —— 以目前樣本，這個 Sharpe <b>還無法和運氣區分</b>"
+        if band["covers_zero"]
+        else "區間不含 0，但樣本仍在最低門檻附近，解讀請保守"
+    )
+    return (
+        f'Sharpe <b>{band["sharpe"]:.2f}</b>，標準誤 ±{band["stderr"]:.2f}'
+        f'（Lo 2002，n={band["n"]}）。95% 區間 '
+        f'<b>{band["low"]:.2f} ~ {band["high"]:.2f}</b>。{verdict}。'
+        "樣本越長區間才會收斂；在那之前，點估計是最容易被誤讀的一個數字。"
+    )
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -2307,6 +2456,7 @@ def build() -> tuple[Path, dict[str, Any]]:
     theory_asof = min(curve[-1][0] for curve in card_curves.values())
     actual_bundle_pnl = strategy_diagnostics["bundle_current_pnl_twd"]
     discipline = discipline_ledger(fills, prices, actual_asof)
+    broker_recon = broker_realized_reconciliation(load_actual_fills())
     timeline_grid, timeline_summary = update_timeline(fills, prices)
     cost_gap_rows, cost_gap_count = cost_basis_gap_rows(fills, holdings)
     signal_day_count = len({
@@ -2395,6 +2545,7 @@ def build() -> tuple[Path, dict[str, Any]]:
     history_status = "ACTUAL_FILLS_RECONCILED"
     risk_status = "OK" if return_obs >= MIN_RISK_RETURN_OBS else "WAITING_MIN_20_RETURNS"
     relative_status = "OK" if relative["beta"] is not None else "WAITING_MIN_20_COMMON_RETURNS"
+    sharpe_band = sharpe_standard_error(analysis_curve)
     risk_metrics = "".join(
         [
             status_metric("四策略實際累計", fmt_pct(actual_metrics["total_return"], sign=True), history_status, "4×50 萬；成交現金流＋可變現價值"),
@@ -2546,13 +2697,14 @@ polyline[data-line].off{opacity:.08}
 <article class="panel full"><h2>成本口徑落差 · 逐檔拆解</h2><div class="sub">成交簿記的是實際付出的現金（價金＋手續費），券商『付出成本』欄記的是它自己的成本基礎。兩者不一致時，這裡列出是哪一檔、差多少、每股差多少。<b>差額不是要去抹平的誤差，是成交簿還不知道的事件</b> —— 配息、成本重算、券商用不同方式記費用。在有人解釋它之前，它應該一直看得見。四策略實績一律以逐筆成交現金流為準。</div><div class="table-wrap"><table><thead><tr><th>股票</th><th class="num">成交簿成本</th><th class="num">券商成本欄</th><th class="num">差額</th><th class="num">股數</th><th class="num">每股差</th></tr></thead><tbody>{{COST_GAP_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>資料累積 · 還差多少才說得出話</h2><div class="sub">每一個顯示 <code>N/A</code> 的統計，背後都有一個樣本門檻。在門檻之前它不是壞掉，是還不知道 —— 而「不知道」和「不好」是兩件事。這裡把每天堆疊的資料換算成進度：現在有幾筆、需要幾筆、到了會解鎖什麼。<b>暫計成交不計入</b>，因為那不是真的執行紀錄。</div>{{ACCRUAL}}</article>
 <article class="panel full"><h2>每日更新時間軸</h2><div class="sub">四個來源，各自有自己的更新節奏。實心格代表那一天有這個來源的資料；空格代表沒有，而不是「和前一天一樣」。右欄的日期若比最後一欄舊，代表這個來源正在落後，畫面上與它有關的數字都還停在那一天。{{TIMELINE_SUMMARY}}。</div>{{UPDATE_TIMELINE}}</article>
+<article class="panel full"><h2>券商已實現 vs 成交簿已實現 · 逐筆對帳</h2><div class="sub">兩個來源在回答同一個問題，答案不一樣，而差額<b>完全可以解釋</b>。券商用它自己的成本基礎，會因為配息等公司行動往下調；成交簿只認交易當下真正動的現金。<b>兩個都不算錯</b> —— 券商的數字含有以配息形式進到帳戶的價值，成交簿沒有，因為那筆配息現金從來沒有被記進來。把兩邊並排、差額歸到個股，比選一邊當真相誠實得多：它把一個說不清的總差額，變成一列<b>明確缺少的紀錄</b>。</div><div class="table-wrap"><table><thead><tr><th>賣出日</th><th>股票</th><th class="num">股數</th><th class="num">賣價</th><th class="num">券商已實現</th><th class="num">成交簿已實現</th><th class="num">差額</th><th>說明</th></tr></thead><tbody>{{BROKER_RECON}}</tbody></table></div></article>
 <article class="panel full"><h2>紀律帳 · 我的損益 vs 策略的損益</h2><div class="sub">每一筆賣出都對照 <code>signal_history</code> 分類：賣出當天或之前有 <b>出</b> 訊號的是<b>策略指示</b>，卡片仍寫「抱」時賣掉的是<b>自主決定</b>。自主決定的那些，反事實不需要模型 —— 股票已經賣了，「沒賣的話現在值多少」就是同樣股數乘上最新官方收盤，扣掉同一套出場費稅。兩者相減就是這個決策賺了或賠了多少。<br><b>這是記分，不是評判。</b>躲掉下跌的提早出場會顯示為正，少賺的會顯示為負，兩種用同一把尺量。目的是看出直覺到底有沒有加分，不是替任何一邊說話。</div>{{DISCIPLINE_CARDS}}<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>賣出日</th><th>策略</th><th>股票</th><th>依據</th><th class="num">股數</th><th class="num">賣價</th><th class="num">實際已實現</th><th class="num">現價</th><th class="num">若持有至今</th><th class="num">決策價值</th></tr></thead><tbody>{{DISCIPLINE_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>已實現 vs 未實現 · 完整損益拆解</h2><div class="sub">畫面上其他地方的「損益」都是<b>未實現</b>，只算還在手上的部位。已平倉的成交不會出現在庫存表裡，但現金已經確定變動 —— 那筆錢的盈虧在這裡。sleeve 曲線一直都含這兩塊，這張表只是把它拆開讓你看得到。已實現＝實收現金 − 實付成本（含手續費與證交稅）；未實現＝目前可變現值 − 在庫帳面成本，兩者不重複計算。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">已實現損益</th><th class="num">平倉筆數</th><th class="num">未實現損益</th><th class="num">在庫成本</th><th class="num">合計損益</th><th class="num">對 50 萬報酬</th></tr></thead><tbody>{{PNL_SPLIT_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">逐筆平倉明細 · FIFO 對沖，一次賣出跨多筆買進會拆成多列</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">買進</th><th class="num">賣出</th><th class="num">持有</th><th class="num">成本 → 實收</th><th class="num">已實現損益</th></tr></thead><tbody>{{CLOSED_LOTS}}</tbody></table></div></article>
 <article class="panel full"><h2>策略 vs 實際 · 八個角度的診斷</h2><div class="sub">策略卡是當日成員的等權顯示報酬；實際 sleeve 是成交現金流、真實權重、閒置現金、費稅與可變現估值。兩者不是同一種 NAV。這一區回答「差在哪裡」，但不把描述性 bridge 冒充因果歸因或 alpha。</div><div class="gap-lenses">{{GAP_LENS_CARDS}}</div><div class="period-kind">策略層診斷 · 同一起訖日</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際</th><th class="num">卡片</th><th class="num">Gap</th><th>最大描述項</th><th class="num">投入</th><th class="num">覆蓋</th><th class="num">vs TAIEX</th><th class="num">vs 0050</th><th class="num">訊號成交樣本</th></tr></thead><tbody>{{GAP_DRIVER_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">Gap 走勢 · 實際報酬 − 卡片顯示報酬（pp）</div>{{GAP_HISTORY_CHART}}<div class="section-gap"></div><div class="period-kind">成員與狀態 · 缺席不等於損失，未買標的不得虛構 counterfactual P&amp;L</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>同策略已覆蓋</th><th>卡上未持有</th><th>仍持有但已離卡</th><th>計畫進</th><th>計畫出</th><th class="num">實付 vs 卡價</th><th class="num">現金</th></tr></thead><tbody>{{COVERAGE_LENS_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>實施落差橋 · 三項加總的描述性 bridge</h2><div class="sub">只說「差幾 pp」沒有用。這裡用一個<b>代數恆等式</b>把差距拆成三項：<br><code>差距 = 在庫組合與進場 ＋ 現金／未投入 ＋ 已實現</code><br>三項加總會精確回到「實際 − 卡片」，但分類不是因果實驗：第一項同時混合成員覆蓋、實際權重、進場時點、進場價與出場費稅；第二項假設用卡片表頭當作未投入資金的參考報酬；第三項來自平倉現金流。它適合找下一個要查的方向，不適合宣稱哪一項造成未來績效。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">理論卡</th><th class="num">實際 sleeve</th><th class="num">差距</th><th class="num">在庫組合<br>與進場</th><th class="num">現金／<br>未投入</th><th class="num">已實現<br>貢獻</th><th class="num">投入<br>比重</th><th class="num">閒置現金</th></tr></thead><tbody>{{BRIDGE_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">進場價差 · 卡片假設你付的 vs 你實際付的</div><div class="sub" style="margin-bottom:12px">「實付均價」是成交簿的在庫帳面成本 ÷ 股數，含手續費，所以它一定略高於成交價本身。綠色代表實付低於卡片進場價，紅色代表高於；它只描述成交，不代表那個價位是最佳進場。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">卡片進場</th><th class="num">實付均價</th><th class="num">進場價差</th><th class="num">現價</th><th class="num">在庫報酬<br>（扣出場費稅）</th></tr></thead><tbody>{{ENTRY_GAP_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>實際 vs 理論 · 四策略差異</h2><div class="sub">「差異」只在共同截止日 {{THEORY_ASOF}} 計算：實際 50 萬 sleeve 可變現報酬 − 理論卡等權顯示報酬。這是描述性 implementation gap，權重與現金比率不同，不冒充 alpha。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際累計<br>{{ASOF}}</th><th class="num">實際損益</th><th class="num">實際<br>{{THEORY_ASOF}}</th><th class="num">理論卡<br>{{THEORY_ASOF}}</th><th class="num">差異<br>pp</th><th class="num">實際/理論<br>持股數</th><th class="num">MDD</th><th class="num">Sharpe</th></tr></thead><tbody>{{STRATEGY_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>日／週／月／季／年／YTD／累計</h2><div class="sub">basis：{{ANALYSIS_BASIS}}。近一月、季、年若沒有足夠實際觀察就顯示 N/A，不用同一批股票倒推。</div><div class="period-grid">{{PERIOD_CARDS}}</div></article>
-<article class="panel full" id="risk-metrics"><h2>Sharpe／MDD／Alpha／Beta · 完整績效風險衡量</h2><div class="sub">以四策略實際合計曲線計算。MDD 已可計算；Sharpe、Sortino、Alpha、Beta、IR 與 Tracking Error 因尚未滿 20 筆日報酬而顯示 N/A。</div><div class="status-grid">{{RISK_METRICS}}</div></article>
+<article class="panel full" id="risk-metrics"><h2>Sharpe／MDD／Alpha／Beta · 完整績效風險衡量</h2><div class="sub">以四策略實際合計曲線計算。MDD 不需要樣本門檻；Sharpe 與 Sortino 需要 20 筆日報酬。<br>{{SHARPE_BAND}}</div><div class="status-grid">{{RISK_METRICS}}</div></article>
 <article class="panel"><h2>歷史期間報酬</h2><div class="sub">資料成長後優先顯示月報酬，再依可用資料退回週／季／年。</div>{{PERIOD_BARS}}</article>
 <article class="panel"><h2>水下回撤圖</h2><div class="sub">每天相對歷史淨值高點的跌幅；MDD 就是最深位置。</div>{{DRAWDOWN}}</article>
 <article class="panel full"><h2>月度績效熱圖</h2><div class="sub">橫向為月份、縱向為年份，快速看 regime、季節性與連續虧損月份。</div>{{MONTHLY_HEATMAP}}</article>
@@ -2712,6 +2864,7 @@ polyline[data-line].off{opacity:.08}
         "{{COVERAGE_LENS_TABLE}}": coverage_lens_table(gap_report),
         "{{BRIDGE_TABLE}}": bridge_table(bridge),
         "{{ENTRY_GAP_TABLE}}": entry_gap_table(bridge),
+        "{{BROKER_RECON}}": broker_recon_table(broker_recon),
         "{{DISCIPLINE_CARDS}}": discipline_cards(discipline),
         "{{DISCIPLINE_ROWS}}": discipline_rows(discipline),
         "{{COST_GAP_ROWS}}": cost_gap_rows,
@@ -2734,6 +2887,7 @@ polyline[data-line].off{opacity:.08}
         "{{TOP_DAY_WINNER}}": f"{top_day_winner['stock_code']} {top_day_winner['stock_name']}，約 NT$ {fmt_ntd(top_day_winner['estimated_daily_price_contribution_twd'], sign=True)}",
         "{{TOP_DAY_LOSER}}": f"{top_day_loser['stock_code']} {top_day_loser['stock_name']}，約 NT$ {fmt_ntd(top_day_loser['estimated_daily_price_contribution_twd'], sign=True)}",
         "{{RISK_METRICS}}": risk_metrics,
+        "{{SHARPE_BAND}}": sharpe_band_note(sharpe_band),
         "{{HOLDINGS_TABLE}}": holdings_table(holdings),
         "{{GENERATED_AT}}": generated_at,
     }

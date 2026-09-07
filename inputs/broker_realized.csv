@@ -1,0 +1,13 @@
+sell_date,stock_code,stock_name,shares,sell_price,broker_cost_twd,broker_proceeds_twd,broker_realized_twd,source
+2026-08-19,3702,大聯大,546,107.0,69167,58164,-11003,owner_broker_realized_statement_2026-09-07
+2026-08-27,2606,裕民,1000,73.8,68797,73474,4677,owner_broker_realized_statement_2026-09-07
+2026-08-28,3044,健鼎,200,497.0,99141,98961,-180,owner_broker_realized_statement_2026-09-07
+2026-09-01,1709,和益,3000,36.3,77664,108419,30755,owner_broker_realized_statement_2026-09-07
+2026-09-01,6672,騰輝電子-KY,347,279.0,97993,96386,-1607,owner_broker_realized_statement_2026-09-07
+2026-09-04,2059,川湖,5,13480.0,59730,67102,7372,owner_broker_realized_statement_2026-09-07
+2026-09-04,2301,光寶科,111,308.5,29901,34093,4192,owner_broker_realized_statement_2026-09-07
+2026-09-04,2301,光寶科,515,309.5,138548,158687,20139,owner_broker_realized_statement_2026-09-07
+2026-09-04,2395,研華,106,717.0,70802,75666,4864,owner_broker_realized_statement_2026-09-07
+2026-09-07,1709,和益,949,34.0,26094,32125,6031,owner_broker_realized_statement_2026-09-07
+2026-09-07,2408,南亞科,198,517.0,94580,101914,7334,owner_broker_realized_statement_2026-09-07
+2026-09-07,3006,晶豪科,257,297.5,68974,76120,7146,owner_broker_realized_statement_2026-09-07

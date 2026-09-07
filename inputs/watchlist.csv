@@ -18,3 +18,8 @@ stock_code,stock_name,strategy_id,track,market,note
 6830,汎銓,YOY,MAINLINE2_SHORT,TWSE,YOY 卡（進*）括號＝空頭部位；owner 指示先忽略
 7827,漢康-KY創,YOY,MAINLINE2_SHORT,TWSE,YOY 卡（進*）括號＝空頭部位；owner 指示先忽略
 3231,緯創,TRUST,MAINLINE2,TWSE,2026-09-04 投信卡進場訊號「明開」；尚未買進
+2474,可成,BREAKOUT,IGNORED_PER_OWNER,TWSE,2026-09-07 突破卡新增（進）；信誠判定空方邏輯有誤，owner 指示忽略
+2630,亞航,BREAKOUT,IGNORED_PER_OWNER,TWSE,2026-09-07 突破卡新增（進）；信誠判定空方邏輯有誤，owner 指示忽略
+6243,迅杰,BREAKOUT,IGNORED_PER_OWNER,TWSE,2026-09-07 突破卡新增（進）；信誠判定空方邏輯有誤，owner 指示忽略
+6456,GIS-KY,BREAKOUT,IGNORED_PER_OWNER,TWSE,2026-09-07 突破卡新增（進）；信誠判定空方邏輯有誤，owner 指示忽略
+6919,康霈,BREAKOUT,IGNORED_PER_OWNER,TWSE,2026-09-07 突破卡新增（進）；信誠判定空方邏輯有誤，owner 指示忽略
