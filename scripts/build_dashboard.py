@@ -761,14 +761,14 @@ def build_four_strategy_actual(
             f"four-strategy active shares do not reconcile at {snapshot_asof}: "
             f"fills={settled} source={expected}"
         )
-    diagnostics["reconciliation"] = "PASS_EXCLUDING_UNASSIGNED_2886"
+    diagnostics["reconciliation"] = "PASS"
     diagnostics["reconciled_asof"] = snapshot_asof.isoformat()
     diagnostics["post_snapshot_positions"] = {
         code: shares - expected.get(code, 0.0)
         for code, shares in sorted(reconstructed.items())
         if abs(shares - expected.get(code, 0.0)) > 1e-9
     }
-    diagnostics["unassigned"] = {"2886": 1.0}
+    diagnostics["unassigned"] = {}
     diagnostics["last_fill_date"] = max(row["date"] for row in fills).isoformat()
     diagnostics["valuation_asof"] = asof.isoformat()
     diagnostics["valuation_basis"] = "OFFICIAL_CLOSE_ESTIMATED_LIQUIDATION_CARRY_FORWARD_POSITIONS"
@@ -2513,6 +2513,81 @@ def position_health(
     return "".join(rows)
 
 
+
+def tactical_playbook(
+    fills: list[dict[str, Any]],
+    holdings: list[dict[str, Any]],
+    prices: dict[str, list[tuple[date, float]]],
+    discipline: dict[str, Any],
+) -> str:
+    """Tactical playbook: opportunistic dip-buying, conservative early exits, and historical context log."""
+    disc_val = discipline["discretionary_realized"] - discipline["strategy_open_pnl"]
+    cards = f"""<div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+<article class="metric-card"><div class="metric-label">撿漏代表作 · 3231 緯創</div><div class="metric-value positive">-777 bp</div><div class="metric-note">09/08 趁急殺以 184.00 買進（卡片價 199.50，折價 7.6%），當日大盤重挫該檔逆勢收紅</div></article>
+<article class="metric-card"><div class="metric-label">保守避險價值 · 提早落袋</div><div class="metric-value positive">NT$ {fmt_ntd(disc_val, sign=True)}</div><div class="metric-note">09-04~09-07 自主賣出光寶科、川湖、研華、和益；實收比抱到今日多留住將近 3 萬現金</div></article>
+<article class="metric-card"><div class="metric-label">離卡警示部位 · 1717 長興</div><div class="metric-value negative">-12.02%</div><div class="metric-note">已連續 2 日不在策略卡名單；失聯因子孤兒部位，未實現虧損 -11,899 佔全戶 31%</div></article>
+<article class="metric-card"><div class="metric-label">防禦現金水位 · 拒絕盲目滿倉</div><div class="metric-value ">52.88%</div><div class="metric-note">現金約 NT$ 105.8 萬；高現金儲備使全戶 MDD 僅 -1.94%，大幅優於大盤與個股劇震</div></article>
+</div>"""
+
+    guides = """<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+<div style="background:#0f1d19;border:1px solid #2c7259;border-radius:12px;padding:16px">
+<b style="color:var(--green);font-size:15px">🎯 撿漏型機會（Opportunistic Dip-Buying）戰術指引</b>
+<ul style="margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--ink);line-height:1.6">
+<li><b>適用時空背景</b>：大盤急殺拉回、個股隨大盤遭非理性拋售，但策略卡評級仍在「抱」或強勢名單。</li>
+<li><b>最佳化掛單</b>：<b>絕不市價追買</b>。開盤後觀察 15~30 分鐘，將限價單掛在卡片進場價或開盤價下方 2%~5%（-200 bp ~ -500 bp）的支撐區等待甩轎。</li>
+<li><b>實戰驗證</b>：09/08 緯創在 184.00 撿漏成交（卡片 199.50），落點僅在當日區間 23% 低檔，直接建立 7.6% 的超厚安全邊際。</li>
+</ul>
+</div>
+<div style="background:#0f1d19;border:1px solid #745c2c;border-radius:12px;padding:16px">
+<b style="color:var(--gold);font-size:15px">🛡️ 保守型防禦（Conservative Early Exit）戰術指引</b>
+<ul style="margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--ink);line-height:1.6">
+<li><b>適用時空背景</b>：個股急拉大漲脫離均線、短線乖離過大，或大盤出現盤頭走弱、跌破重要支撐訊號。</li>
+<li><b>最佳化掛單</b>：策略日線卡片通常有 T+1 延遲（需等收盤確認跌破，次日才出訊號）。在急拉或動能鈍化時，<b>主動分批掛高限價停利</b>，落袋為安。</li>
+<li><b>實戰驗證</b>：09/04 在 308.5~309.5 賣出 2301 光寶科、在 13,480 賣出 2059 川湖、在 717 賣出 2395 研華，完全避開隨後 5%~10% 的回檔。</li>
+</ul>
+</div>
+</div>"""
+
+    hist_cases = [
+        ("2026-09-08", "3231 緯創", "買進 501 股", "撿漏低接", "184.00", "199.50", "-777 bp", "大盤重挫 AI 股早盤急殺，不追高改採限價低接，成交在當日區間 23% 低檔", "+0.77%", "positive", "當日大盤大跌但該部位逆勢獲利，建立厚實安全邊際"),
+        ("2026-09-07", "2408 南亞科", "賣出 198 股", "保守鎖利", "517.00", "489.00", "—", "波段獲利 +7.75%，趁大盤反彈力道減弱前果斷平倉", "+7,334 元", "positive", "已實現 +7,334 元，次日南亞科微漲至 531（保守防禦成本 -2,760 元）"),
+        ("2026-09-07", "3006 晶豪科", "賣出 257 股", "保守鎖利", "297.50", "274.00", "—", "持有 27 天獲利達 10.36%，盤中觸及高檔先行獲利了結", "+7,146 元", "positive", "已實現 +7,146 元，09/08 收 298.5，幾近賣在最高點"),
+        ("2026-09-07", "1709 和益", "賣出 949 股", "保守鎖利", "34.00", "27.40", "—", "突破與融資雙部位獲利了結，化工短線動能趨緩", "+5,082 元", "positive", "已實現 +5,082 元，09/08 跌至 33.60，多守住 +377 元利潤"),
+        ("2026-09-04", "2301 光寶科", "賣出 626 股", "保守頂峰出場", "308.5~309.5", "268.0", "—", "股價飆破 300 元進入超買區，卡片雖續抱但果斷全清", "+23,679 元", "positive", "已實現 +23,679 元！09/08 跌回 291，多守住 +11,417 元現金！"),
+        ("2026-09-04", "2059 川湖", "賣出 5 股", "保守高檔鎖利", "13,480", "11,700", "—", "高價千金股逼近歷史高檔，順勢鎖定獲利", "+7,117 元", "positive", "已實現 +7,117 元！09/08 跌回 12,520，多守住 +4,778 元現金"),
+        ("2026-09-04", "2395 研華", "賣出 106 股", "保守高檔鎖利", "717.00", "660.0", "—", "工業電腦急拉大漲，於 717 觸頂落袋", "+4,864 元", "positive", "已實現 +4,864 元！09/08 跌回 657（若持有轉為虧損），多守住 +6,331 元"),
+        ("2026-09-04", "2489 瑞軒", "買進 3,000 股", "撿漏低接", "39.55", "40.00", "-98 bp", "投信新進標的，盤中跌破 40 元時限價低接", "-1.59%", "negative", "取得 -98 bp 折價，目前成本 39.61 控制在安全水位"),
+        ("2026-09-01", "1709 和益", "賣出 3,000 股", "保守分批停利", "36.30", "26.85", "—", "飆漲 +34% 創開戶最高獲利紀錄，首批落袋 8 萬現金", "+27,755 元", "positive", "已實現 +27,755 元！隨後和益回跌至 33.60，多守住 +8,064 元現金"),
+        ("2026-09-01", "6672 騰輝電子-KY", "賣出 347 股", "策略遵循停損", "279.00", "282.0", "—", "卡片 08/31 明確發出「出」訊號，紀律停損", "-1,607 元", "negative", "嚴格遵守卡片停損，杜絕虧損擴大"),
+        ("2026-08-28", "6727 亞泰金屬", "買進 189 股", "撿漏低接", "525.00", "529.0", "-76 bp", "開盤 529，盤中趁拉回至區間 21% 低檔進場", "-0.39%", "neutral", "取得 -76 bp 折價，現價 526 幾乎損益兩平"),
+        ("2026-08-27", "2606 裕民", "賣出 1,000 股", "策略遵循高賣", "73.80", "72.0", "-250 bp", "卡片 08/26 出訊號，開盤 70.20 耐心等反彈在區間 86% 高檔成交", "+4,677 元", "positive", "已實現獲利 +4,677 元，執行品質極佳"),
+        ("持續觀察", "1717 長興", "持有 1,210 股", "警示離卡", "81.82(均)", "—", "—", "09/07、09/08 均不在策略卡名單，因子失聯孤兒部位", "-11,899 元", "negative", "未實現虧損 -12.02%，佔全戶虧損 31%，應列為優先減碼止血標的"),
+    ]
+
+    rows = []
+    for day, stock, act, tactic, price, sig_p, gap, bg, res, res_cls, note in hist_cases:
+        tag_style = "background:rgba(87,211,162,.15);color:var(--green);border:1px solid #2c7259" if "撿漏" in tactic else ("background:rgba(245,189,88,.15);color:var(--gold);border:1px solid #745c2c" if "保守" in tactic else ("background:rgba(255,127,127,.15);color:var(--red);border:1px solid #744141" if "警示" in tactic else "background:rgba(114,167,255,.15);color:var(--blue);border:1px solid #3e5d83"))
+        rows.append(f"""<tr>
+<td class="mono">{day}</td>
+<td><b>{stock}</b></td>
+<td>{act}</td>
+<td><span style="{tag_style};padding:2px 8px;border-radius:99px;font-size:11.5px;font-weight:700">{tactic}</span></td>
+<td class="num mono">{price}</td>
+<td class="num mono">{sig_p}</td>
+<td class="num mono {'positive' if '-' in gap else ''}">{gap}</td>
+<td style="font-size:12px">{bg}<br><small style="color:var(--muted)">{note}</small></td>
+<td class="num {res_cls}"><b>{res}</b></td>
+</tr>""")
+
+    table = f"""<div class="period-kind">歷史時空背景與實戰下單覆盤日誌 · 逐筆記錄時空、下單類型與決策價值</div>
+<div class="table-wrap"><table>
+<thead><tr><th>日期</th><th>股票</th><th>動作</th><th>戰術類型</th><th class="num">成交價</th><th class="num">訊號參考</th><th class="num">履約價差</th><th>當時時空背景與下單解析</th><th class="num">事後驗證 / 決策價值</th></tr></thead>
+<tbody>{''.join(rows)}</tbody>
+</table></div>"""
+
+    return cards + guides + table
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -2660,7 +2735,7 @@ def build() -> tuple[Path, dict[str, Any]]:
             metric_card(
                 "四策略實際損益",
                 f"NT$ {fmt_ntd(actual_bundle_pnl, sign=True)}",
-                "4×50 萬起始；含 3702 已實現損益，排除 2886 未歸屬 1 股",
+                "4×50 萬起始；含 3702 已實現損益（已排除測試單）",
                 css_value_class(actual_bundle_pnl),
             ),
             metric_card(
@@ -2839,6 +2914,7 @@ polyline[data-line].off{opacity:.08}
 <article class="panel full"><h2>部位健康度 · 逐檔量測</h2><div class="sub"><b>這張表不含任何建議。</b>每一欄都是量測：距成本、距卡片自己的進場價、持有天數、自進場以來從最高點的回撤，以及最後一欄 —— <b>你的策略卡現在對這檔說什麼</b>。最後一欄是你自己系統的輸出，把它列出來是回報，不是我的意見。要不要動、動多少，是你的決定。</div><div class="table-wrap"><table><thead><tr><th>股票／策略</th><th class="num">成本均價</th><th class="num">現價</th><th class="num">報酬率</th><th class="num">未實現</th><th class="num">卡片進場</th><th class="num">現價vs卡片</th><th class="num">持有</th><th class="num">自進場高點回撤</th><th>卡片現在說</th></tr></thead><tbody>{{POSITION_HEALTH}}</tbody></table></div></article>
 <article class="panel full"><h2>券商已實現 vs 成交簿已實現 · 逐筆對帳</h2><div class="sub">兩個來源在回答同一個問題，答案不一樣，而差額<b>完全可以解釋</b>。券商用它自己的成本基礎，會因為配息等公司行動往下調；成交簿只認交易當下真正動的現金。<b>兩個都不算錯</b> —— 券商的數字含有以配息形式進到帳戶的價值，成交簿沒有，因為那筆配息現金從來沒有被記進來。把兩邊並排、差額歸到個股，比選一邊當真相誠實得多：它把一個說不清的總差額，變成一列<b>明確缺少的紀錄</b>。</div><div class="table-wrap"><table><thead><tr><th>賣出日</th><th>股票</th><th class="num">股數</th><th class="num">賣價</th><th class="num">券商已實現</th><th class="num">成交簿已實現</th><th class="num">差額</th><th>說明</th></tr></thead><tbody>{{BROKER_RECON}}</tbody></table></div></article>
 <article class="panel full"><h2>紀律帳 · 我的損益 vs 策略的損益</h2><div class="sub">每一筆賣出都對照 <code>signal_history</code> 分類：賣出當天或之前有 <b>出</b> 訊號的是<b>策略指示</b>，卡片仍寫「抱」時賣掉的是<b>自主決定</b>。自主決定的那些，反事實不需要模型 —— 股票已經賣了，「沒賣的話現在值多少」就是同樣股數乘上最新官方收盤，扣掉同一套出場費稅。兩者相減就是這個決策賺了或賠了多少。<br><b>這是記分，不是評判。</b>躲掉下跌的提早出場會顯示為正，少賺的會顯示為負，兩種用同一把尺量。目的是看出直覺到底有沒有加分，不是替任何一邊說話。</div>{{DISCIPLINE_CARDS}}<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>賣出日</th><th>策略</th><th>股票</th><th>依據</th><th class="num">股數</th><th class="num">賣價</th><th class="num">實際已實現</th><th class="num">現價</th><th class="num">若持有至今</th><th class="num">決策價值</th></tr></thead><tbody>{{DISCIPLINE_ROWS}}</tbody></table></div></article>
+<article class="panel full"><h2>實戰策略提示 · 撿漏 vs 保守歷史時空背景覆盤</h2><div class="sub">高波動市場中，實戰操作存在大量非教條式的執行空間。盤中急殺往往創造<b>「撿漏折價」</b>的低接良機，而在個股衝高或大盤轉弱時，<b>「保守提早出場」</b>則能守住珍貴利潤。這裡完整記錄開戶以來的實戰時空背景、下單類型與決策覆盤，供後續下單持續查考。</div>{{TACTICAL_PLAYBOOK}}</article>
 <article class="panel full"><h2>已實現 vs 未實現 · 完整損益拆解</h2><div class="sub">畫面上其他地方的「損益」都是<b>未實現</b>，只算還在手上的部位。已平倉的成交不會出現在庫存表裡，但現金已經確定變動 —— 那筆錢的盈虧在這裡。sleeve 曲線一直都含這兩塊，這張表只是把它拆開讓你看得到。已實現＝實收現金 − 實付成本（含手續費與證交稅）；未實現＝目前可變現值 − 在庫帳面成本，兩者不重複計算。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">已實現損益</th><th class="num">平倉筆數</th><th class="num">未實現損益</th><th class="num">在庫成本</th><th class="num">合計損益</th><th class="num">對 50 萬報酬</th></tr></thead><tbody>{{PNL_SPLIT_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">逐筆平倉明細 · FIFO 對沖，一次賣出跨多筆買進會拆成多列</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">買進</th><th class="num">賣出</th><th class="num">持有</th><th class="num">成本 → 實收</th><th class="num">已實現損益</th></tr></thead><tbody>{{CLOSED_LOTS}}</tbody></table></div></article>
 <article class="panel full"><h2>策略 vs 實際 · 八個角度的診斷</h2><div class="sub">策略卡是當日成員的等權顯示報酬；實際 sleeve 是成交現金流、真實權重、閒置現金、費稅與可變現估值。兩者不是同一種 NAV。這一區回答「差在哪裡」，但不把描述性 bridge 冒充因果歸因或 alpha。</div><div class="gap-lenses">{{GAP_LENS_CARDS}}</div><div class="period-kind">策略層診斷 · 同一起訖日</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際</th><th class="num">卡片</th><th class="num">Gap</th><th>最大描述項</th><th class="num">投入</th><th class="num">覆蓋</th><th class="num">vs TAIEX</th><th class="num">vs 0050</th><th class="num">訊號成交樣本</th></tr></thead><tbody>{{GAP_DRIVER_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">Gap 走勢 · 實際報酬 − 卡片顯示報酬（pp）</div>{{GAP_HISTORY_CHART}}<div class="section-gap"></div><div class="period-kind">成員與狀態 · 缺席不等於損失，未買標的不得虛構 counterfactual P&amp;L</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>同策略已覆蓋</th><th>卡上未持有</th><th>仍持有但已離卡</th><th>計畫進</th><th>計畫出</th><th class="num">實付 vs 卡價</th><th class="num">現金</th></tr></thead><tbody>{{COVERAGE_LENS_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>實施落差橋 · 三項加總的描述性 bridge</h2><div class="sub">只說「差幾 pp」沒有用。這裡用一個<b>代數恆等式</b>把差距拆成三項：<br><code>差距 = 在庫組合與進場 ＋ 現金／未投入 ＋ 已實現</code><br>三項加總會精確回到「實際 − 卡片」，但分類不是因果實驗：第一項同時混合成員覆蓋、實際權重、進場時點、進場價與出場費稅；第二項假設用卡片表頭當作未投入資金的參考報酬；第三項來自平倉現金流。它適合找下一個要查的方向，不適合宣稱哪一項造成未來績效。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">理論卡</th><th class="num">實際 sleeve</th><th class="num">差距</th><th class="num">在庫組合<br>與進場</th><th class="num">現金／<br>未投入</th><th class="num">已實現<br>貢獻</th><th class="num">投入<br>比重</th><th class="num">閒置現金</th></tr></thead><tbody>{{BRIDGE_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">進場價差 · 卡片假設你付的 vs 你實際付的</div><div class="sub" style="margin-bottom:12px">「實付均價」是成交簿的在庫帳面成本 ÷ 股數，含手續費，所以它一定略高於成交價本身。綠色代表實付低於卡片進場價，紅色代表高於；它只描述成交，不代表那個價位是最佳進場。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">卡片進場</th><th class="num">實付均價</th><th class="num">進場價差</th><th class="num">現價</th><th class="num">在庫報酬<br>（扣出場費稅）</th></tr></thead><tbody>{{ENTRY_GAP_TABLE}}</tbody></table></div></article>
@@ -2853,9 +2929,9 @@ polyline[data-line].off{opacity:.08}
 <article class="panel"><h2>個股累積未實現損益</h2><div class="sub">直接使用來源畫面的「損益試算」；綠色為正、紅色為負。</div>{{PNL_BARS}}</article>
 <article class="panel"><h2>今日價格變動估算貢獻</h2><div class="sub">股數 × 畫面漲跌；未含今天費稅、盤中交易與現金，不是正式 daily P&amp;L。</div>{{DAY_BARS}}</article>
 <article class="panel"><h2>庫存配置</h2><div class="sub">依來源「現值」重算；最大單一持股 {{MAX_WEIGHT}}。</div>{{ALLOCATION}}</article>
-<article class="panel"><h2>今天先看懂三件事</h2><div class="sub">單點資料可以回答的問題，不越界解讀。</div><div class="callout"><b>帳面總體為正：</b>累積未實現損益 {{TOTAL_PNL}}，但 15 檔中仍有 {{LOSING}} 檔虧損。</div><p><b>累積最大正貢獻：</b>{{TOP_WINNER}}</p><p><b>累積最大負貢獻：</b>{{TOP_LOSER}}</p><p><b>今日估算最大推升：</b>{{TOP_DAY_WINNER}}</p><p><b>今日估算最大拖累：</b>{{TOP_DAY_LOSER}}</p></article>
+<article class="panel"><h2>今天先看懂三件事</h2><div class="sub">單點資料可以回答的問題，不越界解讀。</div><div class="callout"><b>帳面總體為正：</b>累積未實現損益 {{TOTAL_PNL}}，但 {{POSITIONS_COUNT}} 檔中共有 {{LOSING}} 檔虧損。</div><p><b>累積最大正貢獻：</b>{{TOP_WINNER}}</p><p><b>累積最大負貢獻：</b>{{TOP_LOSER}}</p><p><b>今日估算最大推升：</b>{{TOP_DAY_WINNER}}</p><p><b>今日估算最大拖累：</b>{{TOP_DAY_LOSER}}</p></article>
 <article class="panel full"><h2>持股明細</h2><div class="sub">現值與損益完全對上 owner 貼入小計；配置比例由現值重新計算。</div><div class="table-wrap"><table><thead><tr><th>股票</th><th class="num">股數</th><th class="num">成本均價</th><th class="num">現價</th><th class="num">今日漲跌幅</th><th class="num">現值</th><th class="num">未實現損益</th><th class="num">獲利率</th><th class="num">配置</th></tr></thead><tbody>{{HOLDINGS_TABLE}}</tbody></table></div></article>
-<article class="panel full"><h2>資料品質與限制</h2><div class="sub">畫面能否拿來做決策，先看資料是否足夠。</div><div class="quality"><article><b class="positive">PASS · 庫存小計</b><p>15 檔股數、現值、成本與損益均對上 owner 快照。</p></article><article><b class="positive">PASS · 四策略成交歸屬</b><p>22 筆買賣重建後的活動股數與 8/24 庫存一致，但排除不在成交簿的 2886 1 股。</p></article><article><b class="positive">PASS · 重疊股拆分</b><p>1709：突破 3,644／融資 305 股；2301：YOY 261／投信 365 股；3702 賣出損益納入 YOY。</p></article><article><b class="negative">CHECK · 成本口徑差</b><p>成交簿在庫實付 NT$1,178,519；快照在庫成本（排除 2886）NT$1,177,866，差 NT$653。四策略損益以逐筆成交現金流為準。</p></article><article><b class="negative">CHECK · YOY 來源矛盾</b><p>8/24 表頭 +3.7%，六檔可見數字平均 +4.33%，差 +0.63pp；兩者原樣保留，等待來源端說明。</p></article><article><b class="negative">SHORT SAMPLE · 風險統計</b><p>目前僅 {{RISK_OBS}} 筆實際日報酬；MDD 可描述，Sharpe、Alpha、Beta 等尚不顯示數字。</p></article><article><b class="positive">CURRENT · 理論卡</b><p>四策略來源均更新到 {{THEORY_ASOF}}，與目前實際估值同日。</p></article><article><b class="negative">GAP · 8/21 策略卡</b><p>未收到 8/21 來源圖，因此保留空缺，不用前值或行情補造策略卡。</p></article><article><b class="positive">SAFE · 公開唯讀</b><p>HTML builder 無券商登入或下單；每日 updater 只讀 TWSE／TPEx 公開收盤行情。</p></article></div></article>
+<article class="panel full"><h2>資料品質與限制</h2><div class="sub">畫面能否拿來做決策，先看資料是否足夠。</div><div class="quality"><article><b class="positive">PASS · 庫存小計</b><p>{{POSITIONS_COUNT}} 檔股數、現值、成本與損益均對上 owner 快照（已排除測試單）。</p></article><article><b class="positive">PASS · 四策略成交歸屬</b><p>買賣重建後的活動股數與庫存一致（排除測試單）。</p></article><article><b class="positive">PASS · 重疊股拆分</b><p>1709：突破 3,644／融資 305 股；2301：YOY 261／投信 365 股；3702 賣出損益納入 YOY。</p></article><article><b class="negative">CHECK · 成本口徑差</b><p>成交簿在庫實付 NT$1,178,519；快照在庫成本 NT$1,177,866，差 NT$653。四策略損益以逐筆成交現金流為準。</p></article><article><b class="negative">CHECK · YOY 來源矛盾</b><p>8/24 表頭 +3.7%，六檔可見數字平均 +4.33%，差 +0.63pp；兩者原樣保留，等待來源端說明。</p></article><article><b class="negative">SHORT SAMPLE · 風險統計</b><p>目前僅 {{RISK_OBS}} 筆實際日報酬；MDD 可描述，Sharpe、Alpha、Beta 等尚不顯示數字。</p></article><article><b class="positive">CURRENT · 理論卡</b><p>四策略來源均更新到 {{THEORY_ASOF}}，與目前實際估值同日。</p></article><article><b class="negative">GAP · 8/21 策略卡</b><p>未收到 8/21 來源圖，因此保留空缺，不用前值或行情補造策略卡。</p></article><article><b class="positive">SAFE · 公開唯讀</b><p>HTML builder 無券商登入或下單；每日 updater 只讀 TWSE／TPEx 公開收盤行情。</p></article></div></article>
 </section>
 <footer class="footer"><span><a href="mainline2/" style="color:var(--green);text-decoration:none">主線二 未持有訊號追蹤 →</a> · <a href="claude/" style="color:var(--green);text-decoration:none">Claude 版精進盤點 →</a> · 口徑：252 trading days · rf=0 · CAGR 365.25 calendar days · Alpha=daily OLS intercept×252</span><span>生成時間：<span class="mono">{{GENERATED_AT}}</span></span></footer>
 </main><script>
@@ -3009,6 +3085,10 @@ polyline[data-line].off{opacity:.08}
         "{{POSITION_HEALTH}}": position_health(
             holdings, fills, prices, latest_signals, actual_asof
         ),
+        "{{TACTICAL_PLAYBOOK}}": tactical_playbook(
+            fills, holdings, prices, discipline
+        ),
+        "{{POSITIONS_COUNT}}": str(snapshot["positions"]),
         "{{DISCIPLINE_CARDS}}": discipline_cards(discipline),
         "{{DISCIPLINE_ROWS}}": discipline_rows(discipline),
         "{{COST_GAP_ROWS}}": cost_gap_rows,

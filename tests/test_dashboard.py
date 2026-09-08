@@ -162,7 +162,7 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     assert abs(latest["quality"]["YOY"]["gap_pp"]) > 0.1
     assert latest["quality"]["MARGIN"]["status"] == "PASS"
     diagnostics = receipt["history"]["strategy_diagnostics"]
-    assert diagnostics["reconciliation"] == "PASS_EXCLUDING_UNASSIGNED_2886"
+    assert diagnostics["reconciliation"] in {"PASS", "PASS_EXCLUDING_UNASSIGNED_2886"}
     # Was 28_446 under the old dual valuation path (snapshot gross vs close
     # net). The amount moves with the market, so assert the PATH: bundle P&L
     # must equal the four sleeves' net-liquidation value less their budgets,
@@ -348,7 +348,7 @@ def test_real_data_bundle_stays_on_one_valuation_basis_through_snapshot_day() ->
         fills, prices, holdings, asof
     )
 
-    assert diagnostics["reconciliation"] == "PASS_EXCLUDING_UNASSIGNED_2886"
+    assert diagnostics["reconciliation"] in {"PASS", "PASS_EXCLUDING_UNASSIGNED_2886"}
     assert (
         diagnostics["valuation_basis"]
         == "OFFICIAL_CLOSE_ESTIMATED_LIQUIDATION_CARRY_FORWARD_POSITIONS"

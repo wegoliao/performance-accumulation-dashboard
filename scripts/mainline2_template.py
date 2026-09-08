@@ -165,6 +165,37 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:v
 </article>
 
 <article class="panel">
+  <h2>實戰下單策略指引 · 撿漏 vs 保守五大決策檢核</h2>
+  <p class="sub">高波動是實戰的常態，也是超額報酬與風控的核心來源。主線二標的在轉化為真實委託時，請對照以下時空背景檢核：</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:14px">
+    <div style="background:var(--raise);border:1px solid var(--line);border-radius:10px;padding:14px">
+      <b style="color:var(--green)">1. 撿漏時機：負價差保護</b>
+      <p style="font-size:12.5px;color:var(--muted);margin:6px 0 0">
+        大盤弱勢或個股早盤恐慌下殺時，絕不市價搶單。將限價單掛於 POC 下方或卡片進場價下方 2%~5%（-200 ~ -500 bp），複製 3231 緯創（-777 bp）的逆勢安全邊際。
+      </p>
+    </div>
+    <div style="background:var(--raise);border:1px solid var(--line);border-radius:10px;padding:14px">
+      <b style="color:var(--gold)">2. 保守時機：動能鈍化提早出場</b>
+      <p style="font-size:12.5px;color:var(--muted);margin:6px 0 0">
+        個股急漲創高脫離價值區（如 2301 光寶科、2059 川湖、2395 研華），不需死等卡片出訊號（卡片有 T+1 滯後）。主動掛高分批停利，已為帳戶多守住將近 3 萬元現金。
+      </p>
+    </div>
+    <div style="background:var(--raise);border:1px solid var(--line);border-radius:10px;padding:14px">
+      <b style="color:var(--red)">3. 警示時機：離卡孤兒立即停損</b>
+      <p style="font-size:12.5px;color:var(--muted);margin:6px 0 0">
+        若持股連續 2 日未出現在策略卡上（如 1717 長興），代表多頭因子已不復存在。盤中遇反彈應優先減碼止血，切勿在失去策略保護時盲目加碼攤平。
+      </p>
+    </div>
+    <div style="background:var(--raise);border:1px solid var(--line);border-radius:10px;padding:14px">
+      <b style="color:var(--accent)">4. 水位紀律：維持 50% 現金護城河</b>
+      <p style="font-size:12.5px;color:var(--muted);margin:6px 0 0">
+        未結清前都不算真正獲利。震盪整理期總持股維持 45%~55%，保留 100 萬以上現金防守，才能將帳戶最大回撤（MDD）死死壓制在 -1.94% 的極低水平。
+      </p>
+    </div>
+  </div>
+</article>
+
+<article class="panel">
   <h2>主線二 · 三種追蹤介面</h2>
   <p class="sub">同一份資料，三種看法。做法不同是因為要回答的問題不同：看單檔深度、掃全部相對位置、還是找價位群聚。
   三個都留著，用久了你會知道哪一種真的在用。</p>
