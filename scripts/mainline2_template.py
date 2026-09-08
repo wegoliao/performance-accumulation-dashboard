@@ -193,6 +193,67 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:v
       </p>
     </div>
   </div>
+  <div style="margin-top:16px;background:var(--raise);border:1px solid var(--line);border-radius:10px;padding:16px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <b style="color:var(--green);font-size:15px">🎯 9/10 換股期 · 「倒可以補（拉回撿漏）」候選池 (量化 EV)</b>
+      <span style="font-size:12px;color:var(--muted)">篩選標準：卡片評級仍為「抱」+ 實質負價差折價（-5%~-8%）+ 鄰近成交量 POC 支撐</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>候選標的</th>
+            <th>所屬策略卡</th>
+            <th class="num">卡片進場價</th>
+            <th class="num">09/08 收盤價</th>
+            <th class="num">折價幅度 (撿漏空間)</th>
+            <th class="num">籌碼 POC 支撐</th>
+            <th class="num">目標價 / 防守點</th>
+            <th class="num">每 5 萬部位 EV 期望值</th>
+            <th>撿漏時空背景與實戰策略分析</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>6603 富強鑫</b></td>
+            <td><span class="positive">融資強勢卡 · 抱</span></td>
+            <td class="num">27.00</td>
+            <td class="num" style="font-weight:700;color:var(--green)">24.95</td>
+            <td class="num positive" style="font-weight:700">-7.59% (-2.05元)</td>
+            <td class="num">25.46</td>
+            <td class="num">目標 27.0 / 防守 23.8</td>
+            <td class="num positive" style="font-weight:700">+2.25% (+NT$ 1,125)</td>
+            <td>回測至半年最大量成交峰（POC 25.46）下方沉澱，融資多頭結構未散，提供厚實安全邊際</td>
+          </tr>
+          <tr>
+            <td><b>3046 建碁</b></td>
+            <td><span class="positive">融資強勢卡 · 抱</span></td>
+            <td class="num">57.70</td>
+            <td class="num" style="font-weight:700;color:var(--green)">54.00</td>
+            <td class="num positive" style="font-weight:700">-6.41% (-3.70元)</td>
+            <td class="num">57.73</td>
+            <td class="num">目標 58.0 / 防守 51.5</td>
+            <td class="num positive" style="font-weight:700">+2.01% (+NT$ 1,006)</td>
+            <td>折價達 6.4%，回測 POC 附近量縮整理，卡片評級維持「抱」，下檔支撐明確</td>
+          </tr>
+          <tr>
+            <td><b>3231 緯創</b></td>
+            <td><span class="positive">投信領航卡 · 抱</span></td>
+            <td class="num">199.50</td>
+            <td class="num" style="font-weight:700;color:var(--green)">186.50</td>
+            <td class="num positive" style="font-weight:700">-6.52% (-13.00元)</td>
+            <td class="num">185.00</td>
+            <td class="num">目標 199.5 / 防守 181.0</td>
+            <td class="num positive" style="font-weight:700">+2.62% (+NT$ 1,311)</td>
+            <td>主線一部位已具 -777 bp 安全邊際；09/08 急殺逆勢收紅，拉回 184~186 仍為正 EV 逢低買點</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:10px;font-size:12px;color:var(--muted)">
+      <b style="color:var(--red)">⚠️ 嚴正避雷提示（嚴禁接刀）：</b>09/08 突破卡上的 <b>2474 可成、2630 亞航、6243 迅杰、6456 GIS-KY、6919 康霈*</b> 雖然跌幅很深，但卡片狀態全部顯示為 <b>(出)</b>，代表技術結構已破壞，期望值為負，屬於破線接刀而非撿漏，切勿逢低加碼補倉。
+    </div>
+  </div>
 </article>
 
 <article class="panel">

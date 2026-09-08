@@ -2525,7 +2525,7 @@ def tactical_playbook(
     cards = f"""<div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
 <article class="metric-card"><div class="metric-label">撿漏代表作 · 3231 緯創</div><div class="metric-value positive">-777 bp</div><div class="metric-note">09/08 趁急殺以 184.00 買進（卡片價 199.50，折價 7.6%），當日大盤重挫該檔逆勢收紅</div></article>
 <article class="metric-card"><div class="metric-label">保守避險價值 · 提早落袋</div><div class="metric-value positive">NT$ {fmt_ntd(disc_val, sign=True)}</div><div class="metric-note">09-04~09-07 自主賣出光寶科、川湖、研華、和益；實收比抱到今日多留住將近 3 萬現金</div></article>
-<article class="metric-card"><div class="metric-label">離卡警示部位 · 1717 長興</div><div class="metric-value negative">-12.02%</div><div class="metric-note">已連續 2 日不在策略卡名單；失聯因子孤兒部位，未實現虧損 -11,899 佔全戶 31%</div></article>
+<article class="metric-card"><div class="metric-label">9/10 換現潛能 · 長興出清+亞德客砍半</div><div class="metric-value positive">NT$ 13.2 萬</div><div class="metric-note">換取 13.2 萬純現金可避免 -NT$ 5,069 預期失血，保留 100% 流動性佈局 9/10 後正 EV 標的</div></article>
 <article class="metric-card"><div class="metric-label">防禦現金水位 · 拒絕盲目滿倉</div><div class="metric-value ">52.88%</div><div class="metric-note">現金約 NT$ 105.8 萬；高現金儲備使全戶 MDD 僅 -1.94%，大幅優於大盤與個股劇震</div></article>
 </div>"""
 
@@ -2545,6 +2545,266 @@ def tactical_playbook(
 <li><b>最佳化掛單</b>：策略日線卡片通常有 T+1 延遲（需等收盤確認跌破，次日才出訊號）。在急拉或動能鈍化時，<b>主動分批掛高限價停利</b>，落袋為安。</li>
 <li><b>實戰驗證</b>：09/04 在 308.5~309.5 賣出 2301 光寶科、在 13,480 賣出 2059 川湖、在 717 賣出 2395 研華，完全避開隨後 5%~10% 的回檔。</li>
 </ul>
+</div>
+</div>"""
+
+    inventory_ev_table = """<div style="background:#0f1d19;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:20px">
+<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+  <b style="color:var(--accent);font-size:16px">📊 9/10 營收大限換股前夕 · 庫存 12 檔 EV 期望值與處置決策矩陣</b>
+  <span style="font-size:12px;color:var(--muted)">評估基礎：2026-09-08 收盤價 · 營收揭牌前夕離散情境機率模型</span>
+</div>
+<div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px">
+每月 10 號是台股 8 月營收揭牌大限，法人與量化資金將在 9/9～9/11 發動強烈換股。換股前夕<b>「抱著負 EV 且無卡片保護的股票是最大風險」</b>。我們以情境機率運算每檔持股的期望值（EV % 與 NT$ 預期損益），明確劃分處置戰術：
+</div>
+<div class="table-wrap">
+<table>
+<thead>
+  <tr>
+    <th>處置分組</th>
+    <th>股票代號/名稱</th>
+    <th class="num">成本均價</th>
+    <th class="num">09/08 現價</th>
+    <th class="num">未實現損益</th>
+    <th>策略卡狀態</th>
+    <th class="num">EV 期望值 (%)</th>
+    <th class="num">預期損益貢獻</th>
+    <th>9/10 換股建議戰術</th>
+    <th class="num">關鍵防守/停利點</th>
+  </tr>
+</thead>
+<tbody>
+  <tr style="background:rgba(248,81,73,.07)">
+    <td><span style="background:rgba(248,81,73,.2);color:var(--red);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">急迫斷捨離</span></td>
+    <td><b>1717 長興</b></td>
+    <td class="num mono">40.75</td>
+    <td class="num mono">35.85</td>
+    <td class="num negative">-11,899 (-12.0%)</td>
+    <td><span class="code-chip missing">⚠️ 孤兒除名</span></td>
+    <td class="num negative" style="font-weight:700">-3.97%</td>
+    <td class="num negative">-3,470 元</td>
+    <td><b>【孤兒斷捨離 / 市價全清】</b>連2日離卡，出清換回 8.7 萬現金</td>
+    <td class="num mono">—</td>
+  </tr>
+  <tr style="background:rgba(248,81,73,.07)">
+    <td><span style="background:rgba(248,81,73,.2);color:var(--red);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">急迫斷捨離</span></td>
+    <td><b>1590 亞德客-KY</b></td>
+    <td class="num mono">967.60</td>
+    <td class="num mono">836.60</td>
+    <td class="num negative">-13,108 (-13.5%)</td>
+    <td><span class="code-chip missing">⚠️ 破底回撤</span></td>
+    <td class="num negative" style="font-weight:700">-1.90%</td>
+    <td class="num negative">-1,599 元</td>
+    <td><b>【破線減損 50%~66%】</b>賣出 50~70 股零股，釋放 4.2~5.8 萬現金</td>
+    <td class="num mono">820.00</td>
+  </tr>
+  <tr style="background:rgba(248,81,73,.04)">
+    <td><span style="background:rgba(248,81,73,.15);color:var(--red);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">營收前防守</span></td>
+    <td><b>2397 友通</b></td>
+    <td class="num mono">68.60</td>
+    <td class="num mono">62.27</td>
+    <td class="num negative">-6,328 (-9.2%)</td>
+    <td><span class="code-chip stale">弱勢整理</span></td>
+    <td class="num negative" style="font-weight:700">-1.11%</td>
+    <td class="num negative">-693 元</td>
+    <td><b>【防守減碼】</b>YOY動能鈍化，反彈優先調節，守住硬停損</td>
+    <td class="num mono">58.00</td>
+  </tr>
+  <tr style="background:rgba(248,81,73,.04)">
+    <td><span style="background:rgba(248,81,73,.15);color:var(--red);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">營收前防守</span></td>
+    <td><b>2103 台橡</b></td>
+    <td class="num mono">28.70</td>
+    <td class="num mono">26.51</td>
+    <td class="num negative">-5,474 (-7.6%)</td>
+    <td><span class="code-chip stale">週期鈍化</span></td>
+    <td class="num negative" style="font-weight:700">-1.02%</td>
+    <td class="num negative">-680 元</td>
+    <td><b>【週期防守停損】</b>傳產循環弱勢，破 25 元無條件撤出</td>
+    <td class="num mono">25.00</td>
+  </tr>
+  <tr>
+    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
+    <td><b>3231 緯創</b></td>
+    <td class="num mono">185.08</td>
+    <td class="num mono">186.50</td>
+    <td class="num positive">+708 (+0.8%)</td>
+    <td><span class="code-chip covered">投信 · 抱</span></td>
+    <td class="num positive" style="font-weight:700">+2.72%</td>
+    <td class="num positive">+2,545 元</td>
+    <td><b>【強勢抱牢 / 移動停利】</b>撿漏折價 -777 bp，目標看回 199.50</td>
+    <td class="num mono">184.00</td>
+  </tr>
+  <tr>
+    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
+    <td><b>2489 瑞軒</b></td>
+    <td class="num mono">21.40</td>
+    <td class="num mono">21.06</td>
+    <td class="num negative">-1,888 (-1.6%)</td>
+    <td><span class="code-chip covered">融資 · 抱</span></td>
+    <td class="num positive" style="font-weight:700">+2.01%</td>
+    <td class="num positive">+2,363 元</td>
+    <td><b>【區間抱牢】</b>均線收斂貼近成本，耐心等待營收動能推升</td>
+    <td class="num mono">20.00</td>
+  </tr>
+  <tr>
+    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
+    <td><b>2637 慧洋-KY</b></td>
+    <td class="num mono">64.90</td>
+    <td class="num mono">64.72</td>
+    <td class="num negative">-183 (-0.3%)</td>
+    <td><span class="code-chip covered">投信 · 抱</span></td>
+    <td class="num positive" style="font-weight:700">+0.89%</td>
+    <td class="num positive">+578 元</td>
+    <td><b>【紀律續抱】</b>散裝動能平穩，貼近成本區間整理</td>
+    <td class="num mono">62.50</td>
+  </tr>
+  <tr>
+    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
+    <td><b>2609 陽明</b></td>
+    <td class="num mono">52.80</td>
+    <td class="num mono">55.00</td>
+    <td class="num positive">+2,271 (+4.2%)</td>
+    <td><span class="code-chip covered">YOY · 抱</span></td>
+    <td class="num positive" style="font-weight:700">+0.83%</td>
+    <td class="num positive">+473 元</td>
+    <td><b>【保本停利線拉至 55.00】</b>已有獲利墊底，絕不讓賺錢單翻黑</td>
+    <td class="num mono">55.00</td>
+  </tr>
+  <tr>
+    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
+    <td><b>2354 鴻準</b></td>
+    <td class="num mono">61.70</td>
+    <td class="num mono">63.00</td>
+    <td class="num positive">+1,304 (+2.1%)</td>
+    <td><span class="code-chip covered">融資 · 抱</span></td>
+    <td class="num positive" style="font-weight:700">+0.72%</td>
+    <td class="num positive">+445 元</td>
+    <td><b>【移動停利 63.00】</b>守住成本之上，跟隨集團題材滾動推進</td>
+    <td class="num mono">63.00</td>
+  </tr>
+  <tr>
+    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
+    <td><b>6727 亞泰金屬</b></td>
+    <td class="num mono">128.50</td>
+    <td class="num mono">128.00</td>
+    <td class="num negative">-486 (-0.4%)</td>
+    <td><span class="code-chip covered">融資 · 抱</span></td>
+    <td class="num positive" style="font-weight:700">+0.70%</td>
+    <td class="num positive">+897 元</td>
+    <td><b>【紀律續抱】</b>橫盤打底無爆量拋售，卡片維持持股指令</td>
+    <td class="num mono">124.00</td>
+  </tr>
+  <tr>
+    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
+    <td><b>1712 興農</b></td>
+    <td class="num mono">56.60</td>
+    <td class="num mono">56.50</td>
+    <td class="num negative">-98 (-0.2%)</td>
+    <td><span class="code-chip covered">YOY · 抱</span></td>
+    <td class="num positive" style="font-weight:700">+0.43%</td>
+    <td class="num positive">+244 元</td>
+    <td><b>【紀律續抱】</b>防禦性持股，波動平穩無失控風險</td>
+    <td class="num mono">54.50</td>
+  </tr>
+  <tr>
+    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
+    <td><b>6108 競國</b></td>
+    <td class="num mono">23.65</td>
+    <td class="num mono">22.35</td>
+    <td class="num negative">-1,807 (-5.5%)</td>
+    <td><span class="code-chip covered">融資 · 抱</span></td>
+    <td class="num positive" style="font-weight:700">+0.23%</td>
+    <td class="num positive">+75 元</td>
+    <td><b>【震盪防守觀察】</b>微幅正期望值，設 22.00 硬停損守護</td>
+    <td class="num mono">22.00</td>
+  </tr>
+</tbody>
+</table>
+</div>
+</div>"""
+
+    dip_candidates_section = """<div style="background:#0f1d19;border:1px solid #2c7259;border-radius:14px;padding:18px;margin-bottom:20px">
+<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+  <b style="color:var(--green);font-size:16px">🎯 9/10 換股期 · 「倒可以補（拉回撿漏）」候選池 (Mainline 2 精選量化 EV)</b>
+  <span style="font-size:12px;color:var(--muted)">篩選標準：卡片評級仍為「抱」+ 實質負價差折價（-5%~-8%）+ 鄰近成交量 POC 支撐</span>
+</div>
+<div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px">
+實戰中「倒可以補」必須嚴格區分「高勝率撿漏」與「破線接刀」。只有<b>卡片邏輯完好（評級仍為抱）且回測至半年最大量成交峰（POC）</b>的標的，才具備正期望值：
+</div>
+<div class="table-wrap">
+<table>
+<thead>
+  <tr>
+    <th>候選標的</th>
+    <th>所屬策略卡</th>
+    <th class="num">卡片進場價</th>
+    <th class="num">09/08 收盤價</th>
+    <th class="num">折價幅度 (撿漏空間)</th>
+    <th class="num">籌碼 POC 支撐</th>
+    <th class="num">目標價 / 防守點</th>
+    <th class="num">每 5 萬部位 EV 期望值</th>
+    <th>撿漏時空背景與實戰策略分析</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td><b>6603 富強鑫</b></td>
+    <td><span class="code-chip covered">融資強勢卡 · 抱</span></td>
+    <td class="num mono">27.00</td>
+    <td class="num mono" style="font-weight:700;color:var(--green)">24.95</td>
+    <td class="num mono positive" style="font-weight:700">-7.59% (-2.05元)</td>
+    <td class="num mono">25.46</td>
+    <td class="num mono">目標 27.0 / 防守 23.8</td>
+    <td class="num positive" style="font-weight:700">+2.25% (+NT$ 1,125)</td>
+    <td>股價自卡片價回測至 POC（25.46）下方沉澱，融資多頭結構未散，提供厚實安全邊際</td>
+  </tr>
+  <tr>
+    <td><b>3046 建碁</b></td>
+    <td><span class="code-chip covered">融資強勢卡 · 抱</span></td>
+    <td class="num mono">57.70</td>
+    <td class="num mono" style="font-weight:700;color:var(--green)">54.00</td>
+    <td class="num mono positive" style="font-weight:700">-6.41% (-3.70元)</td>
+    <td class="num mono">57.73</td>
+    <td class="num mono">目標 58.0 / 防守 51.5</td>
+    <td class="num positive" style="font-weight:700">+2.01% (+NT$ 1,006)</td>
+    <td>折價達 6.4%，回測 POC 附近量縮整理，卡片評級維持「抱」，下檔支撐明確</td>
+  </tr>
+  <tr>
+    <td><b>3231 緯創</b></td>
+    <td><span class="code-chip covered">投信領航卡 · 抱</span></td>
+    <td class="num mono">199.50</td>
+    <td class="num mono" style="font-weight:700;color:var(--green)">186.50</td>
+    <td class="num mono positive" style="font-weight:700">-6.52% (-13.00元)</td>
+    <td class="num mono">185.00</td>
+    <td class="num mono">目標 199.5 / 防守 181.0</td>
+    <td class="num positive" style="font-weight:700">+2.62% (+NT$ 1,311)</td>
+    <td>庫存已持有且具 -777 bp 優勢；09/08 急殺逆勢收紅，若後續拉回 184~186 仍為正 EV 補倉點</td>
+  </tr>
+</tbody>
+</table>
+</div>
+<div style="margin-top:12px;padding:10px 14px;background:rgba(248,81,73,.1);border:1px solid #744141;border-radius:8px;font-size:12.5px;color:var(--ink)">
+  <b style="color:var(--red)">⚠️ 嚴正避雷提示（嚴禁接刀）：</b>09/08 突破卡上的 <b>2474 可成、2630 亞航、6243 迅杰、6456 GIS-KY、6919 康霈*</b> 雖然跌幅很深，但卡片狀態全部顯示為 <b>(出)</b>！這代表策略模型判定技術結構已正式破壞，期望值為負，屬於「破線接刀」而非撿漏，<b>切勿逢低加碼補倉</b>。
+</div>
+</div>"""
+
+    cash_and_checklist = """<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+<div style="background:#0f1d19;border:1px solid #3e5d83;border-radius:12px;padding:16px">
+<b style="color:var(--accent);font-size:15px">💰 9/10 前夕「以現金為王」的期權價值與 EV 增益</b>
+<ul style="margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--ink);line-height:1.6">
+<li><b>釋放資金量能</b>：若出清 1717 長興（回收 8.7 萬）並減碼 1590 亞德客 50%（回收 4.5 萬），將立即收回 <b>約 NT$ 13.2 萬純現金</b>。</li>
+<li><b>避免預期失血</b>：長興與亞德客合計預期 EV 損益為 <b>-NT$ 5,069 (-3.84%)</b>。換成現金，虧損風險直接歸零，保留 100% 機動流動性。</li>
+<li><b>換入正 EV 標的</b>：將 13.2 萬現金在 9/10 營收發布後佈局正 EV 撿漏股（預期 EV 約 +2.2%），預期可增益 <b>+NT$ 2,900</b>。</li>
+<li><b>總期望值逆轉（EV Delta）</b>：一來一回的總期望值淨提升高達 <b>+NT$ 7,969（提升約 +6.04%）</b>！</li>
+</ul>
+</div>
+<div style="background:#0f1d19;border:1px solid #745c2c;border-radius:12px;padding:16px">
+<b style="color:var(--gold);font-size:15px">📋 明日（09/09）盤前實戰行動指引（Checklist）</b>
+<ol style="margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--ink);line-height:1.6">
+<li><b>【果斷清理孤兒】</b>：開盤前 15 分鐘市價出清 <b>1717 長興</b>，徹底終結失聯因子孤兒風險。</li>
+<li><b>【止血減損亞德客】</b>：掛價或分批出脫 <b>1590 亞德客-KY 50%~66%</b>（賣出 50~70 股零股），遏止高價股回撤擴大。</li>
+<li><b>【設妥保本停利線】</b>：<b>3231 緯創</b> 移動停利設在 184.00；<b>2609 陽明</b> 保本線拉至 55.00；<b>2354 鴻準</b> 移動停利 63.00。</li>
+<li><b>【撿漏試單節奏】</b>：釋出之現金不急於打滿，鎖定 <b>6603 富強鑫（24.5~25.0）</b> 與 <b>3046 建碁（53.0~54.0）</b>，採 1/3 部位試單，待營收揭曉後加碼。</li>
+</ol>
 </div>
 </div>"""
 
@@ -2585,7 +2845,7 @@ def tactical_playbook(
 <tbody>{''.join(rows)}</tbody>
 </table></div>"""
 
-    return cards + guides + table
+    return cards + guides + inventory_ev_table + dip_candidates_section + cash_and_checklist + table
 
 
 def sha256(path: Path) -> str:
