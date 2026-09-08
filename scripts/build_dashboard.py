@@ -2379,6 +2379,140 @@ def sharpe_band_note(band: dict[str, Any] | None) -> str:
     )
 
 
+def liquidation_summary(
+    holdings: list[dict[str, Any]],
+    summary: dict[str, Any],
+    broker_recon: dict[str, Any],
+    book_realized: float,
+) -> dict[str, Any]:
+    """What the account would have made if everything closed at today's close."""
+    gross = summary["current_value_twd"]
+    net = sum(
+        estimated_liquidation_value(row["shares"], row["last_price"]) for row in holdings
+    )
+    cost = summary["cost_basis_twd"]
+    broker_realized = broker_recon.get("broker_total", 0.0)
+    return {
+        "gross": gross,
+        "net": net,
+        "exit_cost": gross - net,
+        "cost": cost,
+        "open_pnl": net - cost,
+        "broker_realized": broker_realized,
+        "book_realized": book_realized,
+        "total_broker": broker_realized + net - cost,
+        "total_book": book_realized + net - cost,
+        "positions": len(holdings),
+    }
+
+
+def liquidation_cards(liq: dict[str, Any]) -> str:
+    return "".join(
+        [
+            metric_card(
+                "已落袋（已實現）",
+                f"NT$ {fmt_ntd(liq['broker_realized'], sign=True)}",
+                f"券商口徑；成交簿口徑 NT$ {fmt_ntd(liq['book_realized'], sign=True)}",
+                css_value_class(liq["broker_realized"]),
+            ),
+            metric_card(
+                "今天全部結清可拿回",
+                f"NT$ {fmt_ntd(liq['net'])}",
+                f"{liq['positions']} 檔按官方收盤扣出場費稅；付出成本 NT$ {fmt_ntd(liq['cost'])}",
+                "neutral",
+            ),
+            metric_card(
+                "結清後的未實現",
+                f"NT$ {fmt_ntd(liq['open_pnl'], sign=True)}",
+                "可拿回 − 付出成本；這是還沒變成錢的部分",
+                css_value_class(liq["open_pnl"]),
+            ),
+            metric_card(
+                "★ 今天出清後總計",
+                f"NT$ {fmt_ntd(liq['total_broker'], sign=True)}",
+                f"已實現 + 結清後未實現；成交簿口徑 NT$ {fmt_ntd(liq['total_book'], sign=True)}",
+                css_value_class(liq["total_broker"]),
+            ),
+        ]
+    )
+
+
+def position_health(
+    holdings: list[dict[str, Any]],
+    fills: list[dict[str, Any]],
+    prices: dict[str, list[tuple[date, float]]],
+    latest_signals: list[dict[str, Any]],
+    asof: date,
+) -> str:
+    """Per-position measurement. No recommendation anywhere in this table."""
+    first_buy: dict[str, date] = {}
+    sleeve: dict[str, set[str]] = defaultdict(set)
+    for fill in sorted(fills, key=lambda row: row["date"]):
+        if fill["side"] != "BUY":
+            continue
+        code = fill["stock_code"].strip()
+        first_buy.setdefault(code, fill["date"])
+        sleeve[code].add(fill["strategy_id"])
+
+    card: dict[str, list[str]] = defaultdict(list)
+    for row in latest_signals:
+        code = row["stock_code"].strip()
+        action = row["signal"].strip()
+        if action.startswith("("):
+            continue  # bracketed side, ignored per owner
+        label = STRATEGY_LABELS.get(row["strategy_id"], row["strategy_id"])
+        card[code].append(f'{label}{action.strip("*")}')
+    card_entry = {
+        row["stock_code"].strip(): row.get("entry_price")
+        for row in latest_signals
+        if not row["signal"].strip().startswith("(")
+    }
+
+    rows: list[str] = []
+    for row in sorted(holdings, key=lambda r: r["unrealized_return_pct"]):
+        code = row["stock_code"].strip()
+        entered = first_buy.get(code)
+        held_days = (asof - entered).days if entered else None
+        series = [
+            value for day, value in prices.get(code, [])
+            if entered is None or day >= entered
+        ]
+        peak = max(series) if series else None
+        drawdown = (row["last_price"] / peak - 1.0) if peak else None
+        entry = card_entry.get(code)
+        vs_entry = (row["last_price"] / entry - 1.0) if entry else None
+        says = "、".join(sorted(card.get(code, []))) or "不在今日卡片上"
+        says_class = "negative" if "出" in says else ("neutral" if "不在" in says else "")
+        sleeves = "／".join(
+            sorted(STRATEGY_LABELS.get(item, item) for item in sleeve.get(code, []))
+        ) or "未歸屬"
+
+        def cell(value: float | None, formatter, colour: bool = True) -> str:
+            if value is None:
+                return '<td class="num neutral">—</td>'
+            klass = f" {css_value_class(value)}" if colour else ""
+            return f'<td class="num{klass}">{formatter(value)}</td>'
+
+        rows.append(
+            "<tr>"
+            f'<td><b>{code}</b> {html.escape(row["stock_name"])}'
+            f'<br><small>{html.escape(sleeves)}</small></td>'
+            f'<td class="num">{row["avg_cost"]:,.2f}</td>'
+            f'<td class="num">{row["last_price"]:,.2f}</td>'
+            f'<td class="num {css_value_class(row["unrealized_return_pct"])}">'
+            f'<b>{row["unrealized_return_pct"]:+.2f}%</b></td>'
+            f'<td class="num {css_value_class(row["unrealized_pnl_twd"])}">'
+            f'{fmt_ntd(row["unrealized_pnl_twd"], sign=True)}</td>'
+            + cell(entry, lambda v: f"{v:,.2f}", colour=False)
+            + cell(vs_entry, lambda v: fmt_pct(v, sign=True))
+            + f'<td class="num">{f"{held_days} 天" if held_days is not None else "—"}</td>'
+            + cell(drawdown, lambda v: fmt_pct(v))
+            + f'<td class="{says_class}">{html.escape(says)}</td>'
+            "</tr>"
+        )
+    return "".join(rows)
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -2457,6 +2591,10 @@ def build() -> tuple[Path, dict[str, Any]]:
     actual_bundle_pnl = strategy_diagnostics["bundle_current_pnl_twd"]
     discipline = discipline_ledger(fills, prices, actual_asof)
     broker_recon = broker_realized_reconciliation(load_actual_fills())
+    liquidation = liquidation_summary(
+        holdings, source_summary, broker_recon,
+        pnl_breakdown["_totals"]["realized_pnl_twd"],
+    )
     timeline_grid, timeline_summary = update_timeline(fills, prices)
     cost_gap_rows, cost_gap_count = cost_basis_gap_rows(fills, holdings)
     signal_day_count = len({
@@ -2697,6 +2835,8 @@ polyline[data-line].off{opacity:.08}
 <article class="panel full"><h2>成本口徑落差 · 逐檔拆解</h2><div class="sub">成交簿記的是實際付出的現金（價金＋手續費），券商『付出成本』欄記的是它自己的成本基礎。兩者不一致時，這裡列出是哪一檔、差多少、每股差多少。<b>差額不是要去抹平的誤差，是成交簿還不知道的事件</b> —— 配息、成本重算、券商用不同方式記費用。在有人解釋它之前，它應該一直看得見。四策略實績一律以逐筆成交現金流為準。</div><div class="table-wrap"><table><thead><tr><th>股票</th><th class="num">成交簿成本</th><th class="num">券商成本欄</th><th class="num">差額</th><th class="num">股數</th><th class="num">每股差</th></tr></thead><tbody>{{COST_GAP_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>資料累積 · 還差多少才說得出話</h2><div class="sub">每一個顯示 <code>N/A</code> 的統計，背後都有一個樣本門檻。在門檻之前它不是壞掉，是還不知道 —— 而「不知道」和「不好」是兩件事。這裡把每天堆疊的資料換算成進度：現在有幾筆、需要幾筆、到了會解鎖什麼。<b>暫計成交不計入</b>，因為那不是真的執行紀錄。</div>{{ACCRUAL}}</article>
 <article class="panel full"><h2>每日更新時間軸</h2><div class="sub">四個來源，各自有自己的更新節奏。實心格代表那一天有這個來源的資料；空格代表沒有，而不是「和前一天一樣」。右欄的日期若比最後一欄舊，代表這個來源正在落後，畫面上與它有關的數字都還停在那一天。{{TIMELINE_SUMMARY}}。</div>{{UPDATE_TIMELINE}}</article>
+<article class="panel full"><h2>沒結清就不算賺 · 今天全部出清會拿回多少</h2><div class="sub">未實現不是錢。這一段回答唯一能當成事實的版本：<b>如果今天把每一檔都按官方收盤賣掉</b>，開戶至今總共賺了多少。這是算術，不是預測。出場費稅用和全站相同的 0.4425% 估算。券商『現值』欄本身已含費稅，所以毛值與淨值幾乎相同 —— 這是先前對帳發現的，不是巧合。</div>{{LIQUIDATION_CARDS}}</article>
+<article class="panel full"><h2>部位健康度 · 逐檔量測</h2><div class="sub"><b>這張表不含任何建議。</b>每一欄都是量測：距成本、距卡片自己的進場價、持有天數、自進場以來從最高點的回撤，以及最後一欄 —— <b>你的策略卡現在對這檔說什麼</b>。最後一欄是你自己系統的輸出，把它列出來是回報，不是我的意見。要不要動、動多少，是你的決定。</div><div class="table-wrap"><table><thead><tr><th>股票／策略</th><th class="num">成本均價</th><th class="num">現價</th><th class="num">報酬率</th><th class="num">未實現</th><th class="num">卡片進場</th><th class="num">現價vs卡片</th><th class="num">持有</th><th class="num">自進場高點回撤</th><th>卡片現在說</th></tr></thead><tbody>{{POSITION_HEALTH}}</tbody></table></div></article>
 <article class="panel full"><h2>券商已實現 vs 成交簿已實現 · 逐筆對帳</h2><div class="sub">兩個來源在回答同一個問題，答案不一樣，而差額<b>完全可以解釋</b>。券商用它自己的成本基礎，會因為配息等公司行動往下調；成交簿只認交易當下真正動的現金。<b>兩個都不算錯</b> —— 券商的數字含有以配息形式進到帳戶的價值，成交簿沒有，因為那筆配息現金從來沒有被記進來。把兩邊並排、差額歸到個股，比選一邊當真相誠實得多：它把一個說不清的總差額，變成一列<b>明確缺少的紀錄</b>。</div><div class="table-wrap"><table><thead><tr><th>賣出日</th><th>股票</th><th class="num">股數</th><th class="num">賣價</th><th class="num">券商已實現</th><th class="num">成交簿已實現</th><th class="num">差額</th><th>說明</th></tr></thead><tbody>{{BROKER_RECON}}</tbody></table></div></article>
 <article class="panel full"><h2>紀律帳 · 我的損益 vs 策略的損益</h2><div class="sub">每一筆賣出都對照 <code>signal_history</code> 分類：賣出當天或之前有 <b>出</b> 訊號的是<b>策略指示</b>，卡片仍寫「抱」時賣掉的是<b>自主決定</b>。自主決定的那些，反事實不需要模型 —— 股票已經賣了，「沒賣的話現在值多少」就是同樣股數乘上最新官方收盤，扣掉同一套出場費稅。兩者相減就是這個決策賺了或賠了多少。<br><b>這是記分，不是評判。</b>躲掉下跌的提早出場會顯示為正，少賺的會顯示為負，兩種用同一把尺量。目的是看出直覺到底有沒有加分，不是替任何一邊說話。</div>{{DISCIPLINE_CARDS}}<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>賣出日</th><th>策略</th><th>股票</th><th>依據</th><th class="num">股數</th><th class="num">賣價</th><th class="num">實際已實現</th><th class="num">現價</th><th class="num">若持有至今</th><th class="num">決策價值</th></tr></thead><tbody>{{DISCIPLINE_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>已實現 vs 未實現 · 完整損益拆解</h2><div class="sub">畫面上其他地方的「損益」都是<b>未實現</b>，只算還在手上的部位。已平倉的成交不會出現在庫存表裡，但現金已經確定變動 —— 那筆錢的盈虧在這裡。sleeve 曲線一直都含這兩塊，這張表只是把它拆開讓你看得到。已實現＝實收現金 − 實付成本（含手續費與證交稅）；未實現＝目前可變現值 − 在庫帳面成本，兩者不重複計算。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">已實現損益</th><th class="num">平倉筆數</th><th class="num">未實現損益</th><th class="num">在庫成本</th><th class="num">合計損益</th><th class="num">對 50 萬報酬</th></tr></thead><tbody>{{PNL_SPLIT_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">逐筆平倉明細 · FIFO 對沖，一次賣出跨多筆買進會拆成多列</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">買進</th><th class="num">賣出</th><th class="num">持有</th><th class="num">成本 → 實收</th><th class="num">已實現損益</th></tr></thead><tbody>{{CLOSED_LOTS}}</tbody></table></div></article>
@@ -2865,6 +3005,10 @@ polyline[data-line].off{opacity:.08}
         "{{BRIDGE_TABLE}}": bridge_table(bridge),
         "{{ENTRY_GAP_TABLE}}": entry_gap_table(bridge),
         "{{BROKER_RECON}}": broker_recon_table(broker_recon),
+        "{{LIQUIDATION_CARDS}}": liquidation_cards(liquidation),
+        "{{POSITION_HEALTH}}": position_health(
+            holdings, fills, prices, latest_signals, actual_asof
+        ),
         "{{DISCIPLINE_CARDS}}": discipline_cards(discipline),
         "{{DISCIPLINE_ROWS}}": discipline_rows(discipline),
         "{{COST_GAP_ROWS}}": cost_gap_rows,
