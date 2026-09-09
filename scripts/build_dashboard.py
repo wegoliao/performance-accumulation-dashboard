@@ -28,6 +28,7 @@ import strategy_gap  # noqa: E402
 
 
 TRADING_DAYS = 252
+UNASSIGNED_CODE = "2886"
 MIN_RISK_RETURN_OBS = 20
 ROLLING_WINDOW = analytics.ROLLING_WINDOW
 ROOT = Path(__file__).resolve().parents[1]
@@ -2848,6 +2849,148 @@ def tactical_playbook(
     return cards + guides + inventory_ev_table + dip_candidates_section + cash_and_checklist + table
 
 
+def expectancy(values: list[float]) -> dict[str, Any]:
+    """Win rate, average win, average loss and per-trade EV for one population."""
+    wins = [value for value in values if value > 0]
+    losses = [value for value in values if value < 0]
+    count = len(values)
+    if not count:
+        return {"n": 0}
+    win_rate = len(wins) / count
+    avg_win = statistics.fmean(wins) if wins else 0.0
+    avg_loss = statistics.fmean(losses) if losses else 0.0
+    return {
+        "n": count,
+        "wins": len(wins),
+        "losses": len(losses),
+        "win_rate": win_rate,
+        "avg_win": avg_win,
+        "avg_loss": avg_loss,
+        "payoff": abs(avg_win / avg_loss) if avg_loss else None,
+        "ev": win_rate * avg_win + (1.0 - win_rate) * avg_loss,
+        "total": sum(values),
+    }
+
+
+def expectancy_rows(
+    lots: list[dict[str, Any]],
+    holdings: list[dict[str, Any]],
+    discipline: dict[str, Any],
+) -> tuple[str, dict[str, Any]]:
+    """Expectancy on three populations; the difference between them is the point."""
+    closed = [lot["realized_pnl_twd"] for lot in lots]
+    still_open = [
+        row["unrealized_pnl_twd"]
+        for row in holdings
+        if row["stock_code"].strip() != UNASSIGNED_CODE
+    ]
+    populations = [
+        (
+            "只算已平倉",
+            expectancy(closed),
+            "你選擇結束的那些。<b>結束與否是一個選擇</b>，所以這一列必然偏高。",
+        ),
+        (
+            "只算還在手上",
+            expectancy(still_open),
+            "你選擇不結束的那些，按今日收盤計。",
+        ),
+        (
+            "全部（平倉＋在庫按市價）",
+            expectancy(closed + still_open),
+            "<b>唯一不能靠「決定何時實現」來美化的版本。</b>",
+        ),
+        (
+            "其中：策略指示出場",
+            expectancy([row["realized_pnl_twd"] for row in discipline["directed"]]),
+            "卡片印了「出」才賣。",
+        ),
+        (
+            "其中：自主決定出場",
+            expectancy([row["realized_pnl_twd"] for row in discipline["discretionary"]]),
+            "卡片仍寫「抱」時賣掉。",
+        ),
+    ]
+    rows: list[str] = []
+    for label, stats, note in populations:
+        if not stats["n"]:
+            continue
+        highlight = ' style="background:var(--raise)"' if "全部" in label else ""
+        payoff = f"{stats['payoff']:.2f}" if stats["payoff"] else "—"
+        win_rate = f"{stats['win_rate'] * 100:.0f}%"
+        rows.append(
+            f"<tr{highlight}>"
+            f"<td><b>{html.escape(label)}</b></td>"
+            f'<td class="num">{stats["n"]}</td>'
+            f'<td class="num">{win_rate}'
+            f'<br><small>{stats["wins"]}勝／{stats["losses"]}敗</small></td>'
+            f'<td class="num positive">{fmt_ntd(stats["avg_win"], sign=True)}</td>'
+            f'<td class="num negative">{fmt_ntd(stats["avg_loss"], sign=True)}</td>'
+            f'<td class="num">{payoff}</td>'
+            f'<td class="num {css_value_class(stats["ev"])}">'
+            f'<b>{fmt_ntd(stats["ev"], sign=True)}</b></td>'
+            f"<td>{note}</td></tr>"
+        )
+    return "".join(rows), expectancy(closed + still_open)
+
+
+def unexecuted_signals(
+    fills: list[dict[str, Any]],
+    holdings: list[dict[str, Any]],
+) -> str:
+    """Card instructions on names still held that never reached the fill book."""
+    if not SIGNAL_HISTORY_PATH.exists():
+        return '<tr><td colspan="6" class="neutral">尚無訊號歷史。</td></tr>'
+    held = {row["stock_code"].strip(): row for row in holdings}
+    sold: dict[str, list[date]] = defaultdict(list)
+    bought: dict[str, list[date]] = defaultdict(list)
+    for fill in fills:
+        code = fill["stock_code"].strip()
+        (sold if fill["side"] == "SELL" else bought)[code].append(fill["date"])
+
+    rows: list[str] = []
+    for raw in read_csv(SIGNAL_HISTORY_PATH):
+        signal = raw["signal"].strip()
+        if signal.startswith("("):
+            continue  # bracketed side, ignored per owner
+        action = signal.strip("*")
+        if action not in {"出", "進"}:
+            continue
+        code = raw["stock_code"].strip()
+        asof = parse_date(raw["asof_date"])
+        if action == "出":
+            if code not in held or any(day >= asof for day in sold[code]):
+                continue
+            position = held[code]
+            detail = (
+                f'仍持有 {position["shares"]:,.0f} 股，'
+                f'{position["unrealized_return_pct"]:+.2f}%'
+                f'（{fmt_ntd(position["unrealized_pnl_twd"], sign=True)}）'
+            )
+            klass = css_value_class(position["unrealized_pnl_twd"])
+        else:
+            if code in held or any(day >= asof for day in bought[code]):
+                continue
+            detail = "未進場"
+            klass = "neutral"
+        rows.append(
+            "<tr>"
+            f'<td>{raw["asof_date"]}</td>'
+            f'<td>{html.escape(STRATEGY_LABELS.get(raw["strategy_id"], ""))}</td>'
+            f'<td>{code} {html.escape(raw.get("stock_name", ""))}</td>'
+            f'<td><b>{html.escape(action)}</b></td>'
+            f'<td>{raw.get("effective_date", "") or "—"}</td>'
+            f'<td class="{klass}">{detail}</td>'
+            "</tr>"
+        )
+    if not rows:
+        return (
+            '<tr><td colspan="6" class="positive">'
+            "每一個進／出訊號都已在成交簿裡找到對應成交。</td></tr>"
+        )
+    return "".join(rows)
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -2925,6 +3068,11 @@ def build() -> tuple[Path, dict[str, Any]]:
     theory_asof = min(curve[-1][0] for curve in card_curves.values())
     actual_bundle_pnl = strategy_diagnostics["bundle_current_pnl_twd"]
     discipline = discipline_ledger(fills, prices, actual_asof)
+    expectancy_table, honest_ev = expectancy_rows(
+        realized.as_of(realized.closed_lots(fills), actual_asof),
+        holdings,
+        discipline,
+    )
     broker_recon = broker_realized_reconciliation(load_actual_fills())
     liquidation = liquidation_summary(
         holdings, source_summary, broker_recon,
@@ -3173,6 +3321,8 @@ polyline[data-line].off{opacity:.08}
 <article class="panel full"><h2>沒結清就不算賺 · 今天全部出清會拿回多少</h2><div class="sub">未實現不是錢。這一段回答唯一能當成事實的版本：<b>如果今天把每一檔都按官方收盤賣掉</b>，開戶至今總共賺了多少。這是算術，不是預測。出場費稅用和全站相同的 0.4425% 估算。券商『現值』欄本身已含費稅，所以毛值與淨值幾乎相同 —— 這是先前對帳發現的，不是巧合。</div>{{LIQUIDATION_CARDS}}</article>
 <article class="panel full"><h2>部位健康度 · 逐檔量測</h2><div class="sub"><b>這張表不含任何建議。</b>每一欄都是量測：距成本、距卡片自己的進場價、持有天數、自進場以來從最高點的回撤，以及最後一欄 —— <b>你的策略卡現在對這檔說什麼</b>。最後一欄是你自己系統的輸出，把它列出來是回報，不是我的意見。要不要動、動多少，是你的決定。</div><div class="table-wrap"><table><thead><tr><th>股票／策略</th><th class="num">成本均價</th><th class="num">現價</th><th class="num">報酬率</th><th class="num">未實現</th><th class="num">卡片進場</th><th class="num">現價vs卡片</th><th class="num">持有</th><th class="num">自進場高點回撤</th><th>卡片現在說</th></tr></thead><tbody>{{POSITION_HEALTH}}</tbody></table></div></article>
 <article class="panel full"><h2>券商已實現 vs 成交簿已實現 · 逐筆對帳</h2><div class="sub">兩個來源在回答同一個問題，答案不一樣，而差額<b>完全可以解釋</b>。券商用它自己的成本基礎，會因為配息等公司行動往下調；成交簿只認交易當下真正動的現金。<b>兩個都不算錯</b> —— 券商的數字含有以配息形式進到帳戶的價值，成交簿沒有，因為那筆配息現金從來沒有被記進來。把兩邊並排、差額歸到個股，比選一邊當真相誠實得多：它把一個說不清的總差額，變成一列<b>明確缺少的紀錄</b>。</div><div class="table-wrap"><table><thead><tr><th>賣出日</th><th>股票</th><th class="num">股數</th><th class="num">賣價</th><th class="num">券商已實現</th><th class="num">成交簿已實現</th><th class="num">差額</th><th>說明</th></tr></thead><tbody>{{BROKER_RECON}}</tbody></table></div></article>
+<article class="panel full"><h2>你自己的期望值 · 以及它為什麼看起來太好</h2><div class="sub">這裡的 EV <b>不是任何個股的預測</b>，是你已結算現金的歷史期望值。只算已平倉會得到一個很漂亮的數字 —— 但<b>要不要平倉是你的選擇</b>，而你的習慣是賣掉賺的、留下賠的，所以「已平倉」這個集合幾乎是被建構出來的贏家集合。把在庫部位按今日收盤一起算進來，才是<b>無法靠決定何時實現來美化</b>的版本。三列並列，差距本身就是結論。樣本仍然很小，任何一列都還不能當成穩定估計。</div><div class="table-wrap"><table><thead><tr><th>母體</th><th class="num">樣本</th><th class="num">勝率</th><th class="num">平均獲利</th><th class="num">平均虧損</th><th class="num">賺賠比</th><th class="num">每筆 EV</th><th>說明</th></tr></thead><tbody>{{EXPECTANCY_ROWS}}</tbody></table></div></article>
+<article class="panel full"><h2>未執行訊號 · 卡片說了但成交簿沒有</h2><div class="sub">逐筆比對訊號歷史與成交簿。<b>「出」只列仍持有的</b>，已經不在庫的不需要動作；<b>「進」只列整戶零部位的</b>。括號部位依 owner 指示排除。這張表不判斷該不該執行 —— 它只回報你自己的系統說過什麼、帳戶做了什麼。</div><div class="table-wrap"><table><thead><tr><th>訊號日</th><th>策略</th><th>股票</th><th>動作</th><th>生效日</th><th>目前狀態</th></tr></thead><tbody>{{UNEXECUTED_SIGNALS}}</tbody></table></div></article>
 <article class="panel full"><h2>紀律帳 · 我的損益 vs 策略的損益</h2><div class="sub">每一筆賣出都對照 <code>signal_history</code> 分類：賣出當天或之前有 <b>出</b> 訊號的是<b>策略指示</b>，卡片仍寫「抱」時賣掉的是<b>自主決定</b>。自主決定的那些，反事實不需要模型 —— 股票已經賣了，「沒賣的話現在值多少」就是同樣股數乘上最新官方收盤，扣掉同一套出場費稅。兩者相減就是這個決策賺了或賠了多少。<br><b>這是記分，不是評判。</b>躲掉下跌的提早出場會顯示為正，少賺的會顯示為負，兩種用同一把尺量。目的是看出直覺到底有沒有加分，不是替任何一邊說話。</div>{{DISCIPLINE_CARDS}}<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>賣出日</th><th>策略</th><th>股票</th><th>依據</th><th class="num">股數</th><th class="num">賣價</th><th class="num">實際已實現</th><th class="num">現價</th><th class="num">若持有至今</th><th class="num">決策價值</th></tr></thead><tbody>{{DISCIPLINE_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>實戰策略提示 · 撿漏 vs 保守歷史時空背景覆盤</h2><div class="sub">高波動市場中，實戰操作存在大量非教條式的執行空間。盤中急殺往往創造<b>「撿漏折價」</b>的低接良機，而在個股衝高或大盤轉弱時，<b>「保守提早出場」</b>則能守住珍貴利潤。這裡完整記錄開戶以來的實戰時空背景、下單類型與決策覆盤，供後續下單持續查考。</div>{{TACTICAL_PLAYBOOK}}</article>
 <article class="panel full"><h2>已實現 vs 未實現 · 完整損益拆解</h2><div class="sub">畫面上其他地方的「損益」都是<b>未實現</b>，只算還在手上的部位。已平倉的成交不會出現在庫存表裡，但現金已經確定變動 —— 那筆錢的盈虧在這裡。sleeve 曲線一直都含這兩塊，這張表只是把它拆開讓你看得到。已實現＝實收現金 − 實付成本（含手續費與證交稅）；未實現＝目前可變現值 − 在庫帳面成本，兩者不重複計算。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">已實現損益</th><th class="num">平倉筆數</th><th class="num">未實現損益</th><th class="num">在庫成本</th><th class="num">合計損益</th><th class="num">對 50 萬報酬</th></tr></thead><tbody>{{PNL_SPLIT_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">逐筆平倉明細 · FIFO 對沖，一次賣出跨多筆買進會拆成多列</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">買進</th><th class="num">賣出</th><th class="num">持有</th><th class="num">成本 → 實收</th><th class="num">已實現損益</th></tr></thead><tbody>{{CLOSED_LOTS}}</tbody></table></div></article>
@@ -3349,6 +3499,8 @@ polyline[data-line].off{opacity:.08}
             fills, holdings, prices, discipline
         ),
         "{{POSITIONS_COUNT}}": str(snapshot["positions"]),
+        "{{EXPECTANCY_ROWS}}": expectancy_table,
+        "{{UNEXECUTED_SIGNALS}}": unexecuted_signals(fills, holdings),
         "{{DISCIPLINE_CARDS}}": discipline_cards(discipline),
         "{{DISCIPLINE_ROWS}}": discipline_rows(discipline),
         "{{COST_GAP_ROWS}}": cost_gap_rows,
