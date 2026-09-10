@@ -156,11 +156,24 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
         # action is keyed on the parsed verb, not the decorated glyph.
         assert action["signal"].strip("()*") in {"進", "出"}
 
-    # The YOY card header has never matched the mean of its own visible members;
-    # that divergence must keep surfacing instead of being quietly averaged away.
-    assert latest["quality"]["YOY"]["status"] == "SOURCE_CHECKSUM_MISMATCH"
-    assert abs(latest["quality"]["YOY"]["gap_pp"]) > 0.1
-    assert latest["quality"]["MARGIN"]["status"] == "PASS"
+    # This pinned "YOY never matches", which held for ten consecutive cards and
+    # then stopped -- on 2026-09-10 its header agreed with its own members for
+    # the first time. A test that asserts a *finding* fails when the finding
+    # changes, which is exactly backwards: what must never regress is the
+    # DETECTOR. So assert the mechanism -- every card is checked, the verdict
+    # follows the measured gap, and a mismatch is never silently downgraded.
+    checked = {
+        strategy_id: quality
+        for strategy_id, quality in latest["quality"].items()
+        if isinstance(quality, dict)
+    }
+    for strategy_id, quality in checked.items():
+        gap = abs(quality["gap_pp"])
+        expected = "SOURCE_CHECKSUM_MISMATCH" if gap >= 0.5 else "PASS"
+        assert quality["status"] == expected, (
+            f"{strategy_id} gap {gap:.2f}pp must read {expected}"
+        )
+    assert set(checked) == set(dashboard.STRATEGY_LABELS)
     diagnostics = receipt["history"]["strategy_diagnostics"]
     assert diagnostics["reconciliation"] in {"PASS", "PASS_EXCLUDING_UNASSIGNED_2886"}
     # Was 28_446 under the old dual valuation path (snapshot gross vs close
