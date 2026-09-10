@@ -3,224 +3,54 @@
   "latest_session": "2026-09-10",
   "missing_at_latest_session": [],
   "missing_at_latest_session_watchlist_only": [],
-  "fetched_at": "2026-09-10T13:06:59+00:00",
+  "fetched_at": "2026-09-11T00:16:28+08:00",
   "window": {
-    "start": "2026-07-27",
+    "start": "2026-03-01",
     "end": "2026-09-10"
   },
-  "requested_symbols": 41,
-  "price_rows_total": 7568,
-  "price_rows_added_or_refreshed": 1394,
+  "requested_symbols": 7,
+  "price_rows_total": 8535,
+  "price_rows_added_or_refreshed": 938,
   "trading_days": 255,
   "coverage": {
     "first": "2025-08-25",
     "last": "2026-09-10"
   },
   "per_symbol": {
-    "1590": {
-      "rows": 34,
+    "1303": {
+      "rows": 134,
       "market": "TWSE",
-      "name": "亞德客-KY"
+      "name": "南亞"
     },
-    "1709": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "和益"
-    },
-    "1712": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "興農"
-    },
-    "1714": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "和桐"
-    },
-    "1717": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "長興"
-    },
-    "2030": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "彰源"
-    },
-    "2059": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "川湖"
-    },
-    "2103": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "台橡"
-    },
-    "2301": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "光寶科"
-    },
-    "2354": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "鴻準"
-    },
-    "2395": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "研華"
-    },
-    "2397": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "友通"
-    },
-    "2408": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "南亞科"
-    },
-    "2466": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "冠西電"
-    },
-    "2474": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "可成"
-    },
-    "2489": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "瑞軒"
-    },
-    "2606": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "裕民"
-    },
-    "2609": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "陽明"
-    },
-    "2630": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "亞航"
-    },
-    "2637": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "慧洋-KY"
-    },
-    "3006": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "晶豪科"
-    },
-    "3044": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "健鼎"
-    },
-    "3046": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "建碁"
-    },
-    "3055": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "蔚華科"
-    },
-    "3231": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "緯創"
-    },
-    "3605": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "宏致"
-    },
-    "3702": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "大聯大"
-    },
-    "6108": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "競國"
-    },
-    "6141": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "柏承"
-    },
-    "6213": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "聯茂"
-    },
-    "6243": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "迅杰"
-    },
-    "6456": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "GIS-KY"
-    },
-    "6570": {
-      "rows": 34,
+    "3374": {
+      "rows": 134,
       "market": "TPEX",
-      "name": "維田"
+      "name": "精材"
     },
-    "6603": {
-      "rows": 34,
+    "3380": {
+      "rows": 134,
+      "market": "TWSE",
+      "name": "明泰"
+    },
+    "6179": {
+      "rows": 134,
       "market": "TPEX",
-      "name": "富強鑫"
+      "name": "亞通"
     },
-    "6672": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "騰輝電子-KY"
-    },
-    "6727": {
-      "rows": 34,
+    "6218": {
+      "rows": 134,
       "market": "TPEX",
-      "name": "亞泰金屬"
+      "name": "豪勉"
     },
-    "6830": {
-      "rows": 34,
+    "6416": {
+      "rows": 134,
       "market": "TWSE",
-      "name": "汎銓"
+      "name": "瑞祺電通"
     },
-    "6919": {
-      "rows": 34,
+    "6426": {
+      "rows": 134,
       "market": "TWSE",
-      "name": "康霈"
-    },
-    "7827": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "漢康-KY創"
-    },
-    "0050": {
-      "rows": 34,
-      "market": "TWSE",
-      "name": "0050"
-    },
-    "TAIEX": {
-      "rows": 34,
-      "market": "TWSE_INDEX",
-      "name": "TAIEX"
+      "name": "統新"
     }
   },
   "benchmark_rows": 510,

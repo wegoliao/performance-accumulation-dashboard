@@ -1,6 +1,6 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-09-10T23:17:01+08:00",
+  "generated_at": "2026-09-11T00:18:23+08:00",
   "source_data_asof": "2026-09-08",
   "actual_valuation_asof": "2026-09-10",
   "source_capture_time": null,
@@ -24,7 +24,7 @@
       "rows": 0
     },
     "benchmark_nav.csv": {
-      "sha256": "1886bc72895f26282693851567868b2d44e14162f5f578d4f056772707fac0a9",
+      "sha256": "ec13973f813a6e7cf62e2e220e956cce25e67c07578c5d4c8a0167f9762b9b1c",
       "rows": 510
     },
     "actual_fills.csv": {
