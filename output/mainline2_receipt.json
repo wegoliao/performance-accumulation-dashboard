@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-09-11T09:38:51",
+  "generated_at": "2026-09-11T17:09:06",
   "signal_asof": "2026-09-10",
-  "price_asof": "2026-09-10",
+  "price_asof": "2026-09-11",
   "profile_window": [
     "2025-08-25",
-    "2026-09-10"
+    "2026-09-11"
   ],
-  "mainline2_count": 29,
-  "mainline1_positions": 12,
+  "mainline2_count": 25,
+  "mainline1_positions": 15,
   "roster": [
     {
       "strategy_id": "BREAKOUT",
@@ -19,10 +19,10 @@
       "poc": 34.509090909090915,
       "value_low": 25.42727272727273,
       "value_high": 37.7,
-      "close_percentile": 0.8601953624047989,
+      "close_percentile": 0.9403705210614196,
       "in_value_area": true,
-      "avg_volume_20d": 14310690.15,
-      "slot_participation": 9.897709894172014e-05
+      "avg_volume_20d": 14450124.65,
+      "slot_participation": 9.558502110314041e-05
     },
     {
       "strategy_id": "BREAKOUT",
@@ -34,10 +34,10 @@
       "poc": 18.512500000000003,
       "value_low": 15.306818181818182,
       "value_high": 20.89090909090909,
-      "close_percentile": 0.9742909663770603,
+      "close_percentile": 0.9570613330683999,
       "in_value_area": false,
-      "avg_volume_20d": 3136212.6,
-      "slot_participation": 0.0006741140268560172
+      "avg_volume_20d": 3049401.35,
+      "slot_participation": 0.0006977302526832307
     },
     {
       "strategy_id": "BREAKOUT",
@@ -48,11 +48,11 @@
       "entry_price": 529.0,
       "poc": 286.54545454545456,
       "value_low": 271.0,
-      "value_high": 499.0,
-      "close_percentile": 0.9098811011796515,
+      "value_high": 509.3636363636364,
+      "close_percentile": 0.9364024598984282,
       "in_value_area": false,
-      "avg_volume_20d": 3184866.25,
-      "slot_participation": 2.382283216528806e-05
+      "avg_volume_20d": 3229517.1,
+      "slot_participation": 2.297060952584137e-05
     },
     {
       "strategy_id": "BREAKOUT",
@@ -64,10 +64,10 @@
       "poc": 146.38863636363635,
       "value_low": 69.00909090909092,
       "value_high": 354.7181818181818,
-      "close_percentile": 0.9641053428607624,
+      "close_percentile": 0.94148338863186,
       "in_value_area": false,
-      "avg_volume_20d": 78724998.9,
-      "slot_participation": 1.2332471260380887e-06
+      "avg_volume_20d": 75420843.6,
+      "slot_participation": 1.3447194894031395e-06
     },
     {
       "strategy_id": "BREAKOUT",
@@ -79,10 +79,10 @@
       "poc": 204.3068181818182,
       "value_low": 183.0681818181818,
       "value_high": 213.4090909090909,
-      "close_percentile": 0.46450878670437407,
+      "close_percentile": 0.46483498291192343,
       "in_value_area": true,
-      "avg_volume_20d": 2677814.3,
-      "slot_participation": 9.152913972252904e-05
+      "avg_volume_20d": 2638221.4,
+      "slot_participation": 9.290275608244489e-05
     },
     {
       "strategy_id": "BREAKOUT",
@@ -94,25 +94,10 @@
       "poc": 54.34147727272727,
       "value_low": 48.57840909090909,
       "value_high": 58.45795454545454,
-      "close_percentile": 0.12587895689552747,
+      "close_percentile": 0.13295491881779484,
       "in_value_area": false,
-      "avg_volume_20d": 3804461.75,
-      "slot_participation": 0.00027494693687024467
-    },
-    {
-      "strategy_id": "BREAKOUT",
-      "stock_code": "3006",
-      "stock_name": "晶豪科",
-      "status": "OK",
-      "close": 312.0,
-      "entry_price": null,
-      "poc": 88.35,
-      "value_low": 55.4,
-      "value_high": 211.16363636363639,
-      "close_percentile": 0.997476328599671,
-      "in_value_area": false,
-      "avg_volume_20d": 16775197.15,
-      "slot_participation": 9.55317596708008e-06
+      "avg_volume_20d": 3635331.4,
+      "slot_participation": 0.00028653967191730217
     },
     {
       "strategy_id": "BREAKOUT",
@@ -122,12 +107,12 @@
       "close": 46.15,
       "entry_price": null,
       "poc": 38.987500000000004,
-      "value_low": 34.43636363636364,
-      "value_high": 43.538636363636364,
-      "close_percentile": 0.9521100239046133,
+      "value_low": 35.04318181818182,
+      "value_high": 44.14545454545454,
+      "close_percentile": 0.9177846814078878,
       "in_value_area": false,
-      "avg_volume_20d": 2150900.0,
-      "slot_participation": 0.0005037071080175212
+      "avg_volume_20d": 2189600.0,
+      "slot_participation": 0.0005085795332948713
     },
     {
       "strategy_id": "BREAKOUT",
@@ -139,10 +124,10 @@
       "poc": 47.74431818181819,
       "value_low": 42.470454545454544,
       "value_high": 53.638636363636365,
-      "close_percentile": 0.15298063163275955,
+      "close_percentile": 0.14339324927183664,
       "in_value_area": false,
-      "avg_volume_20d": 1107012.3,
-      "slot_participation": 0.0012076635424212768
+      "avg_volume_20d": 868761.9,
+      "slot_participation": 0.0015639447956614042
     },
     {
       "strategy_id": "BREAKOUT",
@@ -154,10 +139,10 @@
       "poc": 68.87613636363636,
       "value_low": 62.73863636363636,
       "value_high": 82.82499999999999,
-      "close_percentile": 0.24605806632376848,
+      "close_percentile": 0.22448987998178907,
       "in_value_area": true,
-      "avg_volume_20d": 3937343.5,
-      "slot_participation": 0.00019811103634926697
+      "avg_volume_20d": 3907899.2,
+      "slot_participation": 0.0002018075423038108
     },
     {
       "strategy_id": "BREAKOUT",
@@ -169,10 +154,10 @@
       "poc": 102.06931818181818,
       "value_low": 93.07954545454545,
       "value_high": 115.05454545454545,
-      "close_percentile": 0.07241873868768957,
+      "close_percentile": 0.014914066867556582,
       "in_value_area": false,
-      "avg_volume_20d": 11455836.45,
-      "slot_participation": 5.098817114595856e-05
+      "avg_volume_20d": 11589633.8,
+      "slot_participation": 5.426666868543015e-05
     },
     {
       "strategy_id": "MARGIN",
@@ -184,10 +169,10 @@
       "poc": 34.509090909090915,
       "value_low": 25.42727272727273,
       "value_high": 37.7,
-      "close_percentile": 0.8601953624047989,
+      "close_percentile": 0.9403705210614196,
       "in_value_area": true,
-      "avg_volume_20d": 14310690.15,
-      "slot_participation": 9.897709894172014e-05
+      "avg_volume_20d": 14450124.65,
+      "slot_participation": 9.558502110314041e-05
     },
     {
       "strategy_id": "MARGIN",
@@ -199,10 +184,10 @@
       "poc": 9.890227272727273,
       "value_low": 8.98,
       "value_high": 17.354090909090907,
-      "close_percentile": 0.5833340904588395,
+      "close_percentile": 0.46762933614144375,
       "in_value_area": true,
-      "avg_volume_20d": 14483114.8,
-      "slot_participation": 0.0002092300635705125
+      "avg_volume_20d": 14614181.5,
+      "slot_participation": 0.00022288822608560138
     },
     {
       "strategy_id": "MARGIN",
@@ -214,10 +199,10 @@
       "poc": 57.725568181818176,
       "value_low": 50.05681818181818,
       "value_high": 61.211363636363636,
-      "close_percentile": 0.2967897418923364,
+      "close_percentile": 0.26189884969300636,
       "in_value_area": true,
-      "avg_volume_20d": 354099.3,
-      "slot_participation": 0.0026642137570311334
+      "avg_volume_20d": 339550.9,
+      "slot_participation": 0.002815551201751105
     },
     {
       "strategy_id": "MARGIN",
@@ -229,10 +214,10 @@
       "poc": 35.79545454545455,
       "value_low": 33.49545454545455,
       "value_high": 41.440909090909095,
-      "close_percentile": 0.1238733391382429,
+      "close_percentile": 0.1281465866865065,
       "in_value_area": false,
-      "avg_volume_20d": 2601899.5,
-      "slot_participation": 0.0006269732440895397
+      "avg_volume_20d": 2626564.05,
+      "slot_participation": 0.0006190659086202758
     },
     {
       "strategy_id": "MARGIN",
@@ -244,10 +229,10 @@
       "poc": 90.86931818181817,
       "value_low": 58.43181818181818,
       "value_high": 111.51136363636363,
-      "close_percentile": 0.8933429706858297,
+      "close_percentile": 0.8239371427701497,
       "in_value_area": false,
-      "avg_volume_20d": 14140818.4,
-      "slot_participation": 2.7623931582347453e-05
+      "avg_volume_20d": 13445594.0,
+      "slot_participation": 3.035665551898432e-05
     },
     {
       "strategy_id": "MARGIN",
@@ -259,10 +244,10 @@
       "poc": 288.375,
       "value_low": 147.1818181818182,
       "value_high": 406.9772727272727,
-      "close_percentile": 0.9276512498999563,
+      "close_percentile": 0.9103399738497385,
       "in_value_area": false,
-      "avg_volume_20d": 15494540.1,
-      "slot_participation": 6.217616854607653e-06
+      "avg_volume_20d": 16165600.95,
+      "slot_participation": 6.076596064434233e-06
     },
     {
       "strategy_id": "MARGIN",
@@ -274,10 +259,25 @@
       "poc": 25.46306818181818,
       "value_low": 22.888636363636362,
       "value_high": 27.142045454545453,
-      "close_percentile": 0.34689870440894266,
+      "close_percentile": 0.28764371853611753,
       "in_value_area": true,
-      "avg_volume_20d": 1421100.0,
-      "slot_participation": 0.001418710176805337
+      "avg_volume_20d": 1322300.0,
+      "slot_participation": 0.0015528912427959433
+    },
+    {
+      "strategy_id": "TRUST",
+      "stock_code": "2609",
+      "stock_name": "陽明",
+      "status": "OK",
+      "close": 58.0,
+      "entry_price": 55.1,
+      "poc": 51.62556818181818,
+      "value_low": 49.82386363636364,
+      "value_high": 59.60454545454546,
+      "close_percentile": 0.7350434472867855,
+      "in_value_area": true,
+      "avg_volume_20d": 92527819.65,
+      "slot_participation": 9.097273068087925e-06
     },
     {
       "strategy_id": "TRUST",
@@ -286,28 +286,13 @@
       "status": "OK",
       "close": 113.5,
       "entry_price": 100.5,
-      "poc": 89.03977272727272,
-      "value_low": 84.86363636363636,
-      "value_high": 101.56818181818181,
+      "poc": 89.14204545454545,
+      "value_low": 82.64772727272728,
+      "value_high": 108.625,
       "close_percentile": 1.0,
       "in_value_area": false,
-      "avg_volume_20d": 9462750.0,
-      "slot_participation": 4.655397578518226e-05
-    },
-    {
-      "strategy_id": "YOY",
-      "stock_code": "1303",
-      "stock_name": "南亞",
-      "status": "OK",
-      "close": 244.0,
-      "entry_price": null,
-      "poc": 89.21704545454546,
-      "value_low": 70.9,
-      "value_high": 184.87272727272727,
-      "close_percentile": 0.9919425901879003,
-      "in_value_area": false,
-      "avg_volume_20d": 100903002.8,
-      "slot_participation": 2.030841769823774e-06
+      "avg_volume_20d": 12144100.0,
+      "slot_participation": 3.307008553147712e-05
     },
     {
       "strategy_id": "YOY",
@@ -319,10 +304,10 @@
       "poc": 3568.75,
       "value_low": 2875.0,
       "value_high": 4262.5,
-      "close_percentile": 0.9459018162007132,
+      "close_percentile": 0.9368721333530653,
       "in_value_area": false,
-      "avg_volume_20d": 577262.2,
-      "slot_participation": 6.874266093040509e-06
+      "avg_volume_20d": 585488.9,
+      "slot_participation": 7.069430091129172e-06
     },
     {
       "strategy_id": "YOY",
@@ -334,10 +319,10 @@
       "poc": 166.8693181818182,
       "value_low": 150.52272727272728,
       "value_high": 225.25,
-      "close_percentile": 0.9510690636838632,
+      "close_percentile": 0.9319731251339345,
       "in_value_area": false,
-      "avg_volume_20d": 32653204.3,
-      "slot_participation": 5.262004434949877e-06
+      "avg_volume_20d": 32651003.2,
+      "slot_participation": 5.5283267732017155e-06
     },
     {
       "strategy_id": "YOY",
@@ -348,26 +333,11 @@
       "entry_price": 660.0,
       "poc": 286.54545454545456,
       "value_low": 271.0,
-      "value_high": 499.0,
-      "close_percentile": 0.9098811011796515,
+      "value_high": 509.3636363636364,
+      "close_percentile": 0.9364024598984282,
       "in_value_area": false,
-      "avg_volume_20d": 3184866.25,
-      "slot_participation": 2.382283216528806e-05
-    },
-    {
-      "strategy_id": "YOY",
-      "stock_code": "3006",
-      "stock_name": "晶豪科",
-      "status": "OK",
-      "close": 312.0,
-      "entry_price": 274.0,
-      "poc": 88.35,
-      "value_low": 55.4,
-      "value_high": 211.16363636363639,
-      "close_percentile": 0.997476328599671,
-      "in_value_area": false,
-      "avg_volume_20d": 16775197.15,
-      "slot_participation": 9.55317596708008e-06
+      "avg_volume_20d": 3229517.1,
+      "slot_participation": 2.297060952584137e-05
     },
     {
       "strategy_id": "YOY",
@@ -376,13 +346,13 @@
       "status": "OK",
       "close": 488.0,
       "entry_price": null,
-      "poc": 257.625,
-      "value_low": 199.5,
-      "value_high": 370.0,
-      "close_percentile": 0.9993479875461471,
+      "poc": 250.4431818181818,
+      "value_low": 199.77272727272728,
+      "value_high": 371.27272727272725,
+      "close_percentile": 0.9863688045923754,
       "in_value_area": false,
-      "avg_volume_20d": 14667250.0,
-      "slot_participation": 6.9855641918861835e-06
+      "avg_volume_20d": 14513850.0,
+      "slot_participation": 7.432546509466375e-06
     },
     {
       "strategy_id": "YOY",
@@ -394,25 +364,10 @@
       "poc": 107.92613636363637,
       "value_low": 91.57954545454545,
       "value_high": 119.60227272727272,
-      "close_percentile": 0.5859491628632195,
+      "close_percentile": 0.5292599205333341,
       "in_value_area": true,
-      "avg_volume_20d": 11429689.85,
-      "slot_participation": 4.0505295335110343e-05
-    },
-    {
-      "strategy_id": "YOY",
-      "stock_code": "6179",
-      "stock_name": "亞通",
-      "status": "OK",
-      "close": 38.2,
-      "entry_price": null,
-      "poc": 27.26534090909091,
-      "value_low": 23.454545454545457,
-      "value_high": 29.872727272727275,
-      "close_percentile": 0.9409074240099841,
-      "in_value_area": false,
-      "avg_volume_20d": 6813250.0,
-      "slot_participation": 0.0001921110371056705
+      "avg_volume_20d": 11216397.85,
+      "slot_participation": 4.1856893305110195e-05
     },
     {
       "strategy_id": "YOY",
@@ -421,36 +376,21 @@
       "status": "OK",
       "close": 110.5,
       "entry_price": null,
-      "poc": 91.21022727272728,
-      "value_low": 88.9659090909091,
-      "value_high": 108.7159090909091,
-      "close_percentile": 0.9878465928907196,
+      "poc": 91.25,
+      "value_low": 86.95454545454545,
+      "value_high": 108.9090909090909,
+      "close_percentile": 0.9876382304604246,
       "in_value_area": false,
-      "avg_volume_20d": 774707.3,
-      "slot_participation": 0.0005840769640131252
-    },
-    {
-      "strategy_id": "YOY",
-      "stock_code": "6426",
-      "stock_name": "統新",
-      "status": "OK",
-      "close": 322.0,
-      "entry_price": null,
-      "poc": 269.19318181818176,
-      "value_low": 182.1590909090909,
-      "value_high": 280.95454545454544,
-      "close_percentile": 0.9908157752040646,
-      "in_value_area": false,
-      "avg_volume_20d": 3177379.0,
-      "slot_participation": 4.887031201049358e-05
+      "avg_volume_20d": 877871.2,
+      "slot_participation": 0.0004931252248626369
     }
   ],
   "fill_landing": {
-    "buy_count": 31,
-    "sell_count": 14,
-    "buy_mean_range_position": 0.352724663002098,
-    "sell_mean_range_position": 0.6327536262549983,
-    "buy_mean_vs_close": -0.008723095579294068
+    "buy_count": 36,
+    "sell_count": 15,
+    "buy_mean_range_position": 0.3668749575435992,
+    "sell_mean_range_position": 0.6421829543971381,
+    "buy_mean_vs_close": -0.004823189246982529
   },
   "boundaries": [
     "PAPER_TRACK_ONLY",
