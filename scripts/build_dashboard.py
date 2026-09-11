@@ -2703,11 +2703,144 @@ def unexecuted_signals(
     return "".join(rows)
 
 
+LADDER_RUNGS = (0.0, -0.02, -0.04)   # fraction below the actual fill
+LADDER_WINDOW = 5                     # sessions, fill day inclusive
+
+
+def ladder_counterfactual(
+    fills: list[dict[str, Any]],
+    prices: dict[str, list[tuple[date, float]]],
+    ohlc: dict[str, list[dict[str, Any]]],
+    asof: date,
+) -> dict[str, Any]:
+    """Replay every real buy as a three-rung ladder and mark both at ``asof``."""
+    rows: list[dict[str, Any]] = []
+    for fill in sorted(fills, key=lambda row: row["date"]):
+        if fill["side"] != "BUY" or fill.get("provisional"):
+            continue
+        code = fill["stock_code"].strip()
+        series = ohlc.get(code, [])
+        idx = next((i for i, bar in enumerate(series) if bar["date"] == fill["date"]), None)
+        if idx is None:
+            continue
+        window = series[idx : idx + LADDER_WINDOW]
+        if len(window) < LADDER_WINDOW:
+            continue  # not enough sessions after the fill to judge
+        history = [value for day, value in prices.get(code, []) if day <= asof]
+        if not history:
+            continue
+        mark = history[-1]
+        capital = fill["cash_out"]
+        real_shares = fill["shares"]
+        per_tranche = capital / len(LADDER_RUNGS)
+
+        ladder_shares = 0.0
+        ladder_cost = 0.0
+        filled: list[bool] = []
+        for rung in LADDER_RUNGS:
+            level = fill["price"] * (1.0 + rung)
+            touched = any(bar["low"] <= level for bar in window)
+            filled.append(touched)
+            if touched:
+                shares = per_tranche / level
+                ladder_shares += shares
+                ladder_cost += per_tranche
+        rows.append(
+            {
+                "date": fill["date"],
+                "stock_code": code,
+                "stock_name": fill.get("stock_name", ""),
+                "fill_price": fill["price"],
+                "real_cost": capital,
+                "real_value": estimated_liquidation_value(real_shares, mark),
+                "ladder_cost": ladder_cost,
+                "ladder_value": estimated_liquidation_value(ladder_shares, mark) if ladder_shares else 0.0,
+                "ladder_avg": (ladder_cost / ladder_shares) if ladder_shares else None,
+                "filled": filled,
+                "mark": mark,
+            }
+        )
+    for row in rows:
+        row["real_pnl"] = row["real_value"] - row["real_cost"]
+        row["ladder_pnl"] = row["ladder_value"] - row["ladder_cost"]
+        row["idle_cash"] = row["real_cost"] - row["ladder_cost"]
+        row["delta"] = row["ladder_pnl"] - row["real_pnl"]
+    total = lambda key: sum(row[key] for row in rows)  # noqa: E731
+    return {
+        "rows": rows,
+        "n": len(rows),
+        "real_pnl": total("real_pnl"),
+        "ladder_pnl": total("ladder_pnl"),
+        "delta": total("delta"),
+        "idle_cash": total("idle_cash"),
+        "fully_filled": sum(1 for row in rows if all(row["filled"])),
+        "only_first": sum(1 for row in rows if row["filled"] == [True, False, False]),
+        "better": sum(1 for row in rows if row["delta"] > 0.5),
+        "worse": sum(1 for row in rows if row["delta"] < -0.5),
+    }
+
+
+def ladder_table(cf: dict[str, Any]) -> str:
+    out: list[str] = []
+    for row in sorted(cf["rows"], key=lambda r: r["delta"]):
+        rungs = "".join(
+            f'<span class="rung{" on" if hit else ""}">{int(abs(r) * 100)}</span>'
+            for r, hit in zip(LADDER_RUNGS, row["filled"])
+        )
+        out.append(
+            "<tr>"
+            f'<td>{row["date"].isoformat()}</td>'
+            f'<td>{row["stock_code"]} {html.escape(row["stock_name"])}</td>'
+            f'<td class="num">{row["fill_price"]:,.2f}</td>'
+            f'<td class="rungs">{rungs}</td>'
+            f'<td class="num">{row["ladder_avg"]:,.2f}</td>' if row["ladder_avg"] else '<td class="num">—</td>'
+        )
+        out[-1] += (
+            f'<td class="num">{row["mark"]:,.2f}</td>'
+            f'<td class="num {css_value_class(row["real_pnl"])}">{fmt_ntd(row["real_pnl"], sign=True)}</td>'
+            f'<td class="num {css_value_class(row["ladder_pnl"])}">{fmt_ntd(row["ladder_pnl"], sign=True)}</td>'
+            f'<td class="num">{fmt_ntd(row["idle_cash"])}</td>'
+            f'<td class="num {css_value_class(row["delta"])}"><b>{fmt_ntd(row["delta"], sign=True)}</b></td>'
+            "</tr>"
+        )
+    if not out:
+        return '<tr><td colspan="10" class="neutral">尚無成交後滿 5 個交易日的買進可比對。</td></tr>'
+    out.append(
+        '<tr style="border-top:2px solid var(--line)"><td colspan="6"><b>合計</b>'
+        f'<br><small>{cf["n"]} 筆；三檔全成交 {cf["fully_filled"]}，只成交第一檔 {cf["only_first"]}</small></td>'
+        f'<td class="num {css_value_class(cf["real_pnl"])}"><b>{fmt_ntd(cf["real_pnl"], sign=True)}</b></td>'
+        f'<td class="num {css_value_class(cf["ladder_pnl"])}"><b>{fmt_ntd(cf["ladder_pnl"], sign=True)}</b></td>'
+        f'<td class="num">{fmt_ntd(cf["idle_cash"])}</td>'
+        f'<td class="num {css_value_class(cf["delta"])}"><b>{fmt_ntd(cf["delta"], sign=True)}</b></td></tr>'
+    )
+    return "".join(out)
+
+
+def _ohlc_from_csv(path: Path) -> dict[str, list[dict[str, Any]]]:
+    """Per-stock OHLC bars, ascending by date, straight from price_history."""
+    out: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for raw in read_csv(path):
+        code = raw["stock_code"].strip()
+        try:
+            out[code].append(
+                {
+                    "date": parse_date(raw["asof_date"]),
+                    "open": float(raw["open"]),
+                    "high": float(raw["high"]),
+                    "low": float(raw["low"]),
+                    "close": float(raw["close"]),
+                }
+            )
+        except (KeyError, ValueError):
+            continue
+    return {code: sorted(bars, key=lambda b: b["date"]) for code, bars in out.items()}
+
+
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-STYLE_BLOCK = '<style>\n:root{--ink:#ecf4ef;--muted:#9eaaa5;--panel:#14231f;--panel2:#192c27;--line:#2a4039;--green:#57d3a2;--red:#ff7f7f;--gold:#f5bd58;--blue:#72a7ff;--bg:#0b1512}\n*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#18362d 0,transparent 34%),var(--bg);color:var(--ink);font-family:"Segoe UI","Noto Sans TC",sans-serif;line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:34px 24px 70px}.eyebrow{color:var(--green);font-weight:700;letter-spacing:.16em;font-size:12px;text-transform:uppercase}.hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;margin:8px 0 24px}.hero h1{font-size:clamp(34px,5vw,64px);line-height:1.02;margin:0;letter-spacing:-.04em}.hero p{max-width:560px;color:var(--muted);margin:8px 0 0}.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.badge{border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-size:12px;color:var(--muted)}.badge.good{border-color:#2c7259;color:var(--green)}.badge.warn{border-color:#745c2c;color:var(--gold)}.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.metric-card,.panel{background:linear-gradient(145deg,rgba(25,44,39,.94),rgba(17,31,27,.94));border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,.18)}.metric-card{padding:18px;min-height:132px}.metric-label{font-size:13px;color:var(--muted)}.metric-value{font-size:25px;font-weight:750;margin:10px 0 4px;white-space:nowrap}.metric-note{font-size:12px;color:var(--muted)}.positive{color:var(--green)!important}.negative{color:var(--red)!important}.neutral{color:var(--muted)!important}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.panel{padding:22px;overflow:hidden}.panel.full{grid-column:1/-1}.panel h2{font-size:20px;margin:0 0 4px}.panel .sub{color:var(--muted);font-size:13px;margin-bottom:18px}.callout{border-left:3px solid var(--gold);background:#2a2618;border-radius:8px;padding:12px 14px;color:#eadfbe;margin:16px 0}.bar-row{display:grid;grid-template-columns:150px 1fr 92px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.bar-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bar-track{height:12px;background:#0d1915;border-radius:999px;position:relative;overflow:hidden}.bar-axis{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#607169}.bar-fill{position:absolute;top:2px;bottom:2px;border-radius:999px}.bar-fill.positive{background:var(--green)}.bar-fill.negative{background:var(--red)}.bar-fill.neutral{background:#607169}.bar-value{text-align:right;font-variant-numeric:tabular-nums}.allocation-row{display:grid;grid-template-columns:150px 1fr 54px;gap:10px;align-items:center;font-size:12px;margin:8px 0}.allocation-track{height:8px;background:#0d1915;border-radius:99px;overflow:hidden}.allocation-track span{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--green));border-radius:99px}.allocation-row strong{text-align:right}.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.status-metric{background:#0f1d19;border:1px solid var(--line);border-radius:12px;padding:13px}.status-metric>div{font-size:12px}.status-metric strong{display:block;font-size:20px;margin:6px 0}.status-metric small{display:block;color:var(--muted);font-size:10px}.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px}.status-dot.ok{background:var(--green);box-shadow:0 0 10px var(--green)}.status-dot.waiting{background:var(--gold);box-shadow:0 0 10px var(--gold)}.period-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}.period-card{background:#0f1d19;border:1px solid var(--line);border-radius:14px;padding:15px}.period-card span,.period-card small{display:block;color:var(--muted);font-size:11px}.period-card b{display:block;font-size:21px;margin:7px 0}.period-bar-row{display:grid;grid-template-columns:82px 1fr 70px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.period-bar-track{height:10px;background:#0d1915;border-radius:99px;overflow:hidden}.period-bar-track i{display:block;height:100%;border-radius:99px}.period-bar-track i.positive{background:var(--green)}.period-bar-track i.negative{background:var(--red)}.period-kind{font-size:12px;color:var(--muted);margin-bottom:10px}.range-track{height:8px;background:#0d1915;border-radius:99px;position:relative;margin:4px 0 5px;border:1px solid var(--line)}.range-fill{position:absolute;top:-3px;width:3px;height:12px;background:var(--gold);border-radius:2px;box-shadow:0 0 6px var(--gold)}.mini-empty{min-height:180px;border:1px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--gold);text-align:center;padding:20px}.heat-wrap{overflow:auto}.heatmap{min-width:850px}.heatmap td{text-align:center;font-variant-numeric:tabular-nums;border:3px solid var(--panel);border-radius:7px}.heat-empty{background:#0f1d19;color:#5f6e68}.drawdown-head{display:flex;justify-content:space-between;margin-bottom:8px}.drawdown-chart{width:100%;height:auto;background:#0f1d19;border-radius:12px}.empty-chart{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}.empty-chart b{color:var(--gold)}.empty-chart p{margin:4px;max-width:540px}.empty-icon{font-size:48px;color:var(--green)}.line-chart{width:100%;height:auto;background:#0f1d19;border-radius:12px}.grid-line{stroke:#2a4039;stroke-width:1}.axis-text{fill:#899791;font-size:11px}.chart-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;color:var(--muted)}.chart-legend i{display:inline-block;width:18px;height:3px;margin-right:6px;vertical-align:middle}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:10px 8px;white-space:nowrap}td{padding:10px 8px;border-bottom:1px solid rgba(42,64,57,.55)}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}small{color:var(--muted)}.quality{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.quality article{background:#0f1d19;border-radius:12px;padding:15px;border:1px solid var(--line)}.quality b{display:block;margin-bottom:5px}.quality p{font-size:12px;color:var(--muted);margin:0}.footer{margin-top:22px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:20px}.mono{font-family:Consolas,monospace}.section-gap{margin-top:16px}@media(max-width:1050px){.metrics{grid-template-columns:repeat(3,1fr)}.period-grid{grid-template-columns:repeat(4,1fr)}.status-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.wrap{padding:22px 14px 50px}.hero{display:block}.grid{grid-template-columns:1fr}.panel.full{grid-column:auto}.metrics{grid-template-columns:repeat(2,1fr)}.period-grid{grid-template-columns:repeat(2,1fr)}.status-grid,.quality{grid-template-columns:1fr}.bar-row{grid-template-columns:100px 1fr 78px}.allocation-row{grid-template-columns:100px 1fr 48px}.metric-value{font-size:20px}}@media print{body{background:#fff;color:#111}.metric-card,.panel{box-shadow:none;background:#fff;border-color:#ccc}.metric-note,.panel .sub,small,.footer{color:#555}.positive{color:#087f5b!important}.negative{color:#c92a2a!important}}\n\ntable.timeline{min-width:0}\ntable.timeline td,table.timeline th{padding:5px 3px;border-bottom:1px solid var(--line)}\n.tl-n{min-width:120px;white-space:nowrap}\n.tl-d{text-align:center;font-size:10px;padding:4px 2px !important;color:var(--muted)}\n.tl-d span{writing-mode:vertical-rl;text-orientation:mixed}\n.tl-c{width:16px;padding:5px 2px !important}\n.tl-c::after{content:"";display:block;width:11px;height:11px;margin:0 auto;border-radius:3px;\n  background:var(--line)}\n.tl-c.on::after{background:var(--green)}\n.tl-l{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px}\n.tl-l.warn{color:var(--gold);font-weight:700}\n\n.chart-box{position:relative}\n.chart-frame{position:relative}\n.chart-legend .lg{cursor:pointer;user-select:none;transition:opacity .12s}\n.chart-legend .lg.off{opacity:.32}\n.chart-legend .lg-v{margin-left:6px;font-variant-numeric:tabular-nums;font-weight:700}\n.base-line{stroke:var(--muted);stroke-width:1.2;stroke-dasharray:5 4;opacity:.75}\n.base-tag{fill:var(--muted);font-weight:700}\n.crosshair{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3;pointer-events:none}\n.hover-dots circle{pointer-events:none}\npolyline[data-line].off{opacity:.08}\n.hit{cursor:crosshair}\n.tip{position:absolute;pointer-events:none;z-index:5;min-width:186px;\n  background:var(--panel);border:1px solid var(--line);border-radius:10px;\n  padding:9px 11px;font-size:12.5px;box-shadow:0 8px 26px rgba(0,0,0,.42)}\n.tip[hidden]{display:none}\n.tip .tip-d{font-weight:700;margin-bottom:6px;font-variant-numeric:tabular-nums;\n  padding-bottom:5px;border-bottom:1px solid var(--line)}\n.tip .tip-r{display:flex;align-items:center;gap:7px;line-height:1.75;white-space:nowrap}\n.tip .tip-r i{width:9px;height:9px;border-radius:2px;flex:none}\n.tip .tip-r .n{flex:1;overflow:hidden;text-overflow:ellipsis}\n.tip .tip-r .v{font-variant-numeric:tabular-nums;font-weight:700}\n.tip .tip-r .p{font-variant-numeric:tabular-nums;min-width:56px;text-align:right}\n.tip .up{color:var(--green)} .tip .down{color:var(--red)}\n\n.gauges{display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:12px}\n.gauge{background:var(--raise);border:1px solid var(--line);border-radius:11px;padding:14px 15px}\n.gauge.on{border-color:var(--green)}\n.g-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px}\n.g-state{font-size:11.5px;color:var(--muted);white-space:nowrap}\n.gauge.on .g-state{color:var(--green);font-weight:700}\n.g-bar{height:6px;border-radius:3px;background:var(--line);margin:9px 0 7px;overflow:hidden}\n.g-bar span{display:block;height:100%;background:var(--accent);border-radius:3px}\n.gauge.on .g-bar span{background:var(--green)}\n.g-num{font-size:12.5px;font-variant-numeric:tabular-nums;font-weight:700}\n.g-note{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:5px}\n.gap-lenses{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}\n.gap-lenses .metric-card{min-height:118px;background:#0f1d19}\n.code-chip{display:inline-block;margin:2px 4px 2px 0;padding:2px 7px;border-radius:999px;\n  border:1px solid var(--line);font-size:11px;font-family:Consolas,monospace}\n.code-chip.covered{color:var(--green);border-color:#2c7259;background:#10291f}\n.code-chip.missing{color:var(--red);border-color:#744141;background:#2b1717}\n.code-chip.stale{color:var(--gold);border-color:#745c2c;background:#292313}\n.code-chip.planned{color:var(--blue);border-color:#3e5d83;background:#142337}\n@media(max-width:1050px){.gap-lenses{grid-template-columns:repeat(2,1fr)}}\n@media(max-width:600px){.gap-lenses{grid-template-columns:1fr}}\n</style>'
+STYLE_BLOCK = '<style>\n:root{--ink:#ecf4ef;--muted:#9eaaa5;--panel:#14231f;--panel2:#192c27;--line:#2a4039;--green:#57d3a2;--red:#ff7f7f;--gold:#f5bd58;--blue:#72a7ff;--bg:#0b1512}\n*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#18362d 0,transparent 34%),var(--bg);color:var(--ink);font-family:"Segoe UI","Noto Sans TC",sans-serif;line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:34px 24px 70px}.eyebrow{color:var(--green);font-weight:700;letter-spacing:.16em;font-size:12px;text-transform:uppercase}.hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;margin:8px 0 24px}.hero h1{font-size:clamp(34px,5vw,64px);line-height:1.02;margin:0;letter-spacing:-.04em}.hero p{max-width:560px;color:var(--muted);margin:8px 0 0}.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.badge{border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-size:12px;color:var(--muted)}.badge.good{border-color:#2c7259;color:var(--green)}.badge.warn{border-color:#745c2c;color:var(--gold)}.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.metric-card,.panel{background:linear-gradient(145deg,rgba(25,44,39,.94),rgba(17,31,27,.94));border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,.18)}.metric-card{padding:18px;min-height:132px}.metric-label{font-size:13px;color:var(--muted)}.metric-value{font-size:25px;font-weight:750;margin:10px 0 4px;white-space:nowrap}.metric-note{font-size:12px;color:var(--muted)}.positive{color:var(--green)!important}.negative{color:var(--red)!important}.neutral{color:var(--muted)!important}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.panel{padding:22px;overflow:hidden}.panel.full{grid-column:1/-1}.panel h2{font-size:20px;margin:0 0 4px}.panel .sub{color:var(--muted);font-size:13px;margin-bottom:18px}.callout{border-left:3px solid var(--gold);background:#2a2618;border-radius:8px;padding:12px 14px;color:#eadfbe;margin:16px 0}.bar-row{display:grid;grid-template-columns:150px 1fr 92px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.bar-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bar-track{height:12px;background:#0d1915;border-radius:999px;position:relative;overflow:hidden}.bar-axis{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#607169}.bar-fill{position:absolute;top:2px;bottom:2px;border-radius:999px}.bar-fill.positive{background:var(--green)}.bar-fill.negative{background:var(--red)}.bar-fill.neutral{background:#607169}.bar-value{text-align:right;font-variant-numeric:tabular-nums}.allocation-row{display:grid;grid-template-columns:150px 1fr 54px;gap:10px;align-items:center;font-size:12px;margin:8px 0}.allocation-track{height:8px;background:#0d1915;border-radius:99px;overflow:hidden}.allocation-track span{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--green));border-radius:99px}.allocation-row strong{text-align:right}.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.status-metric{background:#0f1d19;border:1px solid var(--line);border-radius:12px;padding:13px}.status-metric>div{font-size:12px}.status-metric strong{display:block;font-size:20px;margin:6px 0}.status-metric small{display:block;color:var(--muted);font-size:10px}.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px}.status-dot.ok{background:var(--green);box-shadow:0 0 10px var(--green)}.status-dot.waiting{background:var(--gold);box-shadow:0 0 10px var(--gold)}.period-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}.period-card{background:#0f1d19;border:1px solid var(--line);border-radius:14px;padding:15px}.period-card span,.period-card small{display:block;color:var(--muted);font-size:11px}.period-card b{display:block;font-size:21px;margin:7px 0}.period-bar-row{display:grid;grid-template-columns:82px 1fr 70px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.period-bar-track{height:10px;background:#0d1915;border-radius:99px;overflow:hidden}.period-bar-track i{display:block;height:100%;border-radius:99px}.period-bar-track i.positive{background:var(--green)}.period-bar-track i.negative{background:var(--red)}.period-kind{font-size:12px;color:var(--muted);margin-bottom:10px}.range-track{height:8px;background:#0d1915;border-radius:99px;position:relative;margin:4px 0 5px;border:1px solid var(--line)}.range-fill{position:absolute;top:-3px;width:3px;height:12px;background:var(--gold);border-radius:2px;box-shadow:0 0 6px var(--gold)}.mini-empty{min-height:180px;border:1px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--gold);text-align:center;padding:20px}.heat-wrap{overflow:auto}.heatmap{min-width:850px}.heatmap td{text-align:center;font-variant-numeric:tabular-nums;border:3px solid var(--panel);border-radius:7px}.heat-empty{background:#0f1d19;color:#5f6e68}.drawdown-head{display:flex;justify-content:space-between;margin-bottom:8px}.drawdown-chart{width:100%;height:auto;background:#0f1d19;border-radius:12px}.empty-chart{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}.empty-chart b{color:var(--gold)}.empty-chart p{margin:4px;max-width:540px}.empty-icon{font-size:48px;color:var(--green)}.line-chart{width:100%;height:auto;background:#0f1d19;border-radius:12px}.grid-line{stroke:#2a4039;stroke-width:1}.axis-text{fill:#899791;font-size:11px}.chart-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;color:var(--muted)}.chart-legend i{display:inline-block;width:18px;height:3px;margin-right:6px;vertical-align:middle}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:10px 8px;white-space:nowrap}td{padding:10px 8px;border-bottom:1px solid rgba(42,64,57,.55)}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}small{color:var(--muted)}.quality{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.quality article{background:#0f1d19;border-radius:12px;padding:15px;border:1px solid var(--line)}.quality b{display:block;margin-bottom:5px}.quality p{font-size:12px;color:var(--muted);margin:0}.footer{margin-top:22px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:20px}.mono{font-family:Consolas,monospace}.section-gap{margin-top:16px}@media(max-width:1050px){.metrics{grid-template-columns:repeat(3,1fr)}.period-grid{grid-template-columns:repeat(4,1fr)}.status-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.wrap{padding:22px 14px 50px}.hero{display:block}.grid{grid-template-columns:1fr}.panel.full{grid-column:auto}.metrics{grid-template-columns:repeat(2,1fr)}.period-grid{grid-template-columns:repeat(2,1fr)}.status-grid,.quality{grid-template-columns:1fr}.bar-row{grid-template-columns:100px 1fr 78px}.allocation-row{grid-template-columns:100px 1fr 48px}.metric-value{font-size:20px}}@media print{body{background:#fff;color:#111}.metric-card,.panel{box-shadow:none;background:#fff;border-color:#ccc}.metric-note,.panel .sub,small,.footer{color:#555}.positive{color:#087f5b!important}.negative{color:#c92a2a!important}}\n\ntable.timeline{min-width:0}\ntable.timeline td,table.timeline th{padding:5px 3px;border-bottom:1px solid var(--line)}\n.tl-n{min-width:120px;white-space:nowrap}\n.tl-d{text-align:center;font-size:10px;padding:4px 2px !important;color:var(--muted)}\n.tl-d span{writing-mode:vertical-rl;text-orientation:mixed}\n.tl-c{width:16px;padding:5px 2px !important}\n.tl-c::after{content:"";display:block;width:11px;height:11px;margin:0 auto;border-radius:3px;\n  background:var(--line)}\n.tl-c.on::after{background:var(--green)}\n.tl-l{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px}\n.tl-l.warn{color:var(--gold);font-weight:700}\n\n.chart-box{position:relative}\n.chart-frame{position:relative}\n.chart-legend .lg{cursor:pointer;user-select:none;transition:opacity .12s}\n.chart-legend .lg.off{opacity:.32}\n.chart-legend .lg-v{margin-left:6px;font-variant-numeric:tabular-nums;font-weight:700}\n.base-line{stroke:var(--muted);stroke-width:1.2;stroke-dasharray:5 4;opacity:.75}\n.base-tag{fill:var(--muted);font-weight:700}\n.crosshair{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3;pointer-events:none}\n.hover-dots circle{pointer-events:none}\npolyline[data-line].off{opacity:.08}\n.hit{cursor:crosshair}\n.tip{position:absolute;pointer-events:none;z-index:5;min-width:186px;\n  background:var(--panel);border:1px solid var(--line);border-radius:10px;\n  padding:9px 11px;font-size:12.5px;box-shadow:0 8px 26px rgba(0,0,0,.42)}\n.tip[hidden]{display:none}\n.tip .tip-d{font-weight:700;margin-bottom:6px;font-variant-numeric:tabular-nums;\n  padding-bottom:5px;border-bottom:1px solid var(--line)}\n.tip .tip-r{display:flex;align-items:center;gap:7px;line-height:1.75;white-space:nowrap}\n.tip .tip-r i{width:9px;height:9px;border-radius:2px;flex:none}\n.tip .tip-r .n{flex:1;overflow:hidden;text-overflow:ellipsis}\n.tip .tip-r .v{font-variant-numeric:tabular-nums;font-weight:700}\n.tip .tip-r .p{font-variant-numeric:tabular-nums;min-width:56px;text-align:right}\n.tip .up{color:var(--green)} .tip .down{color:var(--red)}\n\n.gauges{display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:12px}\n.gauge{background:var(--raise);border:1px solid var(--line);border-radius:11px;padding:14px 15px}\n.gauge.on{border-color:var(--green)}\n.g-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px}\n.g-state{font-size:11.5px;color:var(--muted);white-space:nowrap}\n.gauge.on .g-state{color:var(--green);font-weight:700}\n.g-bar{height:6px;border-radius:3px;background:var(--line);margin:9px 0 7px;overflow:hidden}\n.g-bar span{display:block;height:100%;background:var(--accent);border-radius:3px}\n.gauge.on .g-bar span{background:var(--green)}\n.g-num{font-size:12.5px;font-variant-numeric:tabular-nums;font-weight:700}\n.g-note{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:5px}\n.gap-lenses{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}\n.gap-lenses .metric-card{min-height:118px;background:#0f1d19}\n.code-chip{display:inline-block;margin:2px 4px 2px 0;padding:2px 7px;border-radius:999px;\n  border:1px solid var(--line);font-size:11px;font-family:Consolas,monospace}\n.code-chip.covered{color:var(--green);border-color:#2c7259;background:#10291f}\n.code-chip.missing{color:var(--red);border-color:#744141;background:#2b1717}\n.code-chip.stale{color:var(--gold);border-color:#745c2c;background:#292313}\n.code-chip.planned{color:var(--blue);border-color:#3e5d83;background:#142337}\n@media(max-width:1050px){.gap-lenses{grid-template-columns:repeat(2,1fr)}}\n@media(max-width:600px){.gap-lenses{grid-template-columns:1fr}}\n\n.rungs{white-space:nowrap}\n.rung{display:inline-block;min-width:26px;text-align:center;font-size:11px;font-weight:700;\n  border-radius:5px;padding:2px 4px;margin-right:3px;background:var(--line);color:var(--muted)}\n.rung.on{background:var(--accent);color:#fff}\n</style>'
 
 REALIZED_TEMPLATE = '''<!doctype html>
 <html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>已實現 · 已經變現的盈虧</title>{{STYLE}}</head><body><main><section class="hero"><div><h1>已實現 · 已經變現的盈虧</h1><p>已平倉的每一筆、券商與成交簿的對帳、以及這些決策相對於策略指示的價值。這些錢已經是現金，不會再動；還在手上的部位在<a href="../">首頁</a>。</p><div class="badges"><span class="badge">估值日 {{ASOF}}</span><span class="badge">NO_BROKER · NO_ORDER</span></div></div></section>
@@ -2803,6 +2936,8 @@ def build() -> tuple[Path, dict[str, Any]]:
     )
     timeline_grid, timeline_summary = update_timeline(fills, prices)
     cost_gap_rows, cost_gap_count = cost_basis_gap_rows(fills, holdings)
+    ohlc_by_code = analytics.load_ohlc_series(PRICE_HISTORY_PATH) if hasattr(analytics, "load_ohlc_series") else _ohlc_from_csv(PRICE_HISTORY_PATH)
+    ladder_cf = ladder_counterfactual(fills, prices, ohlc_by_code, actual_asof)
     signal_day_count = len({
         row["asof_date"]
         for row in (read_csv(SIGNAL_HISTORY_PATH) if SIGNAL_HISTORY_PATH.exists() else [])
@@ -3020,6 +3155,11 @@ polyline[data-line].off{opacity:.08}
 .code-chip.planned{color:var(--blue);border-color:#3e5d83;background:#142337}
 @media(max-width:1050px){.gap-lenses{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:600px){.gap-lenses{grid-template-columns:1fr}}
+
+.rungs{white-space:nowrap}
+.rung{display:inline-block;min-width:26px;text-align:center;font-size:11px;font-weight:700;
+  border-radius:5px;padding:2px 4px;margin-right:3px;background:var(--line);color:var(--muted)}
+.rung.on{background:var(--accent);color:#fff}
 </style>
 <style>
 .badges a{text-decoration:none}
@@ -3036,6 +3176,7 @@ polyline[data-line].off{opacity:.08}
 <article class="panel full" id="today" style="border-color:var(--accent)"><h2 style="color:var(--accent)">今天要的進出 · {{PLANNED_DATE}}</h2><div class="sub">你的策略卡對這個交易日開出的動作，只列<b>還需要決定</b>的：「出」只列仍持有的，「進」只列整戶零部位的，括號部位依指示排除。這裡只回報系統說了什麼、帳戶做了什麼 —— 要不要執行、幾塊錢，是你的決定。完整的價格分布與掛單落點在 <a href="prep/">備戰頁</a>；已經變現的盈虧全部搬到 <a href="realized/">已實現頁</a>。</div><div class="table-wrap"><table><thead><tr><th>訊號日</th><th>策略</th><th>股票</th><th>動作</th><th>生效日</th><th>目前狀態</th></tr></thead><tbody>{{UNEXECUTED_SIGNALS}}</tbody></table></div></article>
 <article class="panel full"><h2>最新四策略卡 · {{SIGNAL_ASOF}} 收盤</h2><div class="sub">來源圖逐列保存。紅／綠方向已轉成帶正負號報酬；{{PLANNED_DATE}} 的「進／出」是計畫訊號，不是成交。</div><div class="strategy-card-grid">{{LATEST_SIGNAL_CARDS}}</div></article>
 <article class="panel full"><h2>{{PLANNED_DATE}} 計畫進出 · 等待實際成交</h2><div class="sub">沒有成交時間、價格、股數與費稅前，不寫入 actual_fills.csv，也不改實際績效曲線。</div>{{PLANNED_SIGNALS}}</article>
+<article class="panel full"><h2>「順著買低」反事實 · 用你自己的成交驗證</h2><div class="sub">你的觀察是：買了之後常常還有更低價。這裡不是替你決定要不要分批，是把這個假設<b>放回已經發生的價格裡跑一遍</b>。每一筆真實買進，同一筆錢拆三等份：成交價、成交價 −2%、成交價 −4%；下面兩檔只有在<b>成交日起 5 個交易日內最低價碰到</b>才算成交，沒碰到那份錢就留著。然後兩邊都用最新收盤估值，扣同一套出場費稅。<br><b>三個誠實的但書：</b>① 碰到價位不等於成交（3624 在 9/10 就是站在 100.00 地板上沒買到），所以這張表偏樂觀；② 價格沒跌下來時階梯買得比較少，損益是算在較小的部位上，所以「留著的現金」欄一起列；③ 31 筆是小樣本，−2%／−4% 是隨手定的參數，換一組數字答案會不一樣 —— 參數寫出來是為了讓你可以爭論它，不是要你相信它。<br>這張表<b>不會產生任何委託</b>。要不要分批、分幾批、掛哪裡，是你的決定。</div><div class="table-wrap"><table><thead><tr><th>買進日</th><th>股票</th><th class="num">實際成交</th><th>階梯成交 (%↓)</th><th class="num">階梯均價</th><th class="num">最新收盤</th><th class="num">實際損益</th><th class="num">階梯損益</th><th class="num">留著的現金</th><th class="num">差</th></tr></thead><tbody>{{LADDER_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>訊號 → 成交 · 履約落差帳</h2><div class="sub">策略卡報的是訊號價，帳戶付的是成交價，中間的差就是「這個策略能不能被執行」的全部答案。正的 bp 代表對自己不利。累積夠多筆之後，才知道策略卡報酬要打幾折。</div>{{SLIPPAGE_TABLE}}</article>
 <article class="panel full"><h2>四策略實際績效 · 累積曲線</h2><div class="sub">每個 sleeve 以 NT$50 萬現金起始，用實際成交、費稅、已實現損益與每日可變現價值重建；合計初始資金 NT$200 萬。</div>{{LINE_CHART}}</article>
 <article class="panel full"><h2>四策略理論卡 · 來源顯示曲線</h2><div class="sub">這是 owner 策略卡的「當日持倉成分等權顯示報酬」，不是可投資 NAV，也不將每日百分比複利串接。資料只到 {{THEORY_ASOF}}。</div>{{THEORY_CHART}}</article>
@@ -3218,6 +3359,7 @@ polyline[data-line].off{opacity:.08}
         "{{UNEXECUTED_SIGNALS}}": unexecuted_signals(fills, holdings),
         "{{DISCIPLINE_CARDS}}": discipline_cards(discipline),
         "{{DISCIPLINE_ROWS}}": discipline_rows(discipline),
+        "{{LADDER_ROWS}}": ladder_table(ladder_cf),
         "{{COST_GAP_ROWS}}": cost_gap_rows,
         "{{UPDATE_TIMELINE}}": timeline_grid,
         "{{TIMELINE_SUMMARY}}": timeline_summary,
