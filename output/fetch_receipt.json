@@ -3,54 +3,29 @@
   "latest_session": "2026-09-10",
   "missing_at_latest_session": [],
   "missing_at_latest_session_watchlist_only": [],
-  "fetched_at": "2026-09-11T00:16:28+08:00",
+  "fetched_at": "2026-09-11T09:37:34+08:00",
   "window": {
-    "start": "2026-03-01",
-    "end": "2026-09-10"
+    "start": "2026-09-01",
+    "end": "2026-09-11"
   },
-  "requested_symbols": 7,
-  "price_rows_total": 8535,
-  "price_rows_added_or_refreshed": 938,
+  "requested_symbols": 2,
+  "price_rows_total": 8537,
+  "price_rows_added_or_refreshed": 16,
   "trading_days": 255,
   "coverage": {
     "first": "2025-08-25",
     "last": "2026-09-10"
   },
   "per_symbol": {
-    "1303": {
-      "rows": 134,
+    "2886": {
+      "rows": 8,
       "market": "TWSE",
-      "name": "南亞"
+      "name": "兆豐金"
     },
-    "3374": {
-      "rows": 134,
-      "market": "TPEX",
-      "name": "精材"
-    },
-    "3380": {
-      "rows": 134,
+    "3055": {
+      "rows": 8,
       "market": "TWSE",
-      "name": "明泰"
-    },
-    "6179": {
-      "rows": 134,
-      "market": "TPEX",
-      "name": "亞通"
-    },
-    "6218": {
-      "rows": 134,
-      "market": "TPEX",
-      "name": "豪勉"
-    },
-    "6416": {
-      "rows": 134,
-      "market": "TWSE",
-      "name": "瑞祺電通"
-    },
-    "6426": {
-      "rows": 134,
-      "market": "TWSE",
-      "name": "統新"
+      "name": "蔚華科"
     }
   },
   "benchmark_rows": 510,

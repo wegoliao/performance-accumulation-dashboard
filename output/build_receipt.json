@@ -1,18 +1,18 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-09-11T00:18:23+08:00",
-  "source_data_asof": "2026-09-08",
+  "generated_at": "2026-09-11T09:39:12+08:00",
+  "source_data_asof": "2026-09-11",
   "actual_valuation_asof": "2026-09-10",
   "source_capture_time": null,
   "source_status": "USER_PASTED_INTRADAY_SNAPSHOT",
   "snapshot_reconciliation": "PASS",
   "inputs": {
-    "holdings_snapshot_2026-09-08.csv": {
-      "sha256": "7f63652f49dc6149f81334c5da129bdce7396c39d728ff06ed91aa6b6e7509d0",
-      "rows": 12
+    "holdings_snapshot_2026-09-11.csv": {
+      "sha256": "c831daf453ee1a1fb0740f063b01398be6b635592641fcad7c2514a3138c5772",
+      "rows": 14
     },
-    "snapshot_summary_2026-09-08.csv": {
-      "sha256": "1335dfe862e884f9e1dd9615b211b77544ee4b9672577ddadf1ee85ace95cdb0",
+    "snapshot_summary_2026-09-11.csv": {
+      "sha256": "f75f83c59fcec026ccd003cc3512796385c9b8d0404750eefb631c71fcfad680",
       "rows": 1
     },
     "account_nav.csv": {
@@ -45,24 +45,24 @@
     }
   },
   "snapshot": {
-    "shares": 14582.0,
-    "yesterday_shares": 14081.0,
-    "current_value_twd": 904211.0,
-    "cost_basis_twd": 942379.0,
-    "unrealized_pnl_twd": -38168.0,
-    "positions": 12,
-    "unrealized_return": -0.04050175141848449,
-    "estimated_daily_price_contribution_twd": -26459.100000000002,
-    "estimated_gross_daily_return": -0.028308351558034045,
-    "gross_current_mark_value_twd": 908215.6,
-    "gross_previous_mark_value_twd": 934674.7,
-    "max_weight": 0.12931826752826497,
-    "hhi": 0.09106105890196985,
-    "effective_positions": 10.981642560038008,
-    "winning_positions": 3,
-    "losing_positions": 9,
-    "winning_position_ratio": 0.25,
-    "source_subtotal_return": -0.0405,
+    "shares": 15583.0,
+    "yesterday_shares": 15583.0,
+    "current_value_twd": 1026780.0,
+    "cost_basis_twd": 1089419.0,
+    "unrealized_pnl_twd": -62639.0,
+    "positions": 14,
+    "unrealized_return": -0.05749762029118273,
+    "estimated_daily_price_contribution_twd": -10512.850000000002,
+    "estimated_gross_daily_return": -0.009841235843953012,
+    "gross_current_mark_value_twd": 1057732.05,
+    "gross_previous_mark_value_twd": 1068244.9000000001,
+    "max_weight": 0.12953797308089368,
+    "hhi": 0.08535564260826119,
+    "effective_positions": 11.715687088075587,
+    "winning_positions": 4,
+    "losing_positions": 10,
+    "winning_position_ratio": 0.2857142857142857,
+    "source_subtotal_return": -0.0575,
     "reconciliation": "PASS"
   },
   "history": {
@@ -444,7 +444,7 @@
         }
       },
       "reconciliation": "PASS",
-      "reconciled_asof": "2026-09-08",
+      "reconciled_asof": "2026-09-11",
       "post_snapshot_positions": {},
       "unassigned": {},
       "last_fill_date": "2026-09-08",

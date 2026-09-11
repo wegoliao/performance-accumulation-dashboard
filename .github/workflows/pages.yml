@@ -10,6 +10,7 @@ on:
       - claude/**
       - mainline2/**
       - prep/**
+      - realized/**
       - .github/workflows/pages.yml
   # Commits pushed with GITHUB_TOKEN (the daily-close bot) do not trigger
   # `push` events, so re-deploy explicitly when that workflow succeeds.
@@ -47,6 +48,8 @@ jobs:
           cp mainline2/index.html _site/mainline2/index.html
           mkdir -p _site/prep
           cp prep/index.html _site/prep/index.html
+          mkdir -p _site/realized
+          cp realized/index.html _site/realized/index.html
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:

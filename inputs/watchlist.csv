@@ -31,3 +31,4 @@ stock_code,stock_name,strategy_id,track,market,note
 6426,統新,YOY,PLANNED_ENTRY,TWSE,2026-09-10 YOY 卡進場訊號
 3380,明泰,MARGIN,PLANNED_ENTRY,TWSE,2026-09-10 融資卡進場訊號
 6218,豪勉,BREAKOUT,PLANNED_ENTRY,TPEX,2026-09-10 突破卡進場訊號
+2886,兆豐金,NONE,OWNER_EXCLUDED,TWSE,1 股測試部位；owner 2026-09-11 指示不計入；保留行情供快照對帳

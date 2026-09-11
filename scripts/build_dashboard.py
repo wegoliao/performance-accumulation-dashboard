@@ -29,6 +29,17 @@ import strategy_gap  # noqa: E402
 
 TRADING_DAYS = 252
 UNASSIGNED_CODE = "2886"
+# Categories the broker reports that are not long strategy positions. A short
+# sale (融券) is in the account and in the broker's subtotal, so the snapshot
+# must carry it to reconcile -- but it belongs to no sleeve.
+NON_STRATEGY_CATEGORIES = {"融券"}
+
+
+def in_strategy_scope(row: dict[str, Any]) -> bool:
+    """A snapshot row that the four-strategy sleeves are allowed to own."""
+    if row["stock_code"].strip() == UNASSIGNED_CODE:
+        return False
+    return (row.get("category") or "").strip() not in NON_STRATEGY_CATEGORIES
 MIN_RISK_RETURN_OBS = 20
 ROLLING_WINDOW = analytics.ROLLING_WINDOW
 ROOT = Path(__file__).resolve().parents[1]
@@ -741,7 +752,7 @@ def build_four_strategy_actual(
     expected = {
         row["stock_code"]: row["shares"]
         for row in holdings
-        if row["stock_code"] != "2886"
+        if in_strategy_scope(row)
     }
     # The owner snapshot is a point in time. A fill executed after it cannot be
     # reconciled against it yet, so replay the book only up to the snapshot date
@@ -791,7 +802,7 @@ def build_four_strategy_actual(
     source_active_cost = sum(
         row["cost_basis_twd"]
         for row in holdings
-        if row["stock_code"] != "2886"
+        if in_strategy_scope(row)
     )
     diagnostics["active_fill_cash_out_twd"] = active_fill_cash_out
     diagnostics["source_active_cost_ex_unassigned_twd"] = source_active_cost
@@ -2515,340 +2526,6 @@ def position_health(
 
 
 
-def tactical_playbook(
-    fills: list[dict[str, Any]],
-    holdings: list[dict[str, Any]],
-    prices: dict[str, list[tuple[date, float]]],
-    discipline: dict[str, Any],
-) -> str:
-    """Tactical playbook: opportunistic dip-buying, conservative early exits, and historical context log."""
-    disc_val = discipline["discretionary_realized"] - discipline["strategy_open_pnl"]
-    cards = f"""<div class="metrics" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
-<article class="metric-card"><div class="metric-label">撿漏代表作 · 3231 緯創</div><div class="metric-value positive">-777 bp</div><div class="metric-note">09/08 趁急殺以 184.00 買進（卡片價 199.50，折價 7.6%），當日大盤重挫該檔逆勢收紅</div></article>
-<article class="metric-card"><div class="metric-label">保守避險價值 · 提早落袋</div><div class="metric-value positive">NT$ {fmt_ntd(disc_val, sign=True)}</div><div class="metric-note">09-04~09-07 自主賣出光寶科、川湖、研華、和益；實收比抱到今日多留住將近 3 萬現金</div></article>
-<article class="metric-card"><div class="metric-label">9/10 換現潛能 · 長興出清+亞德客砍半</div><div class="metric-value positive">NT$ 13.2 萬</div><div class="metric-note">換取 13.2 萬純現金可避免 -NT$ 5,069 預期失血，保留 100% 流動性佈局 9/10 後正 EV 標的</div></article>
-<article class="metric-card"><div class="metric-label">防禦現金水位 · 拒絕盲目滿倉</div><div class="metric-value ">52.88%</div><div class="metric-note">現金約 NT$ 105.8 萬；高現金儲備使全戶 MDD 僅 -1.94%，大幅優於大盤與個股劇震</div></article>
-</div>"""
-
-    guides = """<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
-<div style="background:#0f1d19;border:1px solid #2c7259;border-radius:12px;padding:16px">
-<b style="color:var(--green);font-size:15px">🎯 撿漏型機會（Opportunistic Dip-Buying）戰術指引</b>
-<ul style="margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--ink);line-height:1.6">
-<li><b>適用時空背景</b>：大盤急殺拉回、個股隨大盤遭非理性拋售，但策略卡評級仍在「抱」或強勢名單。</li>
-<li><b>最佳化掛單</b>：<b>絕不市價追買</b>。開盤後觀察 15~30 分鐘，將限價單掛在卡片進場價或開盤價下方 2%~5%（-200 bp ~ -500 bp）的支撐區等待甩轎。</li>
-<li><b>實戰驗證</b>：09/08 緯創在 184.00 撿漏成交（卡片 199.50），落點僅在當日區間 23% 低檔，直接建立 7.6% 的超厚安全邊際。</li>
-</ul>
-</div>
-<div style="background:#0f1d19;border:1px solid #745c2c;border-radius:12px;padding:16px">
-<b style="color:var(--gold);font-size:15px">🛡️ 保守型防禦（Conservative Early Exit）戰術指引</b>
-<ul style="margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--ink);line-height:1.6">
-<li><b>適用時空背景</b>：個股急拉大漲脫離均線、短線乖離過大，或大盤出現盤頭走弱、跌破重要支撐訊號。</li>
-<li><b>最佳化掛單</b>：策略日線卡片通常有 T+1 延遲（需等收盤確認跌破，次日才出訊號）。在急拉或動能鈍化時，<b>主動分批掛高限價停利</b>，落袋為安。</li>
-<li><b>實戰驗證</b>：09/04 在 308.5~309.5 賣出 2301 光寶科、在 13,480 賣出 2059 川湖、在 717 賣出 2395 研華，完全避開隨後 5%~10% 的回檔。</li>
-</ul>
-</div>
-</div>"""
-
-    inventory_ev_table = """<div style="background:#0f1d19;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:20px">
-<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-  <b style="color:var(--accent);font-size:16px">📊 9/10 營收大限換股前夕 · 庫存 12 檔 EV 期望值與處置決策矩陣</b>
-  <span style="font-size:12px;color:var(--muted)">評估基礎：2026-09-08 收盤價 · 營收揭牌前夕離散情境機率模型</span>
-</div>
-<div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px">
-每月 10 號是台股 8 月營收揭牌大限，法人與量化資金將在 9/9～9/11 發動強烈換股。換股前夕<b>「抱著負 EV 且無卡片保護的股票是最大風險」</b>。我們以情境機率運算每檔持股的期望值（EV % 與 NT$ 預期損益），明確劃分處置戰術：
-</div>
-<div class="table-wrap">
-<table>
-<thead>
-  <tr>
-    <th>處置分組</th>
-    <th>股票代號/名稱</th>
-    <th class="num">成本均價</th>
-    <th class="num">09/08 現價</th>
-    <th class="num">未實現損益</th>
-    <th>策略卡狀態</th>
-    <th class="num">EV 期望值 (%)</th>
-    <th class="num">預期損益貢獻</th>
-    <th>9/10 換股建議戰術</th>
-    <th class="num">關鍵防守/停利點</th>
-  </tr>
-</thead>
-<tbody>
-  <tr style="background:rgba(248,81,73,.07)">
-    <td><span style="background:rgba(248,81,73,.2);color:var(--red);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">急迫斷捨離</span></td>
-    <td><b>1717 長興</b></td>
-    <td class="num mono">40.75</td>
-    <td class="num mono">35.85</td>
-    <td class="num negative">-11,899 (-12.0%)</td>
-    <td><span class="code-chip missing">⚠️ 孤兒除名</span></td>
-    <td class="num negative" style="font-weight:700">-3.97%</td>
-    <td class="num negative">-3,470 元</td>
-    <td><b>【孤兒斷捨離 / 市價全清】</b>連2日離卡，出清換回 8.7 萬現金</td>
-    <td class="num mono">—</td>
-  </tr>
-  <tr style="background:rgba(248,81,73,.07)">
-    <td><span style="background:rgba(248,81,73,.2);color:var(--red);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">急迫斷捨離</span></td>
-    <td><b>1590 亞德客-KY</b></td>
-    <td class="num mono">967.60</td>
-    <td class="num mono">836.60</td>
-    <td class="num negative">-13,108 (-13.5%)</td>
-    <td><span class="code-chip missing">⚠️ 破底回撤</span></td>
-    <td class="num negative" style="font-weight:700">-1.90%</td>
-    <td class="num negative">-1,599 元</td>
-    <td><b>【破線減損 50%~66%】</b>賣出 50~70 股零股，釋放 4.2~5.8 萬現金</td>
-    <td class="num mono">820.00</td>
-  </tr>
-  <tr style="background:rgba(248,81,73,.04)">
-    <td><span style="background:rgba(248,81,73,.15);color:var(--red);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">營收前防守</span></td>
-    <td><b>2397 友通</b></td>
-    <td class="num mono">68.60</td>
-    <td class="num mono">62.27</td>
-    <td class="num negative">-6,328 (-9.2%)</td>
-    <td><span class="code-chip stale">弱勢整理</span></td>
-    <td class="num negative" style="font-weight:700">-1.11%</td>
-    <td class="num negative">-693 元</td>
-    <td><b>【防守減碼】</b>YOY動能鈍化，反彈優先調節，守住硬停損</td>
-    <td class="num mono">58.00</td>
-  </tr>
-  <tr style="background:rgba(248,81,73,.04)">
-    <td><span style="background:rgba(248,81,73,.15);color:var(--red);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">營收前防守</span></td>
-    <td><b>2103 台橡</b></td>
-    <td class="num mono">28.70</td>
-    <td class="num mono">26.51</td>
-    <td class="num negative">-5,474 (-7.6%)</td>
-    <td><span class="code-chip stale">週期鈍化</span></td>
-    <td class="num negative" style="font-weight:700">-1.02%</td>
-    <td class="num negative">-680 元</td>
-    <td><b>【週期防守停損】</b>傳產循環弱勢，破 25 元無條件撤出</td>
-    <td class="num mono">25.00</td>
-  </tr>
-  <tr>
-    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
-    <td><b>3231 緯創</b></td>
-    <td class="num mono">185.08</td>
-    <td class="num mono">186.50</td>
-    <td class="num positive">+708 (+0.8%)</td>
-    <td><span class="code-chip covered">投信 · 抱</span></td>
-    <td class="num positive" style="font-weight:700">+2.72%</td>
-    <td class="num positive">+2,545 元</td>
-    <td><b>【強勢抱牢 / 移動停利】</b>撿漏折價 -777 bp，目標看回 199.50</td>
-    <td class="num mono">184.00</td>
-  </tr>
-  <tr>
-    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
-    <td><b>2489 瑞軒</b></td>
-    <td class="num mono">21.40</td>
-    <td class="num mono">21.06</td>
-    <td class="num negative">-1,888 (-1.6%)</td>
-    <td><span class="code-chip covered">融資 · 抱</span></td>
-    <td class="num positive" style="font-weight:700">+2.01%</td>
-    <td class="num positive">+2,363 元</td>
-    <td><b>【區間抱牢】</b>均線收斂貼近成本，耐心等待營收動能推升</td>
-    <td class="num mono">20.00</td>
-  </tr>
-  <tr>
-    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
-    <td><b>2637 慧洋-KY</b></td>
-    <td class="num mono">64.90</td>
-    <td class="num mono">64.72</td>
-    <td class="num negative">-183 (-0.3%)</td>
-    <td><span class="code-chip covered">投信 · 抱</span></td>
-    <td class="num positive" style="font-weight:700">+0.89%</td>
-    <td class="num positive">+578 元</td>
-    <td><b>【紀律續抱】</b>散裝動能平穩，貼近成本區間整理</td>
-    <td class="num mono">62.50</td>
-  </tr>
-  <tr>
-    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
-    <td><b>2609 陽明</b></td>
-    <td class="num mono">52.80</td>
-    <td class="num mono">55.00</td>
-    <td class="num positive">+2,271 (+4.2%)</td>
-    <td><span class="code-chip covered">YOY · 抱</span></td>
-    <td class="num positive" style="font-weight:700">+0.83%</td>
-    <td class="num positive">+473 元</td>
-    <td><b>【保本停利線拉至 55.00】</b>已有獲利墊底，絕不讓賺錢單翻黑</td>
-    <td class="num mono">55.00</td>
-  </tr>
-  <tr>
-    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
-    <td><b>2354 鴻準</b></td>
-    <td class="num mono">61.70</td>
-    <td class="num mono">63.00</td>
-    <td class="num positive">+1,304 (+2.1%)</td>
-    <td><span class="code-chip covered">融資 · 抱</span></td>
-    <td class="num positive" style="font-weight:700">+0.72%</td>
-    <td class="num positive">+445 元</td>
-    <td><b>【移動停利 63.00】</b>守住成本之上，跟隨集團題材滾動推進</td>
-    <td class="num mono">63.00</td>
-  </tr>
-  <tr>
-    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
-    <td><b>6727 亞泰金屬</b></td>
-    <td class="num mono">128.50</td>
-    <td class="num mono">128.00</td>
-    <td class="num negative">-486 (-0.4%)</td>
-    <td><span class="code-chip covered">融資 · 抱</span></td>
-    <td class="num positive" style="font-weight:700">+0.70%</td>
-    <td class="num positive">+897 元</td>
-    <td><b>【紀律續抱】</b>橫盤打底無爆量拋售，卡片維持持股指令</td>
-    <td class="num mono">124.00</td>
-  </tr>
-  <tr>
-    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
-    <td><b>1712 興農</b></td>
-    <td class="num mono">56.60</td>
-    <td class="num mono">56.50</td>
-    <td class="num negative">-98 (-0.2%)</td>
-    <td><span class="code-chip covered">YOY · 抱</span></td>
-    <td class="num positive" style="font-weight:700">+0.43%</td>
-    <td class="num positive">+244 元</td>
-    <td><b>【紀律續抱】</b>防禦性持股，波動平穩無失控風險</td>
-    <td class="num mono">54.50</td>
-  </tr>
-  <tr>
-    <td><span style="background:rgba(63,185,80,.15);color:var(--green);padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">正 EV 抱牢</span></td>
-    <td><b>6108 競國</b></td>
-    <td class="num mono">23.65</td>
-    <td class="num mono">22.35</td>
-    <td class="num negative">-1,807 (-5.5%)</td>
-    <td><span class="code-chip covered">融資 · 抱</span></td>
-    <td class="num positive" style="font-weight:700">+0.23%</td>
-    <td class="num positive">+75 元</td>
-    <td><b>【震盪防守觀察】</b>微幅正期望值，設 22.00 硬停損守護</td>
-    <td class="num mono">22.00</td>
-  </tr>
-</tbody>
-</table>
-</div>
-</div>"""
-
-    dip_candidates_section = """<div style="background:#0f1d19;border:1px solid #2c7259;border-radius:14px;padding:18px;margin-bottom:20px">
-<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-  <b style="color:var(--green);font-size:16px">🎯 9/10 換股期 · 「倒可以補（拉回撿漏）」候選池 (Mainline 2 精選量化 EV)</b>
-  <span style="font-size:12px;color:var(--muted)">篩選標準：卡片評級仍為「抱」+ 實質負價差折價（-5%~-8%）+ 鄰近成交量 POC 支撐</span>
-</div>
-<div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px">
-實戰中「倒可以補」必須嚴格區分「高勝率撿漏」與「破線接刀」。只有<b>卡片邏輯完好（評級仍為抱）且回測至半年最大量成交峰（POC）</b>的標的，才具備正期望值：
-</div>
-<div class="table-wrap">
-<table>
-<thead>
-  <tr>
-    <th>候選標的</th>
-    <th>所屬策略卡</th>
-    <th class="num">卡片進場價</th>
-    <th class="num">09/08 收盤價</th>
-    <th class="num">折價幅度 (撿漏空間)</th>
-    <th class="num">籌碼 POC 支撐</th>
-    <th class="num">目標價 / 防守點</th>
-    <th class="num">每 5 萬部位 EV 期望值</th>
-    <th>撿漏時空背景與實戰策略分析</th>
-  </tr>
-</thead>
-<tbody>
-  <tr>
-    <td><b>6603 富強鑫</b></td>
-    <td><span class="code-chip covered">融資強勢卡 · 抱</span></td>
-    <td class="num mono">27.00</td>
-    <td class="num mono" style="font-weight:700;color:var(--green)">24.95</td>
-    <td class="num mono positive" style="font-weight:700">-7.59% (-2.05元)</td>
-    <td class="num mono">25.46</td>
-    <td class="num mono">目標 27.0 / 防守 23.8</td>
-    <td class="num positive" style="font-weight:700">+2.25% (+NT$ 1,125)</td>
-    <td>股價自卡片價回測至 POC（25.46）下方沉澱，融資多頭結構未散，提供厚實安全邊際</td>
-  </tr>
-  <tr>
-    <td><b>3046 建碁</b></td>
-    <td><span class="code-chip covered">融資強勢卡 · 抱</span></td>
-    <td class="num mono">57.70</td>
-    <td class="num mono" style="font-weight:700;color:var(--green)">54.00</td>
-    <td class="num mono positive" style="font-weight:700">-6.41% (-3.70元)</td>
-    <td class="num mono">57.73</td>
-    <td class="num mono">目標 58.0 / 防守 51.5</td>
-    <td class="num positive" style="font-weight:700">+2.01% (+NT$ 1,006)</td>
-    <td>折價達 6.4%，回測 POC 附近量縮整理，卡片評級維持「抱」，下檔支撐明確</td>
-  </tr>
-  <tr>
-    <td><b>3231 緯創</b></td>
-    <td><span class="code-chip covered">投信領航卡 · 抱</span></td>
-    <td class="num mono">199.50</td>
-    <td class="num mono" style="font-weight:700;color:var(--green)">186.50</td>
-    <td class="num mono positive" style="font-weight:700">-6.52% (-13.00元)</td>
-    <td class="num mono">185.00</td>
-    <td class="num mono">目標 199.5 / 防守 181.0</td>
-    <td class="num positive" style="font-weight:700">+2.62% (+NT$ 1,311)</td>
-    <td>庫存已持有且具 -777 bp 優勢；09/08 急殺逆勢收紅，若後續拉回 184~186 仍為正 EV 補倉點</td>
-  </tr>
-</tbody>
-</table>
-</div>
-<div style="margin-top:12px;padding:10px 14px;background:rgba(248,81,73,.1);border:1px solid #744141;border-radius:8px;font-size:12.5px;color:var(--ink)">
-  <b style="color:var(--red)">⚠️ 嚴正避雷提示（嚴禁接刀）：</b>09/08 突破卡上的 <b>2474 可成、2630 亞航、6243 迅杰、6456 GIS-KY、6919 康霈*</b> 雖然跌幅很深，但卡片狀態全部顯示為 <b>(出)</b>！這代表策略模型判定技術結構已正式破壞，期望值為負，屬於「破線接刀」而非撿漏，<b>切勿逢低加碼補倉</b>。
-</div>
-</div>"""
-
-    cash_and_checklist = """<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
-<div style="background:#0f1d19;border:1px solid #3e5d83;border-radius:12px;padding:16px">
-<b style="color:var(--accent);font-size:15px">💰 9/10 前夕「以現金為王」的期權價值與 EV 增益</b>
-<ul style="margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--ink);line-height:1.6">
-<li><b>釋放資金量能</b>：若出清 1717 長興（回收 8.7 萬）並減碼 1590 亞德客 50%（回收 4.5 萬），將立即收回 <b>約 NT$ 13.2 萬純現金</b>。</li>
-<li><b>避免預期失血</b>：長興與亞德客合計預期 EV 損益為 <b>-NT$ 5,069 (-3.84%)</b>。換成現金，虧損風險直接歸零，保留 100% 機動流動性。</li>
-<li><b>換入正 EV 標的</b>：將 13.2 萬現金在 9/10 營收發布後佈局正 EV 撿漏股（預期 EV 約 +2.2%），預期可增益 <b>+NT$ 2,900</b>。</li>
-<li><b>總期望值逆轉（EV Delta）</b>：一來一回的總期望值淨提升高達 <b>+NT$ 7,969（提升約 +6.04%）</b>！</li>
-</ul>
-</div>
-<div style="background:#0f1d19;border:1px solid #745c2c;border-radius:12px;padding:16px">
-<b style="color:var(--gold);font-size:15px">📋 明日（09/09）盤前實戰行動指引（Checklist）</b>
-<ol style="margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--ink);line-height:1.6">
-<li><b>【果斷清理孤兒】</b>：開盤前 15 分鐘市價出清 <b>1717 長興</b>，徹底終結失聯因子孤兒風險。</li>
-<li><b>【止血減損亞德客】</b>：掛價或分批出脫 <b>1590 亞德客-KY 50%~66%</b>（賣出 50~70 股零股），遏止高價股回撤擴大。</li>
-<li><b>【設妥保本停利線】</b>：<b>3231 緯創</b> 移動停利設在 184.00；<b>2609 陽明</b> 保本線拉至 55.00；<b>2354 鴻準</b> 移動停利 63.00。</li>
-<li><b>【撿漏試單節奏】</b>：釋出之現金不急於打滿，鎖定 <b>6603 富強鑫（24.5~25.0）</b> 與 <b>3046 建碁（53.0~54.0）</b>，採 1/3 部位試單，待營收揭曉後加碼。</li>
-</ol>
-</div>
-</div>"""
-
-    hist_cases = [
-        ("2026-09-08", "3231 緯創", "買進 501 股", "撿漏低接", "184.00", "199.50", "-777 bp", "大盤重挫 AI 股早盤急殺，不追高改採限價低接，成交在當日區間 23% 低檔", "+0.77%", "positive", "當日大盤大跌但該部位逆勢獲利，建立厚實安全邊際"),
-        ("2026-09-07", "2408 南亞科", "賣出 198 股", "保守鎖利", "517.00", "489.00", "—", "波段獲利 +7.75%，趁大盤反彈力道減弱前果斷平倉", "+7,334 元", "positive", "已實現 +7,334 元，次日南亞科微漲至 531（保守防禦成本 -2,760 元）"),
-        ("2026-09-07", "3006 晶豪科", "賣出 257 股", "保守鎖利", "297.50", "274.00", "—", "持有 27 天獲利達 10.36%，盤中觸及高檔先行獲利了結", "+7,146 元", "positive", "已實現 +7,146 元，09/08 收 298.5，幾近賣在最高點"),
-        ("2026-09-07", "1709 和益", "賣出 949 股", "保守鎖利", "34.00", "27.40", "—", "突破與融資雙部位獲利了結，化工短線動能趨緩", "+5,082 元", "positive", "已實現 +5,082 元，09/08 跌至 33.60，多守住 +377 元利潤"),
-        ("2026-09-04", "2301 光寶科", "賣出 626 股", "保守頂峰出場", "308.5~309.5", "268.0", "—", "股價飆破 300 元進入超買區，卡片雖續抱但果斷全清", "+23,679 元", "positive", "已實現 +23,679 元！09/08 跌回 291，多守住 +11,417 元現金！"),
-        ("2026-09-04", "2059 川湖", "賣出 5 股", "保守高檔鎖利", "13,480", "11,700", "—", "高價千金股逼近歷史高檔，順勢鎖定獲利", "+7,117 元", "positive", "已實現 +7,117 元！09/08 跌回 12,520，多守住 +4,778 元現金"),
-        ("2026-09-04", "2395 研華", "賣出 106 股", "保守高檔鎖利", "717.00", "660.0", "—", "工業電腦急拉大漲，於 717 觸頂落袋", "+4,864 元", "positive", "已實現 +4,864 元！09/08 跌回 657（若持有轉為虧損），多守住 +6,331 元"),
-        ("2026-09-04", "2489 瑞軒", "買進 3,000 股", "撿漏低接", "39.55", "40.00", "-98 bp", "投信新進標的，盤中跌破 40 元時限價低接", "-1.59%", "negative", "取得 -98 bp 折價，目前成本 39.61 控制在安全水位"),
-        ("2026-09-01", "1709 和益", "賣出 3,000 股", "保守分批停利", "36.30", "26.85", "—", "飆漲 +34% 創開戶最高獲利紀錄，首批落袋 8 萬現金", "+27,755 元", "positive", "已實現 +27,755 元！隨後和益回跌至 33.60，多守住 +8,064 元現金"),
-        ("2026-09-01", "6672 騰輝電子-KY", "賣出 347 股", "策略遵循停損", "279.00", "282.0", "—", "卡片 08/31 明確發出「出」訊號，紀律停損", "-1,607 元", "negative", "嚴格遵守卡片停損，杜絕虧損擴大"),
-        ("2026-08-28", "6727 亞泰金屬", "買進 189 股", "撿漏低接", "525.00", "529.0", "-76 bp", "開盤 529，盤中趁拉回至區間 21% 低檔進場", "-0.39%", "neutral", "取得 -76 bp 折價，現價 526 幾乎損益兩平"),
-        ("2026-08-27", "2606 裕民", "賣出 1,000 股", "策略遵循高賣", "73.80", "72.0", "-250 bp", "卡片 08/26 出訊號，開盤 70.20 耐心等反彈在區間 86% 高檔成交", "+4,677 元", "positive", "已實現獲利 +4,677 元，執行品質極佳"),
-        ("持續觀察", "1717 長興", "持有 1,210 股", "警示離卡", "81.82(均)", "—", "—", "09/07、09/08 均不在策略卡名單，因子失聯孤兒部位", "-11,899 元", "negative", "未實現虧損 -12.02%，佔全戶虧損 31%，應列為優先減碼止血標的"),
-    ]
-
-    rows = []
-    for day, stock, act, tactic, price, sig_p, gap, bg, res, res_cls, note in hist_cases:
-        tag_style = "background:rgba(87,211,162,.15);color:var(--green);border:1px solid #2c7259" if "撿漏" in tactic else ("background:rgba(245,189,88,.15);color:var(--gold);border:1px solid #745c2c" if "保守" in tactic else ("background:rgba(255,127,127,.15);color:var(--red);border:1px solid #744141" if "警示" in tactic else "background:rgba(114,167,255,.15);color:var(--blue);border:1px solid #3e5d83"))
-        rows.append(f"""<tr>
-<td class="mono">{day}</td>
-<td><b>{stock}</b></td>
-<td>{act}</td>
-<td><span style="{tag_style};padding:2px 8px;border-radius:99px;font-size:11.5px;font-weight:700">{tactic}</span></td>
-<td class="num mono">{price}</td>
-<td class="num mono">{sig_p}</td>
-<td class="num mono {'positive' if '-' in gap else ''}">{gap}</td>
-<td style="font-size:12px">{bg}<br><small style="color:var(--muted)">{note}</small></td>
-<td class="num {res_cls}"><b>{res}</b></td>
-</tr>""")
-
-    table = f"""<div class="period-kind">歷史時空背景與實戰下單覆盤日誌 · 逐筆記錄時空、下單類型與決策價值</div>
-<div class="table-wrap"><table>
-<thead><tr><th>日期</th><th>股票</th><th>動作</th><th>戰術類型</th><th class="num">成交價</th><th class="num">訊號參考</th><th class="num">履約價差</th><th>當時時空背景與下單解析</th><th class="num">事後驗證 / 決策價值</th></tr></thead>
-<tbody>{''.join(rows)}</tbody>
-</table></div>"""
-
-    return cards + guides + inventory_ev_table + dip_candidates_section + cash_and_checklist + table
-
-
 def expectancy(values: list[float]) -> dict[str, Any]:
     """Win rate, average win, average loss and per-trade EV for one population."""
     wins = [value for value in values if value > 0]
@@ -2882,7 +2559,7 @@ def expectancy_rows(
     still_open = [
         row["unrealized_pnl_twd"]
         for row in holdings
-        if row["stock_code"].strip() != UNASSIGNED_CODE
+        if in_strategy_scope(row)
     ]
     populations = [
         (
@@ -2993,6 +2670,17 @@ def unexecuted_signals(
 
 def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+STYLE_BLOCK = '<style>\n:root{--ink:#ecf4ef;--muted:#9eaaa5;--panel:#14231f;--panel2:#192c27;--line:#2a4039;--green:#57d3a2;--red:#ff7f7f;--gold:#f5bd58;--blue:#72a7ff;--bg:#0b1512}\n*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0,#18362d 0,transparent 34%),var(--bg);color:var(--ink);font-family:"Segoe UI","Noto Sans TC",sans-serif;line-height:1.55}.wrap{max-width:1280px;margin:auto;padding:34px 24px 70px}.eyebrow{color:var(--green);font-weight:700;letter-spacing:.16em;font-size:12px;text-transform:uppercase}.hero{display:flex;justify-content:space-between;gap:24px;align-items:flex-end;margin:8px 0 24px}.hero h1{font-size:clamp(34px,5vw,64px);line-height:1.02;margin:0;letter-spacing:-.04em}.hero p{max-width:560px;color:var(--muted);margin:8px 0 0}.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}.badge{border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-size:12px;color:var(--muted)}.badge.good{border-color:#2c7259;color:var(--green)}.badge.warn{border-color:#745c2c;color:var(--gold)}.metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.metric-card,.panel{background:linear-gradient(145deg,rgba(25,44,39,.94),rgba(17,31,27,.94));border:1px solid var(--line);border-radius:18px;box-shadow:0 20px 50px rgba(0,0,0,.18)}.metric-card{padding:18px;min-height:132px}.metric-label{font-size:13px;color:var(--muted)}.metric-value{font-size:25px;font-weight:750;margin:10px 0 4px;white-space:nowrap}.metric-note{font-size:12px;color:var(--muted)}.positive{color:var(--green)!important}.negative{color:var(--red)!important}.neutral{color:var(--muted)!important}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.panel{padding:22px;overflow:hidden}.panel.full{grid-column:1/-1}.panel h2{font-size:20px;margin:0 0 4px}.panel .sub{color:var(--muted);font-size:13px;margin-bottom:18px}.callout{border-left:3px solid var(--gold);background:#2a2618;border-radius:8px;padding:12px 14px;color:#eadfbe;margin:16px 0}.bar-row{display:grid;grid-template-columns:150px 1fr 92px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.bar-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bar-track{height:12px;background:#0d1915;border-radius:999px;position:relative;overflow:hidden}.bar-axis{position:absolute;left:50%;top:0;bottom:0;width:1px;background:#607169}.bar-fill{position:absolute;top:2px;bottom:2px;border-radius:999px}.bar-fill.positive{background:var(--green)}.bar-fill.negative{background:var(--red)}.bar-fill.neutral{background:#607169}.bar-value{text-align:right;font-variant-numeric:tabular-nums}.allocation-row{display:grid;grid-template-columns:150px 1fr 54px;gap:10px;align-items:center;font-size:12px;margin:8px 0}.allocation-track{height:8px;background:#0d1915;border-radius:99px;overflow:hidden}.allocation-track span{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--green));border-radius:99px}.allocation-row strong{text-align:right}.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.status-metric{background:#0f1d19;border:1px solid var(--line);border-radius:12px;padding:13px}.status-metric>div{font-size:12px}.status-metric strong{display:block;font-size:20px;margin:6px 0}.status-metric small{display:block;color:var(--muted);font-size:10px}.status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px}.status-dot.ok{background:var(--green);box-shadow:0 0 10px var(--green)}.status-dot.waiting{background:var(--gold);box-shadow:0 0 10px var(--gold)}.period-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px}.period-card{background:#0f1d19;border:1px solid var(--line);border-radius:14px;padding:15px}.period-card span,.period-card small{display:block;color:var(--muted);font-size:11px}.period-card b{display:block;font-size:21px;margin:7px 0}.period-bar-row{display:grid;grid-template-columns:82px 1fr 70px;gap:10px;align-items:center;margin:9px 0;font-size:12px}.period-bar-track{height:10px;background:#0d1915;border-radius:99px;overflow:hidden}.period-bar-track i{display:block;height:100%;border-radius:99px}.period-bar-track i.positive{background:var(--green)}.period-bar-track i.negative{background:var(--red)}.period-kind{font-size:12px;color:var(--muted);margin-bottom:10px}.range-track{height:8px;background:#0d1915;border-radius:99px;position:relative;margin:4px 0 5px;border:1px solid var(--line)}.range-fill{position:absolute;top:-3px;width:3px;height:12px;background:var(--gold);border-radius:2px;box-shadow:0 0 6px var(--gold)}.mini-empty{min-height:180px;border:1px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--gold);text-align:center;padding:20px}.heat-wrap{overflow:auto}.heatmap{min-width:850px}.heatmap td{text-align:center;font-variant-numeric:tabular-nums;border:3px solid var(--panel);border-radius:7px}.heat-empty{background:#0f1d19;color:#5f6e68}.drawdown-head{display:flex;justify-content:space-between;margin-bottom:8px}.drawdown-chart{width:100%;height:auto;background:#0f1d19;border-radius:12px}.empty-chart{min-height:260px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:14px}.empty-chart b{color:var(--gold)}.empty-chart p{margin:4px;max-width:540px}.empty-icon{font-size:48px;color:var(--green)}.line-chart{width:100%;height:auto;background:#0f1d19;border-radius:12px}.grid-line{stroke:#2a4039;stroke-width:1}.axis-text{fill:#899791;font-size:11px}.chart-legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;font-size:12px;color:var(--muted)}.chart-legend i{display:inline-block;width:18px;height:3px;margin-right:6px;vertical-align:middle}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:10px 8px;white-space:nowrap}td{padding:10px 8px;border-bottom:1px solid rgba(42,64,57,.55)}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}small{color:var(--muted)}.quality{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.quality article{background:#0f1d19;border-radius:12px;padding:15px;border:1px solid var(--line)}.quality b{display:block;margin-bottom:5px}.quality p{font-size:12px;color:var(--muted);margin:0}.footer{margin-top:22px;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:20px}.mono{font-family:Consolas,monospace}.section-gap{margin-top:16px}@media(max-width:1050px){.metrics{grid-template-columns:repeat(3,1fr)}.period-grid{grid-template-columns:repeat(4,1fr)}.status-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:760px){.wrap{padding:22px 14px 50px}.hero{display:block}.grid{grid-template-columns:1fr}.panel.full{grid-column:auto}.metrics{grid-template-columns:repeat(2,1fr)}.period-grid{grid-template-columns:repeat(2,1fr)}.status-grid,.quality{grid-template-columns:1fr}.bar-row{grid-template-columns:100px 1fr 78px}.allocation-row{grid-template-columns:100px 1fr 48px}.metric-value{font-size:20px}}@media print{body{background:#fff;color:#111}.metric-card,.panel{box-shadow:none;background:#fff;border-color:#ccc}.metric-note,.panel .sub,small,.footer{color:#555}.positive{color:#087f5b!important}.negative{color:#c92a2a!important}}\n\ntable.timeline{min-width:0}\ntable.timeline td,table.timeline th{padding:5px 3px;border-bottom:1px solid var(--line)}\n.tl-n{min-width:120px;white-space:nowrap}\n.tl-d{text-align:center;font-size:10px;padding:4px 2px !important;color:var(--muted)}\n.tl-d span{writing-mode:vertical-rl;text-orientation:mixed}\n.tl-c{width:16px;padding:5px 2px !important}\n.tl-c::after{content:"";display:block;width:11px;height:11px;margin:0 auto;border-radius:3px;\n  background:var(--line)}\n.tl-c.on::after{background:var(--green)}\n.tl-l{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:12px}\n.tl-l.warn{color:var(--gold);font-weight:700}\n\n.chart-box{position:relative}\n.chart-frame{position:relative}\n.chart-legend .lg{cursor:pointer;user-select:none;transition:opacity .12s}\n.chart-legend .lg.off{opacity:.32}\n.chart-legend .lg-v{margin-left:6px;font-variant-numeric:tabular-nums;font-weight:700}\n.base-line{stroke:var(--muted);stroke-width:1.2;stroke-dasharray:5 4;opacity:.75}\n.base-tag{fill:var(--muted);font-weight:700}\n.crosshair{stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3;pointer-events:none}\n.hover-dots circle{pointer-events:none}\npolyline[data-line].off{opacity:.08}\n.hit{cursor:crosshair}\n.tip{position:absolute;pointer-events:none;z-index:5;min-width:186px;\n  background:var(--panel);border:1px solid var(--line);border-radius:10px;\n  padding:9px 11px;font-size:12.5px;box-shadow:0 8px 26px rgba(0,0,0,.42)}\n.tip[hidden]{display:none}\n.tip .tip-d{font-weight:700;margin-bottom:6px;font-variant-numeric:tabular-nums;\n  padding-bottom:5px;border-bottom:1px solid var(--line)}\n.tip .tip-r{display:flex;align-items:center;gap:7px;line-height:1.75;white-space:nowrap}\n.tip .tip-r i{width:9px;height:9px;border-radius:2px;flex:none}\n.tip .tip-r .n{flex:1;overflow:hidden;text-overflow:ellipsis}\n.tip .tip-r .v{font-variant-numeric:tabular-nums;font-weight:700}\n.tip .tip-r .p{font-variant-numeric:tabular-nums;min-width:56px;text-align:right}\n.tip .up{color:var(--green)} .tip .down{color:var(--red)}\n\n.gauges{display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:12px}\n.gauge{background:var(--raise);border:1px solid var(--line);border-radius:11px;padding:14px 15px}\n.gauge.on{border-color:var(--green)}\n.g-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px}\n.g-state{font-size:11.5px;color:var(--muted);white-space:nowrap}\n.gauge.on .g-state{color:var(--green);font-weight:700}\n.g-bar{height:6px;border-radius:3px;background:var(--line);margin:9px 0 7px;overflow:hidden}\n.g-bar span{display:block;height:100%;background:var(--accent);border-radius:3px}\n.gauge.on .g-bar span{background:var(--green)}\n.g-num{font-size:12.5px;font-variant-numeric:tabular-nums;font-weight:700}\n.g-note{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:5px}\n.gap-lenses{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}\n.gap-lenses .metric-card{min-height:118px;background:#0f1d19}\n.code-chip{display:inline-block;margin:2px 4px 2px 0;padding:2px 7px;border-radius:999px;\n  border:1px solid var(--line);font-size:11px;font-family:Consolas,monospace}\n.code-chip.covered{color:var(--green);border-color:#2c7259;background:#10291f}\n.code-chip.missing{color:var(--red);border-color:#744141;background:#2b1717}\n.code-chip.stale{color:var(--gold);border-color:#745c2c;background:#292313}\n.code-chip.planned{color:var(--blue);border-color:#3e5d83;background:#142337}\n@media(max-width:1050px){.gap-lenses{grid-template-columns:repeat(2,1fr)}}\n@media(max-width:600px){.gap-lenses{grid-template-columns:1fr}}\n</style>'
+
+REALIZED_TEMPLATE = '''<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>已實現 · 已經變現的盈虧</title>{{STYLE}}</head><body><main><section class="hero"><div><h1>已實現 · 已經變現的盈虧</h1><p>已平倉的每一筆、券商與成交簿的對帳、以及這些決策相對於策略指示的價值。這些錢已經是現金，不會再動；還在手上的部位在<a href="../">首頁</a>。</p><div class="badges"><span class="badge">估值日 {{ASOF}}</span><span class="badge">NO_BROKER · NO_ORDER</span></div></div></section>
+<article class="panel full"><h2>券商已實現 vs 成交簿已實現 · 逐筆對帳</h2><div class="sub">兩個來源在回答同一個問題，答案不一樣，而差額<b>完全可以解釋</b>。券商用它自己的成本基礎，會因為配息等公司行動往下調；成交簿只認交易當下真正動的現金。<b>兩個都不算錯</b> —— 券商的數字含有以配息形式進到帳戶的價值，成交簿沒有，因為那筆配息現金從來沒有被記進來。把兩邊並排、差額歸到個股，比選一邊當真相誠實得多：它把一個說不清的總差額，變成一列<b>明確缺少的紀錄</b>。</div><div class="table-wrap"><table><thead><tr><th>賣出日</th><th>股票</th><th class="num">股數</th><th class="num">賣價</th><th class="num">券商已實現</th><th class="num">成交簿已實現</th><th class="num">差額</th><th>說明</th></tr></thead><tbody>{{BROKER_RECON}}</tbody></table></div></article>
+<article class="panel full"><h2>你自己的期望值 · 以及它為什麼看起來太好</h2><div class="sub">這裡的 EV <b>不是任何個股的預測</b>，是你已結算現金的歷史期望值。只算已平倉會得到一個很漂亮的數字 —— 但<b>要不要平倉是你的選擇</b>，而你的習慣是賣掉賺的、留下賠的，所以「已平倉」這個集合幾乎是被建構出來的贏家集合。把在庫部位按今日收盤一起算進來，才是<b>無法靠決定何時實現來美化</b>的版本。三列並列，差距本身就是結論。樣本仍然很小，任何一列都還不能當成穩定估計。</div><div class="table-wrap"><table><thead><tr><th>母體</th><th class="num">樣本</th><th class="num">勝率</th><th class="num">平均獲利</th><th class="num">平均虧損</th><th class="num">賺賠比</th><th class="num">每筆 EV</th><th>說明</th></tr></thead><tbody>{{EXPECTANCY_ROWS}}</tbody></table></div></article>
+<article class="panel full"><h2>紀律帳 · 我的損益 vs 策略的損益</h2><div class="sub">每一筆賣出都對照 <code>signal_history</code> 分類：賣出當天或之前有 <b>出</b> 訊號的是<b>策略指示</b>，卡片仍寫「抱」時賣掉的是<b>自主決定</b>。自主決定的那些，反事實不需要模型 —— 股票已經賣了，「沒賣的話現在值多少」就是同樣股數乘上最新官方收盤，扣掉同一套出場費稅。兩者相減就是這個決策賺了或賠了多少。<br><b>這是記分，不是評判。</b>躲掉下跌的提早出場會顯示為正，少賺的會顯示為負，兩種用同一把尺量。目的是看出直覺到底有沒有加分，不是替任何一邊說話。</div>{{DISCIPLINE_CARDS}}<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>賣出日</th><th>策略</th><th>股票</th><th>依據</th><th class="num">股數</th><th class="num">賣價</th><th class="num">實際已實現</th><th class="num">現價</th><th class="num">若持有至今</th><th class="num">決策價值</th></tr></thead><tbody>{{DISCIPLINE_ROWS}}</tbody></table></div></article>
+<article class="panel full"><h2>已實現 vs 未實現 · 完整損益拆解</h2><div class="sub">畫面上其他地方的「損益」都是<b>未實現</b>，只算還在手上的部位。已平倉的成交不會出現在庫存表裡，但現金已經確定變動 —— 那筆錢的盈虧在這裡。sleeve 曲線一直都含這兩塊，這張表只是把它拆開讓你看得到。已實現＝實收現金 − 實付成本（含手續費與證交稅）；未實現＝目前可變現值 − 在庫帳面成本，兩者不重複計算。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">已實現損益</th><th class="num">平倉筆數</th><th class="num">未實現損益</th><th class="num">在庫成本</th><th class="num">合計損益</th><th class="num">對 50 萬報酬</th></tr></thead><tbody>{{PNL_SPLIT_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">逐筆平倉明細 · FIFO 對沖，一次賣出跨多筆買進會拆成多列</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">買進</th><th class="num">賣出</th><th class="num">持有</th><th class="num">成本 → 實收</th><th class="num">已實現損益</th></tr></thead><tbody>{{CLOSED_LOTS}}</tbody></table></div></article>
+<footer>生成時間 {{GENERATED_AT}} · <a href="../">首頁</a> · <a href="../prep/">備戰頁</a> · <a href="../mainline2/">主線二</a></footer></main></body></html>'''
 
 
 def build() -> tuple[Path, dict[str, Any]]:
@@ -3310,6 +2998,7 @@ polyline[data-line].off{opacity:.08}
 <section class="metrics">{{HEADER_CARDS}}</section>
 <section class="grid">
 {{PROVISIONAL_BANNER}}
+<article class="panel full" id="today" style="border-color:var(--accent)"><h2 style="color:var(--accent)">今天要的進出 · {{PLANNED_DATE}}</h2><div class="sub">你的策略卡對這個交易日開出的動作，只列<b>還需要決定</b>的：「出」只列仍持有的，「進」只列整戶零部位的，括號部位依指示排除。這裡只回報系統說了什麼、帳戶做了什麼 —— 要不要執行、幾塊錢，是你的決定。完整的價格分布與掛單落點在 <a href="prep/">備戰頁</a>；已經變現的盈虧全部搬到 <a href="realized/">已實現頁</a>。</div><div class="table-wrap"><table><thead><tr><th>訊號日</th><th>策略</th><th>股票</th><th>動作</th><th>生效日</th><th>目前狀態</th></tr></thead><tbody>{{UNEXECUTED_SIGNALS}}</tbody></table></div></article>
 <article class="panel full"><h2>最新四策略卡 · {{SIGNAL_ASOF}} 收盤</h2><div class="sub">來源圖逐列保存。紅／綠方向已轉成帶正負號報酬；{{PLANNED_DATE}} 的「進／出」是計畫訊號，不是成交。</div><div class="strategy-card-grid">{{LATEST_SIGNAL_CARDS}}</div></article>
 <article class="panel full"><h2>{{PLANNED_DATE}} 計畫進出 · 等待實際成交</h2><div class="sub">沒有成交時間、價格、股數與費稅前，不寫入 actual_fills.csv，也不改實際績效曲線。</div>{{PLANNED_SIGNALS}}</article>
 <article class="panel full"><h2>訊號 → 成交 · 履約落差帳</h2><div class="sub">策略卡報的是訊號價，帳戶付的是成交價，中間的差就是「這個策略能不能被執行」的全部答案。正的 bp 代表對自己不利。累積夠多筆之後，才知道策略卡報酬要打幾折。</div>{{SLIPPAGE_TABLE}}</article>
@@ -3320,12 +3009,6 @@ polyline[data-line].off{opacity:.08}
 <article class="panel full"><h2>每日更新時間軸</h2><div class="sub">四個來源，各自有自己的更新節奏。實心格代表那一天有這個來源的資料；空格代表沒有，而不是「和前一天一樣」。右欄的日期若比最後一欄舊，代表這個來源正在落後，畫面上與它有關的數字都還停在那一天。{{TIMELINE_SUMMARY}}。</div>{{UPDATE_TIMELINE}}</article>
 <article class="panel full"><h2>沒結清就不算賺 · 今天全部出清會拿回多少</h2><div class="sub">未實現不是錢。這一段回答唯一能當成事實的版本：<b>如果今天把每一檔都按官方收盤賣掉</b>，開戶至今總共賺了多少。這是算術，不是預測。出場費稅用和全站相同的 0.4425% 估算。券商『現值』欄本身已含費稅，所以毛值與淨值幾乎相同 —— 這是先前對帳發現的，不是巧合。</div>{{LIQUIDATION_CARDS}}</article>
 <article class="panel full"><h2>部位健康度 · 逐檔量測</h2><div class="sub"><b>這張表不含任何建議。</b>每一欄都是量測：距成本、距卡片自己的進場價、持有天數、自進場以來從最高點的回撤，以及最後一欄 —— <b>你的策略卡現在對這檔說什麼</b>。最後一欄是你自己系統的輸出，把它列出來是回報，不是我的意見。要不要動、動多少，是你的決定。</div><div class="table-wrap"><table><thead><tr><th>股票／策略</th><th class="num">成本均價</th><th class="num">現價</th><th class="num">報酬率</th><th class="num">未實現</th><th class="num">卡片進場</th><th class="num">現價vs卡片</th><th class="num">持有</th><th class="num">自進場高點回撤</th><th>卡片現在說</th></tr></thead><tbody>{{POSITION_HEALTH}}</tbody></table></div></article>
-<article class="panel full"><h2>券商已實現 vs 成交簿已實現 · 逐筆對帳</h2><div class="sub">兩個來源在回答同一個問題，答案不一樣，而差額<b>完全可以解釋</b>。券商用它自己的成本基礎，會因為配息等公司行動往下調；成交簿只認交易當下真正動的現金。<b>兩個都不算錯</b> —— 券商的數字含有以配息形式進到帳戶的價值，成交簿沒有，因為那筆配息現金從來沒有被記進來。把兩邊並排、差額歸到個股，比選一邊當真相誠實得多：它把一個說不清的總差額，變成一列<b>明確缺少的紀錄</b>。</div><div class="table-wrap"><table><thead><tr><th>賣出日</th><th>股票</th><th class="num">股數</th><th class="num">賣價</th><th class="num">券商已實現</th><th class="num">成交簿已實現</th><th class="num">差額</th><th>說明</th></tr></thead><tbody>{{BROKER_RECON}}</tbody></table></div></article>
-<article class="panel full"><h2>你自己的期望值 · 以及它為什麼看起來太好</h2><div class="sub">這裡的 EV <b>不是任何個股的預測</b>，是你已結算現金的歷史期望值。只算已平倉會得到一個很漂亮的數字 —— 但<b>要不要平倉是你的選擇</b>，而你的習慣是賣掉賺的、留下賠的，所以「已平倉」這個集合幾乎是被建構出來的贏家集合。把在庫部位按今日收盤一起算進來，才是<b>無法靠決定何時實現來美化</b>的版本。三列並列，差距本身就是結論。樣本仍然很小，任何一列都還不能當成穩定估計。</div><div class="table-wrap"><table><thead><tr><th>母體</th><th class="num">樣本</th><th class="num">勝率</th><th class="num">平均獲利</th><th class="num">平均虧損</th><th class="num">賺賠比</th><th class="num">每筆 EV</th><th>說明</th></tr></thead><tbody>{{EXPECTANCY_ROWS}}</tbody></table></div></article>
-<article class="panel full"><h2>未執行訊號 · 卡片說了但成交簿沒有</h2><div class="sub">逐筆比對訊號歷史與成交簿。<b>「出」只列仍持有的</b>，已經不在庫的不需要動作；<b>「進」只列整戶零部位的</b>。括號部位依 owner 指示排除。這張表不判斷該不該執行 —— 它只回報你自己的系統說過什麼、帳戶做了什麼。</div><div class="table-wrap"><table><thead><tr><th>訊號日</th><th>策略</th><th>股票</th><th>動作</th><th>生效日</th><th>目前狀態</th></tr></thead><tbody>{{UNEXECUTED_SIGNALS}}</tbody></table></div></article>
-<article class="panel full"><h2>紀律帳 · 我的損益 vs 策略的損益</h2><div class="sub">每一筆賣出都對照 <code>signal_history</code> 分類：賣出當天或之前有 <b>出</b> 訊號的是<b>策略指示</b>，卡片仍寫「抱」時賣掉的是<b>自主決定</b>。自主決定的那些，反事實不需要模型 —— 股票已經賣了，「沒賣的話現在值多少」就是同樣股數乘上最新官方收盤，扣掉同一套出場費稅。兩者相減就是這個決策賺了或賠了多少。<br><b>這是記分，不是評判。</b>躲掉下跌的提早出場會顯示為正，少賺的會顯示為負，兩種用同一把尺量。目的是看出直覺到底有沒有加分，不是替任何一邊說話。</div>{{DISCIPLINE_CARDS}}<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>賣出日</th><th>策略</th><th>股票</th><th>依據</th><th class="num">股數</th><th class="num">賣價</th><th class="num">實際已實現</th><th class="num">現價</th><th class="num">若持有至今</th><th class="num">決策價值</th></tr></thead><tbody>{{DISCIPLINE_ROWS}}</tbody></table></div></article>
-<article class="panel full"><h2>實戰策略提示 · 撿漏 vs 保守歷史時空背景覆盤</h2><div class="sub">高波動市場中，實戰操作存在大量非教條式的執行空間。盤中急殺往往創造<b>「撿漏折價」</b>的低接良機，而在個股衝高或大盤轉弱時，<b>「保守提早出場」</b>則能守住珍貴利潤。這裡完整記錄開戶以來的實戰時空背景、下單類型與決策覆盤，供後續下單持續查考。</div>{{TACTICAL_PLAYBOOK}}</article>
-<article class="panel full"><h2>已實現 vs 未實現 · 完整損益拆解</h2><div class="sub">畫面上其他地方的「損益」都是<b>未實現</b>，只算還在手上的部位。已平倉的成交不會出現在庫存表裡，但現金已經確定變動 —— 那筆錢的盈虧在這裡。sleeve 曲線一直都含這兩塊，這張表只是把它拆開讓你看得到。已實現＝實收現金 − 實付成本（含手續費與證交稅）；未實現＝目前可變現值 − 在庫帳面成本，兩者不重複計算。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">已實現損益</th><th class="num">平倉筆數</th><th class="num">未實現損益</th><th class="num">在庫成本</th><th class="num">合計損益</th><th class="num">對 50 萬報酬</th></tr></thead><tbody>{{PNL_SPLIT_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">逐筆平倉明細 · FIFO 對沖，一次賣出跨多筆買進會拆成多列</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">買進</th><th class="num">賣出</th><th class="num">持有</th><th class="num">成本 → 實收</th><th class="num">已實現損益</th></tr></thead><tbody>{{CLOSED_LOTS}}</tbody></table></div></article>
 <article class="panel full"><h2>策略 vs 實際 · 八個角度的診斷</h2><div class="sub">策略卡是當日成員的等權顯示報酬；實際 sleeve 是成交現金流、真實權重、閒置現金、費稅與可變現估值。兩者不是同一種 NAV。這一區回答「差在哪裡」，但不把描述性 bridge 冒充因果歸因或 alpha。</div><div class="gap-lenses">{{GAP_LENS_CARDS}}</div><div class="period-kind">策略層診斷 · 同一起訖日</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際</th><th class="num">卡片</th><th class="num">Gap</th><th>最大描述項</th><th class="num">投入</th><th class="num">覆蓋</th><th class="num">vs TAIEX</th><th class="num">vs 0050</th><th class="num">訊號成交樣本</th></tr></thead><tbody>{{GAP_DRIVER_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">Gap 走勢 · 實際報酬 − 卡片顯示報酬（pp）</div>{{GAP_HISTORY_CHART}}<div class="section-gap"></div><div class="period-kind">成員與狀態 · 缺席不等於損失，未買標的不得虛構 counterfactual P&amp;L</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>同策略已覆蓋</th><th>卡上未持有</th><th>仍持有但已離卡</th><th>計畫進</th><th>計畫出</th><th class="num">實付 vs 卡價</th><th class="num">現金</th></tr></thead><tbody>{{COVERAGE_LENS_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>實施落差橋 · 三項加總的描述性 bridge</h2><div class="sub">只說「差幾 pp」沒有用。這裡用一個<b>代數恆等式</b>把差距拆成三項：<br><code>差距 = 在庫組合與進場 ＋ 現金／未投入 ＋ 已實現</code><br>三項加總會精確回到「實際 − 卡片」，但分類不是因果實驗：第一項同時混合成員覆蓋、實際權重、進場時點、進場價與出場費稅；第二項假設用卡片表頭當作未投入資金的參考報酬；第三項來自平倉現金流。它適合找下一個要查的方向，不適合宣稱哪一項造成未來績效。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">理論卡</th><th class="num">實際 sleeve</th><th class="num">差距</th><th class="num">在庫組合<br>與進場</th><th class="num">現金／<br>未投入</th><th class="num">已實現<br>貢獻</th><th class="num">投入<br>比重</th><th class="num">閒置現金</th></tr></thead><tbody>{{BRIDGE_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">進場價差 · 卡片假設你付的 vs 你實際付的</div><div class="sub" style="margin-bottom:12px">「實付均價」是成交簿的在庫帳面成本 ÷ 股數，含手續費，所以它一定略高於成交價本身。綠色代表實付低於卡片進場價，紅色代表高於；它只描述成交，不代表那個價位是最佳進場。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">卡片進場</th><th class="num">實付均價</th><th class="num">進場價差</th><th class="num">現價</th><th class="num">在庫報酬<br>（扣出場費稅）</th></tr></thead><tbody>{{ENTRY_GAP_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>實際 vs 理論 · 四策略差異</h2><div class="sub">「差異」只在共同截止日 {{THEORY_ASOF}} 計算：實際 50 萬 sleeve 可變現報酬 − 理論卡等權顯示報酬。這是描述性 implementation gap，權重與現金比率不同，不冒充 alpha。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際累計<br>{{ASOF}}</th><th class="num">實際損益</th><th class="num">實際<br>{{THEORY_ASOF}}</th><th class="num">理論卡<br>{{THEORY_ASOF}}</th><th class="num">差異<br>pp</th><th class="num">實際/理論<br>持股數</th><th class="num">MDD</th><th class="num">Sharpe</th></tr></thead><tbody>{{STRATEGY_TABLE}}</tbody></table></div></article>
@@ -3343,7 +3026,7 @@ polyline[data-line].off{opacity:.08}
 <article class="panel full"><h2>持股明細</h2><div class="sub">現值與損益完全對上 owner 貼入小計；配置比例由現值重新計算。</div><div class="table-wrap"><table><thead><tr><th>股票</th><th class="num">股數</th><th class="num">成本均價</th><th class="num">現價</th><th class="num">今日漲跌幅</th><th class="num">現值</th><th class="num">未實現損益</th><th class="num">獲利率</th><th class="num">配置</th></tr></thead><tbody>{{HOLDINGS_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>資料品質與限制</h2><div class="sub">畫面能否拿來做決策，先看資料是否足夠。</div><div class="quality"><article><b class="positive">PASS · 庫存小計</b><p>{{POSITIONS_COUNT}} 檔股數、現值、成本與損益均對上 owner 快照（已排除測試單）。</p></article><article><b class="positive">PASS · 四策略成交歸屬</b><p>買賣重建後的活動股數與庫存一致（排除測試單）。</p></article><article><b class="positive">PASS · 重疊股拆分</b><p>1709：突破 3,644／融資 305 股；2301：YOY 261／投信 365 股；3702 賣出損益納入 YOY。</p></article><article><b class="negative">CHECK · 成本口徑差</b><p>成交簿在庫實付 NT$1,178,519；快照在庫成本 NT$1,177,866，差 NT$653。四策略損益以逐筆成交現金流為準。</p></article><article><b class="negative">CHECK · YOY 來源矛盾</b><p>8/24 表頭 +3.7%，六檔可見數字平均 +4.33%，差 +0.63pp；兩者原樣保留，等待來源端說明。</p></article><article><b class="negative">SHORT SAMPLE · 風險統計</b><p>目前僅 {{RISK_OBS}} 筆實際日報酬；MDD 可描述，Sharpe、Alpha、Beta 等尚不顯示數字。</p></article><article><b class="positive">CURRENT · 理論卡</b><p>四策略來源均更新到 {{THEORY_ASOF}}，與目前實際估值同日。</p></article><article><b class="negative">GAP · 8/21 策略卡</b><p>未收到 8/21 來源圖，因此保留空缺，不用前值或行情補造策略卡。</p></article><article><b class="positive">SAFE · 公開唯讀</b><p>HTML builder 無券商登入或下單；每日 updater 只讀 TWSE／TPEx 公開收盤行情。</p></article></div></article>
 </section>
-<footer class="footer"><span><a href="prep/" style="color:var(--green);text-decoration:none">備戰頁 下一交易日動作量測 →</a> · <a href="mainline2/" style="color:var(--green);text-decoration:none">主線二 未持有訊號追蹤 →</a> · <a href="claude/" style="color:var(--green);text-decoration:none">Claude 版精進盤點 →</a> · 口徑：252 trading days · rf=0 · CAGR 365.25 calendar days · Alpha=daily OLS intercept×252</span><span>生成時間：<span class="mono">{{GENERATED_AT}}</span></span></footer>
+<footer class="footer"><span><a href="realized/" style="color:var(--green);text-decoration:none">已實現頁 已變現盈虧 →</a> · <a href="prep/" style="color:var(--green);text-decoration:none">備戰頁 下一交易日動作量測 →</a> · <a href="mainline2/" style="color:var(--green);text-decoration:none">主線二 未持有訊號追蹤 →</a> · <a href="claude/" style="color:var(--green);text-decoration:none">Claude 版精進盤點 →</a> · 口徑：252 trading days · rf=0 · CAGR 365.25 calendar days · Alpha=daily OLS intercept×252</span><span>生成時間：<span class="mono">{{GENERATED_AT}}</span></span></footer>
 </main><script>
 (function () {
   // The chart is a static SVG; this only adds a readout. If it fails to run,
@@ -3495,9 +3178,6 @@ polyline[data-line].off{opacity:.08}
         "{{POSITION_HEALTH}}": position_health(
             holdings, fills, prices, latest_signals, actual_asof
         ),
-        "{{TACTICAL_PLAYBOOK}}": tactical_playbook(
-            fills, holdings, prices, discipline
-        ),
         "{{POSITIONS_COUNT}}": str(snapshot["positions"]),
         "{{EXPECTANCY_ROWS}}": expectancy_table,
         "{{UNEXECUTED_SIGNALS}}": unexecuted_signals(fills, holdings),
@@ -3538,6 +3218,13 @@ polyline[data-line].off{opacity:.08}
     output_path = OUTPUT / "performance_dashboard.html"
     index_path.write_text(dashboard, encoding="utf-8")
     output_path.write_text(dashboard, encoding="utf-8")
+    realized_page = REALIZED_TEMPLATE.replace("{{STYLE}}", STYLE_BLOCK)
+    for marker, value in replacements.items():
+        realized_page = realized_page.replace(marker, value)
+    if any(marker in realized_page for marker in replacements):
+        raise RuntimeError("unresolved realized template marker")
+    (ROOT / "realized").mkdir(parents=True, exist_ok=True)
+    (ROOT / "realized" / "index.html").write_text(realized_page, encoding="utf-8")
     period_snapshot = trailing_returns(analysis_curve)
     summary_markdown = "\n".join(
         [

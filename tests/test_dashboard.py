@@ -204,10 +204,12 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     for strategy_id in dashboard.STRATEGY_LABELS:
         for code, shares in diagnostics[strategy_id]["active_positions"].items():
             per_sleeve[code] += shares
+    # Only rows the sleeves may own: the unassigned share and any short sale
+    # sit in the broker's subtotal but belong to no strategy.
     account = {
         row["stock_code"].strip(): row["shares"]
         for row in dashboard.load_holdings()
-        if row["stock_code"].strip() != "2886"  # unassigned single share
+        if dashboard.in_strategy_scope(row)
     }
     assert dict(per_sleeve) == pytest.approx(account)
     shared = [code for code in account if sum(
