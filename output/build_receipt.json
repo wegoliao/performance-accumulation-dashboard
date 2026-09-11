@@ -1,6 +1,6 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-09-11T17:12:43+08:00",
+  "generated_at": "2026-09-11T13:05:01+00:00",
   "source_data_asof": "2026-09-11",
   "actual_valuation_asof": "2026-09-11",
   "source_capture_time": null,
@@ -8,11 +8,11 @@
   "snapshot_reconciliation": "PASS",
   "inputs": {
     "holdings_snapshot_2026-09-11.csv": {
-      "sha256": "83b02c5cad92bb3bfd07494c366cea8fd935586e2b7076f91629b6a06575395d",
+      "sha256": "0cd5d2324a691c5f634dc0215934d757e160d0111da84c70607683b977984e1f",
       "rows": 16
     },
     "snapshot_summary_2026-09-11.csv": {
-      "sha256": "690f0f3ebb057d975bfaa3569c361cea22bbed3efd0b62fecf749374c1bdade9",
+      "sha256": "c388c2b235ba7438adf1bc6e4febfb9064fe193144a325c60de5529416482b51",
       "rows": 1
     },
     "account_nav.csv": {
@@ -28,11 +28,11 @@
       "rows": 512
     },
     "actual_fills.csv": {
-      "sha256": "d0d02e926f706cabf50454c3f5302e54920c6224eab73cf607287bf59329af86",
+      "sha256": "bc51f23e08da7027c621300d2f23a4a3419b2c7c6116f5b0b636120fd6bbcab4",
       "rows": 51
     },
     "strategy_card_returns.csv": {
-      "sha256": "cfdcbfe689122ed5b71a34aa45a753f7d09845068c6f4733148f1d085a293b7f",
+      "sha256": "7e31bebea8f220f389c36673fcad77a25a0e7315f7a5b25de5907224b7561e93",
       "rows": 92
     },
     "strategy_position_marks.csv": {
@@ -40,7 +40,7 @@
       "rows": 6
     },
     "latest_strategy_signals.csv": {
-      "sha256": "bb58e6ac1335348e39f7981a8cd5a9e764e61178d57011af7ed6fec24fd39fe1",
+      "sha256": "bdcbd54a8ee089719fa179dbac67ee0c108999c90746142433de6a9daeacea5a",
       "rows": 40
     }
   },
