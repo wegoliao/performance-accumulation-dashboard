@@ -626,8 +626,43 @@ def latest_signal_cards(
     return "".join(cards)
 
 
-def planned_signal_table(rows: list[dict[str, Any]]) -> str:
-    planned = [row for row in rows if row["signal"] in {"進", "出"}]
+def planned_signal_table(
+    rows: list[dict[str, Any]],
+    holdings: list[dict[str, Any]],
+    fills: list[dict[str, Any]],
+) -> str:
+    """Card actions that still need a decision -- and only those.
+
+    A 出 on a name already sold is not "waiting for a fill"; the fill happened.
+    Listing it that way told the owner 2059 was still pending five sessions
+    after he closed it. So: 出 only where the account still holds the name,
+    進 only where it holds nothing. The rest already happened or never applied.
+    """
+    held = {row["stock_code"].strip() for row in holdings if in_strategy_scope(row)}
+    bought_since: dict[str, list[date]] = defaultdict(list)
+    for fill in fills:
+        if fill["side"] == "BUY":
+            bought_since[fill["stock_code"].strip()].append(fill["date"])
+
+    def still_open(row: dict[str, Any]) -> bool:
+        code = row["stock_code"].strip()
+        action = row.get("signal_action") or row["signal"].strip("()*")
+        if row["signal"].strip().startswith("("):
+            return False  # bracketed side, ignored per owner
+        if action == "出":
+            return code in held
+        if action == "進":
+            return code not in held and not any(
+                day >= row["asof_date"] for day in bought_since[code]
+            )
+        return False
+
+    planned = [row for row in rows if still_open(row)]
+    if not planned:
+        return (
+            '<div class="neutral" style="padding:12px 4px">卡片開出的每一個進出都已有對應部位或成交，'
+            "沒有待決定的動作。</div>"
+        )
     asof_label = planned[0]["asof_date"].isoformat() if planned else "收盤"
     body = "".join(
         "<tr>"
@@ -637,7 +672,7 @@ def planned_signal_table(rows: list[dict[str, Any]]) -> str:
         f'<td><span class="signal {"enter" if row["signal"] == "進" else "exit"}">{row["signal"]}</span></td>'
         f'<td>{html.escape(row["entry_display"])}</td>'
         f'<td class="num">{row["close"]:,.2f}</td>'
-        '<td><span class="badge warn">等待實際成交</span></td>'
+        f'<td><span class="badge warn">{"仍持有 · 待出" if row["signal"].strip("()*") == "出" else "零部位 · 待進"}</span></td>'
         "</tr>"
         for row in planned
     )
@@ -3153,7 +3188,7 @@ polyline[data-line].off{opacity:.08}
         "{{LINE_CHART}}": line_chart(series),
         "{{THEORY_CHART}}": line_chart(theory_series, "theory"),
         "{{LATEST_SIGNAL_CARDS}}": latest_signal_cards(latest_signals, card_curves),
-        "{{PLANNED_SIGNALS}}": planned_signal_table(latest_signals),
+        "{{PLANNED_SIGNALS}}": planned_signal_table(latest_signals, holdings, fills),
         "{{STRATEGY_TABLE}}": strategy_comparison_table(
             actual_strategy_curves, card_curves, strategy_diagnostics
         ),

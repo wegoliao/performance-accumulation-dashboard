@@ -489,3 +489,28 @@ def test_roc_date_parsers_handle_both_official_formats() -> None:
         except fetch_prices.FetchError:
             continue
         raise AssertionError(f"{bad!r} should have failed closed")
+
+
+def test_planned_actions_never_list_an_exit_on_a_name_already_sold() -> None:
+    """A 出 on a closed position is not pending; the fill already happened.
+
+    The panel listed 2059 as "waiting for a fill" five sessions after the
+    owner sold it, because it read the card and never looked at the book.
+    """
+    holdings = dashboard.load_holdings()
+    fills = dashboard.load_actual_fills()
+    signals = dashboard.load_latest_strategy_signals()
+    held = {row["stock_code"].strip() for row in holdings if dashboard.in_strategy_scope(row)}
+    html_out = dashboard.planned_signal_table(signals, holdings, fills)
+
+    for row in signals:
+        code = row["stock_code"].strip()
+        action = row["signal"].strip("()*")
+        bracketed = row["signal"].strip().startswith("(")
+        listed = f"{code} " in html_out
+        if bracketed:
+            assert not listed, f"bracketed {code} must be excluded per owner"
+        elif action == "出":
+            assert listed == (code in held), f"出 {code}: listed={listed} held={code in held}"
+        elif action == "進":
+            assert listed == (code not in held), f"進 {code}: listed={listed} held={code in held}"
