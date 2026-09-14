@@ -1,6 +1,6 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-09-15T00:53:11+08:00",
+  "generated_at": "2026-09-15T00:53:58+08:00",
   "source_data_asof": "2026-09-14",
   "actual_valuation_asof": "2026-09-14",
   "source_capture_time": null,
@@ -40,7 +40,7 @@
       "rows": 6
     },
     "latest_strategy_signals.csv": {
-      "sha256": "db8f9071c45cc170e75b8560419ef5c99b4646ba57868ccce178d9bd4cbff1f2",
+      "sha256": "73f9859073ab31c1fef7115c5b2dbba36f512a1a3f26b7eff7f76747ab3ab27a",
       "rows": 25
     }
   },
