@@ -11,6 +11,8 @@ on:
       - mainline2/**
       - prep/**
       - realized/**
+      - positions/**
+      - history/**
       - .github/workflows/pages.yml
   # Commits pushed with GITHUB_TOKEN (the daily-close bot) do not trigger
   # `push` events, so re-deploy explicitly when that workflow succeeds.

@@ -1,0 +1,29 @@
+{
+  "generated_at": "2026-09-15T00:53:09",
+  "snapshot_asof": "2026-09-14",
+  "price_asof": "2026-09-14",
+  "positions": [
+    "1590",
+    "1717",
+    "3055",
+    "6727",
+    "3006",
+    "2397",
+    "2103",
+    "6179",
+    "6108",
+    "3231",
+    "2489",
+    "1712",
+    "6426",
+    "1303",
+    "2354",
+    "2637"
+  ],
+  "boundaries": [
+    "NO_PRICE_RECOMMENDATION",
+    "NO_BROKER_LOGIN",
+    "NO_ORDER_PATH",
+    "DESCRIPTIVE_LEVELS_ONLY"
+  ]
+}
