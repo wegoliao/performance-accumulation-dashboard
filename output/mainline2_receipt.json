@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-11T17:09:06",
+  "generated_at": "2026-09-14T11:51:33",
   "signal_asof": "2026-09-10",
   "price_asof": "2026-09-11",
   "profile_window": [
@@ -49,10 +49,10 @@
       "poc": 286.54545454545456,
       "value_low": 271.0,
       "value_high": 509.3636363636364,
-      "close_percentile": 0.9364024598984282,
+      "close_percentile": 0.9363058141739586,
       "in_value_area": false,
-      "avg_volume_20d": 3229517.1,
-      "slot_participation": 2.297060952584137e-05
+      "avg_volume_20d": 3239567.1,
+      "slot_participation": 2.2899348576890905e-05
     },
     {
       "strategy_id": "BREAKOUT",
@@ -334,10 +334,10 @@
       "poc": 286.54545454545456,
       "value_low": 271.0,
       "value_high": 509.3636363636364,
-      "close_percentile": 0.9364024598984282,
+      "close_percentile": 0.9363058141739586,
       "in_value_area": false,
-      "avg_volume_20d": 3229517.1,
-      "slot_participation": 2.297060952584137e-05
+      "avg_volume_20d": 3239567.1,
+      "slot_participation": 2.2899348576890905e-05
     },
     {
       "strategy_id": "YOY",

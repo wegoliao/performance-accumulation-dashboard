@@ -2660,8 +2660,16 @@ def unexecuted_signals(
         code = fill["stock_code"].strip()
         (sold if fill["side"] == "SELL" else bought)[code].append(fill["date"])
 
+    history = read_csv(SIGNAL_HISTORY_PATH)
+    # a card that later says 出 on a name closes the book on its earlier 進;
+    # an entry the strategy itself has since abandoned is not still pending
+    exited_after: dict[str, list[date]] = defaultdict(list)
+    for raw in history:
+        if raw["signal"].strip().strip("*") == "出":
+            exited_after[raw["stock_code"].strip()].append(parse_date(raw["asof_date"]))
+
     rows: list[str] = []
-    for raw in read_csv(SIGNAL_HISTORY_PATH):
+    for raw in history:
         signal = raw["signal"].strip()
         if signal.startswith("("):
             continue  # bracketed side, ignored per owner
@@ -2670,6 +2678,8 @@ def unexecuted_signals(
             continue
         code = raw["stock_code"].strip()
         asof = parse_date(raw["asof_date"])
+        if action == "進" and any(day > asof for day in exited_after[code]):
+            continue
         if action == "出":
             if code not in held or any(day >= asof for day in sold[code]):
                 continue

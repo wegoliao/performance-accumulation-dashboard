@@ -1,18 +1,18 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-09-11T13:05:01+00:00",
-  "source_data_asof": "2026-09-11",
+  "generated_at": "2026-09-14T11:52:24+08:00",
+  "source_data_asof": "2026-09-14",
   "actual_valuation_asof": "2026-09-11",
   "source_capture_time": null,
   "source_status": "USER_PASTED_INTRADAY_SNAPSHOT",
   "snapshot_reconciliation": "PASS",
   "inputs": {
-    "holdings_snapshot_2026-09-11.csv": {
-      "sha256": "0cd5d2324a691c5f634dc0215934d757e160d0111da84c70607683b977984e1f",
+    "holdings_snapshot_2026-09-14.csv": {
+      "sha256": "7ba7cdc54d064ff9240bb3755c7b37678ae92a3ccee41d830ae0b493bfa1faea",
       "rows": 16
     },
-    "snapshot_summary_2026-09-11.csv": {
-      "sha256": "c388c2b235ba7438adf1bc6e4febfb9064fe193144a325c60de5529416482b51",
+    "snapshot_summary_2026-09-14.csv": {
+      "sha256": "78ea9f2d24f297b8d9526437f6281f38ed6f1c113ca1103de9e095d43da2c1db",
       "rows": 1
     },
     "account_nav.csv": {
@@ -28,11 +28,11 @@
       "rows": 512
     },
     "actual_fills.csv": {
-      "sha256": "bc51f23e08da7027c621300d2f23a4a3419b2c7c6116f5b0b636120fd6bbcab4",
+      "sha256": "d0d02e926f706cabf50454c3f5302e54920c6224eab73cf607287bf59329af86",
       "rows": 51
     },
     "strategy_card_returns.csv": {
-      "sha256": "7e31bebea8f220f389c36673fcad77a25a0e7315f7a5b25de5907224b7561e93",
+      "sha256": "cfdcbfe689122ed5b71a34aa45a753f7d09845068c6f4733148f1d085a293b7f",
       "rows": 92
     },
     "strategy_position_marks.csv": {
@@ -40,29 +40,29 @@
       "rows": 6
     },
     "latest_strategy_signals.csv": {
-      "sha256": "bdcbd54a8ee089719fa179dbac67ee0c108999c90746142433de6a9daeacea5a",
+      "sha256": "bb58e6ac1335348e39f7981a8cd5a9e764e61178d57011af7ed6fec24fd39fe1",
       "rows": 40
     }
   },
   "snapshot": {
     "shares": 16606.0,
-    "yesterday_shares": 14582.0,
-    "current_value_twd": 1211201.0,
+    "yesterday_shares": 16606.0,
+    "current_value_twd": 1205497.0,
     "cost_basis_twd": 1282530.0,
-    "unrealized_pnl_twd": -71329.0,
+    "unrealized_pnl_twd": -77033.0,
     "positions": 16,
-    "unrealized_return": -0.055615853040474686,
-    "estimated_daily_price_contribution_twd": -27943.9,
-    "estimated_gross_daily_return": -0.021987240053303356,
-    "gross_current_mark_value_twd": 1242970.5,
-    "gross_previous_mark_value_twd": 1270914.4,
-    "max_weight": 0.10981414315212752,
-    "hhi": 0.0704245048243373,
-    "effective_positions": 14.199602858328085,
-    "winning_positions": 4,
-    "losing_positions": 12,
-    "winning_position_ratio": 0.25,
-    "source_subtotal_return": -0.0556,
+    "unrealized_return": -0.06006331235916509,
+    "estimated_daily_price_contribution_twd": -6253.200000000001,
+    "estimated_gross_daily_return": -0.005053211369483152,
+    "gross_current_mark_value_twd": 1231217.3,
+    "gross_previous_mark_value_twd": 1237470.5,
+    "max_weight": 0.11282815303563593,
+    "hhi": 0.07098992266674312,
+    "effective_positions": 14.086506400273532,
+    "winning_positions": 2,
+    "losing_positions": 14,
+    "winning_position_ratio": 0.125,
+    "source_subtotal_return": -0.0601,
     "reconciliation": "PASS"
   },
   "history": {
@@ -582,7 +582,7 @@
         }
       },
       "reconciliation": "PASS",
-      "reconciled_asof": "2026-09-11",
+      "reconciled_asof": "2026-09-14",
       "post_snapshot_positions": {},
       "unassigned": {},
       "last_fill_date": "2026-09-11",
