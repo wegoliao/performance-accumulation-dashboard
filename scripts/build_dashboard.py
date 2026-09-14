@@ -2713,6 +2713,79 @@ def unexecuted_signals(
     return "".join(rows)
 
 
+def overdue_exit_cost(
+    holdings: list[dict[str, Any]],
+    fills: list[dict[str, Any]],
+    ohlc: dict[str, list[dict[str, Any]]],
+) -> str:
+    """What waiting has cost on every 出 the card issued that is still held.
+
+    The card's exit is executable at the open of its effective date, so that
+    open is the reference: proceeds there, net of the same fee and tax the
+    liquidation estimate uses, against the snapshot's cost basis. The same
+    arithmetic at the snapshot's mark is the loss now; the difference is the
+    cost of the delay, spread over the sessions elapsed. The best close inside
+    the window says whether any later day would have been cheaper -- it is a
+    fact about the path, not a rule for the next one.
+    """
+    if not SIGNAL_HISTORY_PATH.exists():
+        return ""
+    held = {row["stock_code"].strip(): row for row in holdings}
+    sold: dict[str, list[date]] = defaultdict(list)
+    for fill in fills:
+        if fill["side"] == "SELL":
+            sold[fill["stock_code"].strip()].append(fill["date"])
+    rows: list[str] = []
+    total_delay = 0.0
+    for raw in read_csv(SIGNAL_HISTORY_PATH):
+        if raw["signal"].strip().strip("*") != "出" or not raw.get("effective_date"):
+            continue
+        code = raw["stock_code"].strip()
+        asof = parse_date(raw["asof_date"])
+        if code not in held or any(day >= asof for day in sold[code]):
+            continue
+        effective = parse_date(raw["effective_date"])
+        bars = [bar for bar in ohlc.get(code, []) if bar["date"] >= effective]
+        if not bars:
+            continue
+        position = held[code]
+        shares, cost = position["shares"], position["cost_basis_twd"]
+        at_signal = estimated_liquidation_value(shares, bars[0]["open"]) - cost
+        now = estimated_liquidation_value(shares, position["last_price"]) - cost
+        best = max(bars, key=lambda bar: bar["close"])
+        at_best = estimated_liquidation_value(shares, best["close"]) - cost
+        snapshot_day = position.get("asof_date")
+        if isinstance(snapshot_day, str):
+            snapshot_day = parse_date(snapshot_day)
+        sessions = len(bars) + (1 if snapshot_day and snapshot_day > bars[-1]["date"] else 0)
+        delay = now - at_signal
+        total_delay += delay
+        rows.append(
+            "<tr>"
+            f'<td>{code} {html.escape(raw.get("stock_name", ""))}</td>'
+            f'<td>{html.escape(STRATEGY_LABELS.get(raw["strategy_id"], ""))}</td>'
+            f'<td>{raw["effective_date"]} 開 {bars[0]["open"]:g}</td>'
+            f'<td class="{css_value_class(at_signal)}">{fmt_ntd(at_signal, sign=True)}</td>'
+            f'<td class="{css_value_class(now)}">{fmt_ntd(now, sign=True)}<br><small>@{position["last_price"]:g}</small></td>'
+            f'<td class="{css_value_class(delay)}"><b>{fmt_ntd(delay, sign=True)}</b><br><small>{sessions} 日 · {fmt_ntd(delay / sessions, sign=True)}/日</small></td>'
+            f'<td class="{css_value_class(at_best)}">{fmt_ntd(at_best, sign=True)}<br><small>{best["date"].isoformat()} 收 {best["close"]:g}</small></td>'
+            "</tr>"
+        )
+    if not rows:
+        return ""
+    return (
+        '<article class="panel full" id="overdue"><h2>逾期出場的代價</h2>'
+        '<div class="sub">卡片說「出」、你還持有的每一檔：生效日開盤出場的淨損益（扣手續費與交易稅）、'
+        '現在出場的淨損益、兩者的差就是拖延的成本。「期間最佳」是那段路徑裡最高的收盤 —— '
+        '它說的是這一次，不是下一次。</div>'
+        '<div class="table-wrap"><table><thead><tr><th>股票</th><th>策略</th><th>卡片出場基準</th>'
+        '<th>當時出</th><th>現在出</th><th>拖延代價</th><th>期間最佳</th></tr></thead><tbody>'
+        + "".join(rows)
+        + f'<tr><td colspan="5"><b>合計拖延代價</b></td><td class="{css_value_class(total_delay)}"><b>{fmt_ntd(total_delay, sign=True)}</b></td><td></td></tr>'
+        "</tbody></table></div></article>"
+    )
+
+
 LADDER_RUNGS = (0.0, -0.02, -0.04)   # fraction below the actual fill
 LADDER_WINDOW = 5                     # sessions, fill day inclusive
 
@@ -3184,6 +3257,7 @@ polyline[data-line].off{opacity:.08}
 <section class="grid">
 {{PROVISIONAL_BANNER}}
 <article class="panel full" id="today" style="border-color:var(--accent)"><h2 style="color:var(--accent)">今天要的進出 · {{PLANNED_DATE}}</h2><div class="sub">你的策略卡對這個交易日開出的動作，只列<b>還需要決定</b>的：「出」只列仍持有的，「進」只列整戶零部位的，括號部位依指示排除。這裡只回報系統說了什麼、帳戶做了什麼 —— 要不要執行、幾塊錢，是你的決定。完整的價格分布與掛單落點在 <a href="prep/">備戰頁</a>；已經變現的盈虧全部搬到 <a href="realized/">已實現頁</a>。</div><div class="table-wrap"><table><thead><tr><th>訊號日</th><th>策略</th><th>股票</th><th>動作</th><th>生效日</th><th>目前狀態</th></tr></thead><tbody>{{UNEXECUTED_SIGNALS}}</tbody></table></div></article>
+{{OVERDUE_EXIT_COST}}
 <article class="panel full"><h2>最新四策略卡 · {{SIGNAL_ASOF}} 收盤</h2><div class="sub">來源圖逐列保存。紅／綠方向已轉成帶正負號報酬；{{PLANNED_DATE}} 的「進／出」是計畫訊號，不是成交。</div><div class="strategy-card-grid">{{LATEST_SIGNAL_CARDS}}</div></article>
 <article class="panel full"><h2>{{PLANNED_DATE}} 計畫進出 · 等待實際成交</h2><div class="sub">沒有成交時間、價格、股數與費稅前，不寫入 actual_fills.csv，也不改實際績效曲線。</div>{{PLANNED_SIGNALS}}</article>
 <article class="panel full"><h2>「順著買低」反事實 · 用你自己的成交驗證</h2><div class="sub">你的觀察是：買了之後常常還有更低價。這裡不是替你決定要不要分批，是把這個假設<b>放回已經發生的價格裡跑一遍</b>。每一筆真實買進，同一筆錢拆三等份：成交價、成交價 −2%、成交價 −4%；下面兩檔只有在<b>成交日起 5 個交易日內最低價碰到</b>才算成交，沒碰到那份錢就留著。然後兩邊都用最新收盤估值，扣同一套出場費稅。<br><b>三個誠實的但書：</b>① 碰到價位不等於成交（3624 在 9/10 就是站在 100.00 地板上沒買到），所以這張表偏樂觀；② 價格沒跌下來時階梯買得比較少，損益是算在較小的部位上，所以「留著的現金」欄一起列；③ 31 筆是小樣本，−2%／−4% 是隨手定的參數，換一組數字答案會不一樣 —— 參數寫出來是為了讓你可以爭論它，不是要你相信它。<br>這張表<b>不會產生任何委託</b>。要不要分批、分幾批、掛哪裡，是你的決定。</div><div class="table-wrap"><table><thead><tr><th>買進日</th><th>股票</th><th class="num">實際成交</th><th>階梯成交 (%↓)</th><th class="num">階梯均價</th><th class="num">最新收盤</th><th class="num">實際損益</th><th class="num">階梯損益</th><th class="num">留著的現金</th><th class="num">差</th></tr></thead><tbody>{{LADDER_ROWS}}</tbody></table></div></article>
@@ -3367,6 +3441,7 @@ polyline[data-line].off{opacity:.08}
         "{{POSITIONS_COUNT}}": str(snapshot["positions"]),
         "{{EXPECTANCY_ROWS}}": expectancy_table,
         "{{UNEXECUTED_SIGNALS}}": unexecuted_signals(fills, holdings),
+        "{{OVERDUE_EXIT_COST}}": overdue_exit_cost(holdings, fills, ohlc_by_code),
         "{{DISCIPLINE_CARDS}}": discipline_cards(discipline),
         "{{DISCIPLINE_ROWS}}": discipline_rows(discipline),
         "{{LADDER_ROWS}}": ladder_table(ladder_cf),
