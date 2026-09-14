@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-09-14T11:51:33",
+  "generated_at": "2026-09-14T16:13:22",
   "signal_asof": "2026-09-10",
-  "price_asof": "2026-09-11",
+  "price_asof": "2026-09-14",
   "profile_window": [
     "2025-08-25",
-    "2026-09-11"
+    "2026-09-14"
   ],
   "mainline2_count": 25,
   "mainline1_positions": 15,
@@ -17,12 +17,12 @@
       "close": 35.3,
       "entry_price": 27.4,
       "poc": 34.509090909090915,
-      "value_low": 25.42727272727273,
+      "value_low": 25.91818181818182,
       "value_high": 37.7,
-      "close_percentile": 0.9403705210614196,
+      "close_percentile": 0.9192282969871615,
       "in_value_area": true,
-      "avg_volume_20d": 14450124.65,
-      "slot_participation": 9.558502110314041e-05
+      "avg_volume_20d": 14278530.85,
+      "slot_participation": 9.713622266755097e-05
     },
     {
       "strategy_id": "BREAKOUT",
@@ -34,10 +34,10 @@
       "poc": 18.512500000000003,
       "value_low": 15.306818181818182,
       "value_high": 20.89090909090909,
-      "close_percentile": 0.9570613330683999,
+      "close_percentile": 0.9146989867415715,
       "in_value_area": false,
-      "avg_volume_20d": 3049401.35,
-      "slot_participation": 0.0006977302526832307
+      "avg_volume_20d": 2991804.0,
+      "slot_participation": 0.0007203588249073481
     },
     {
       "strategy_id": "BREAKOUT",
@@ -49,10 +49,10 @@
       "poc": 286.54545454545456,
       "value_low": 271.0,
       "value_high": 509.3636363636364,
-      "close_percentile": 0.9363058141739586,
+      "close_percentile": 0.9262855699787103,
       "in_value_area": false,
-      "avg_volume_20d": 3239567.1,
-      "slot_participation": 2.2899348576890905e-05
+      "avg_volume_20d": 3196995.45,
+      "slot_participation": 2.3342812599762003e-05
     },
     {
       "strategy_id": "BREAKOUT",
@@ -64,10 +64,10 @@
       "poc": 146.38863636363635,
       "value_low": 69.00909090909092,
       "value_high": 354.7181818181818,
-      "close_percentile": 0.94148338863186,
+      "close_percentile": 0.9170069312438406,
       "in_value_area": false,
-      "avg_volume_20d": 75420843.6,
-      "slot_participation": 1.3447194894031395e-06
+      "avg_volume_20d": 74769412.0,
+      "slot_participation": 1.413789976616761e-06
     },
     {
       "strategy_id": "BREAKOUT",
@@ -79,10 +79,10 @@
       "poc": 204.3068181818182,
       "value_low": 183.0681818181818,
       "value_high": 213.4090909090909,
-      "close_percentile": 0.46483498291192343,
+      "close_percentile": 0.5268410028440657,
       "in_value_area": true,
-      "avg_volume_20d": 2638221.4,
-      "slot_participation": 9.290275608244489e-05
+      "avg_volume_20d": 2587537.25,
+      "slot_participation": 9.40311110238471e-05
     },
     {
       "strategy_id": "BREAKOUT",
@@ -94,10 +94,10 @@
       "poc": 54.34147727272727,
       "value_low": 48.57840909090909,
       "value_high": 58.45795454545454,
-      "close_percentile": 0.13295491881779484,
+      "close_percentile": 0.139574500348832,
       "in_value_area": false,
-      "avg_volume_20d": 3635331.4,
-      "slot_participation": 0.00028653967191730217
+      "avg_volume_20d": 3040334.2,
+      "slot_participation": 0.00034154850449311217
     },
     {
       "strategy_id": "BREAKOUT",
@@ -109,10 +109,10 @@
       "poc": 38.987500000000004,
       "value_low": 35.04318181818182,
       "value_high": 44.14545454545454,
-      "close_percentile": 0.9177846814078878,
+      "close_percentile": 0.912255042056868,
       "in_value_area": false,
-      "avg_volume_20d": 2189600.0,
-      "slot_participation": 0.0005085795332948713
+      "avg_volume_20d": 2150400.0,
+      "slot_participation": 0.000519006430697279
     },
     {
       "strategy_id": "BREAKOUT",
@@ -124,10 +124,10 @@
       "poc": 47.74431818181819,
       "value_low": 42.470454545454544,
       "value_high": 53.638636363636365,
-      "close_percentile": 0.14339324927183664,
+      "close_percentile": 0.14583043700767948,
       "in_value_area": false,
-      "avg_volume_20d": 868761.9,
-      "slot_participation": 0.0015639447956614042
+      "avg_volume_20d": 725110.75,
+      "slot_participation": 0.0018686987472403373
     },
     {
       "strategy_id": "BREAKOUT",
@@ -139,10 +139,10 @@
       "poc": 68.87613636363636,
       "value_low": 62.73863636363636,
       "value_high": 82.82499999999999,
-      "close_percentile": 0.22448987998178907,
+      "close_percentile": 0.22149800486250157,
       "in_value_area": true,
-      "avg_volume_20d": 3907899.2,
-      "slot_participation": 0.0002018075423038108
+      "avg_volume_20d": 3907566.6,
+      "slot_participation": 0.00020214355795799681
     },
     {
       "strategy_id": "BREAKOUT",
@@ -154,10 +154,10 @@
       "poc": 102.06931818181818,
       "value_low": 93.07954545454545,
       "value_high": 115.05454545454545,
-      "close_percentile": 0.014914066867556582,
+      "close_percentile": 0.01379666036475145,
       "in_value_area": false,
-      "avg_volume_20d": 11589633.8,
-      "slot_participation": 5.426666868543015e-05
+      "avg_volume_20d": 11582513.7,
+      "slot_participation": 5.443697631539577e-05
     },
     {
       "strategy_id": "MARGIN",
@@ -167,12 +167,12 @@
       "close": 35.3,
       "entry_price": 32.55,
       "poc": 34.509090909090915,
-      "value_low": 25.42727272727273,
+      "value_low": 25.91818181818182,
       "value_high": 37.7,
-      "close_percentile": 0.9403705210614196,
+      "close_percentile": 0.9192282969871615,
       "in_value_area": true,
-      "avg_volume_20d": 14450124.65,
-      "slot_participation": 9.558502110314041e-05
+      "avg_volume_20d": 14278530.85,
+      "slot_participation": 9.713622266755097e-05
     },
     {
       "strategy_id": "MARGIN",
@@ -184,10 +184,10 @@
       "poc": 9.890227272727273,
       "value_low": 8.98,
       "value_high": 17.354090909090907,
-      "close_percentile": 0.46762933614144375,
+      "close_percentile": 0.4344052546251053,
       "in_value_area": true,
-      "avg_volume_20d": 14614181.5,
-      "slot_participation": 0.00022288822608560138
+      "avg_volume_20d": 14076403.75,
+      "slot_participation": 0.00023759489033917282
     },
     {
       "strategy_id": "MARGIN",
@@ -199,10 +199,10 @@
       "poc": 57.725568181818176,
       "value_low": 50.05681818181818,
       "value_high": 61.211363636363636,
-      "close_percentile": 0.26189884969300636,
+      "close_percentile": 0.23759034381896052,
       "in_value_area": true,
-      "avg_volume_20d": 339550.9,
-      "slot_participation": 0.002815551201751105
+      "avg_volume_20d": 305033.6,
+      "slot_participation": 0.0031583115328984793
     },
     {
       "strategy_id": "MARGIN",
@@ -214,10 +214,10 @@
       "poc": 35.79545454545455,
       "value_low": 33.49545454545455,
       "value_high": 41.440909090909095,
-      "close_percentile": 0.1281465866865065,
+      "close_percentile": 0.09398835606483177,
       "in_value_area": false,
-      "avg_volume_20d": 2626564.05,
-      "slot_participation": 0.0006190659086202758
+      "avg_volume_20d": 2712210.35,
+      "slot_participation": 0.0006155308277630477
     },
     {
       "strategy_id": "MARGIN",
@@ -228,11 +228,11 @@
       "entry_price": 108.0,
       "poc": 90.86931818181817,
       "value_low": 58.43181818181818,
-      "value_high": 111.51136363636363,
-      "close_percentile": 0.8239371427701497,
+      "value_high": 113.47727272727272,
+      "close_percentile": 0.8726829003194116,
       "in_value_area": false,
-      "avg_volume_20d": 13445594.0,
-      "slot_participation": 3.035665551898432e-05
+      "avg_volume_20d": 13497585.85,
+      "slot_participation": 2.928352680165005e-05
     },
     {
       "strategy_id": "MARGIN",
@@ -244,10 +244,10 @@
       "poc": 288.375,
       "value_low": 147.1818181818182,
       "value_high": 406.9772727272727,
-      "close_percentile": 0.9103399738497385,
+      "close_percentile": 0.9189544135419834,
       "in_value_area": false,
-      "avg_volume_20d": 16165600.95,
-      "slot_participation": 6.076596064434233e-06
+      "avg_volume_20d": 16556813.95,
+      "slot_participation": 5.86389259032392e-06
     },
     {
       "strategy_id": "MARGIN",
@@ -274,10 +274,10 @@
       "poc": 51.62556818181818,
       "value_low": 49.82386363636364,
       "value_high": 59.60454545454546,
-      "close_percentile": 0.7350434472867855,
+      "close_percentile": 0.7285526658327971,
       "in_value_area": true,
-      "avg_volume_20d": 92527819.65,
-      "slot_participation": 9.097273068087925e-06
+      "avg_volume_20d": 89176329.2,
+      "slot_participation": 9.455091143230436e-06
     },
     {
       "strategy_id": "TRUST",
@@ -286,13 +286,13 @@
       "status": "OK",
       "close": 113.5,
       "entry_price": 100.5,
-      "poc": 89.14204545454545,
-      "value_low": 82.64772727272728,
-      "value_high": 108.625,
-      "close_percentile": 1.0,
+      "poc": 89.83181818181818,
+      "value_low": 82.42727272727274,
+      "value_high": 115.33636363636364,
+      "close_percentile": 0.9414550898770876,
       "in_value_area": false,
-      "avg_volume_20d": 12144100.0,
-      "slot_participation": 3.307008553147712e-05
+      "avg_volume_20d": 14198500.0,
+      "slot_participation": 2.8399183466676967e-05
     },
     {
       "strategy_id": "YOY",
@@ -304,10 +304,10 @@
       "poc": 3568.75,
       "value_low": 2875.0,
       "value_high": 4262.5,
-      "close_percentile": 0.9368721333530653,
+      "close_percentile": 0.9350293024610145,
       "in_value_area": false,
-      "avg_volume_20d": 585488.9,
-      "slot_participation": 7.069430091129172e-06
+      "avg_volume_20d": 585277.95,
+      "slot_participation": 7.125062177416191e-06
     },
     {
       "strategy_id": "YOY",
@@ -319,10 +319,10 @@
       "poc": 166.8693181818182,
       "value_low": 150.52272727272728,
       "value_high": 225.25,
-      "close_percentile": 0.9319731251339345,
+      "close_percentile": 0.9325055963972864,
       "in_value_area": false,
-      "avg_volume_20d": 32651003.2,
-      "slot_participation": 5.5283267732017155e-06
+      "avg_volume_20d": 32116046.5,
+      "slot_participation": 5.610285194355419e-06
     },
     {
       "strategy_id": "YOY",
@@ -334,10 +334,10 @@
       "poc": 286.54545454545456,
       "value_low": 271.0,
       "value_high": 509.3636363636364,
-      "close_percentile": 0.9363058141739586,
+      "close_percentile": 0.9262855699787103,
       "in_value_area": false,
-      "avg_volume_20d": 3239567.1,
-      "slot_participation": 2.2899348576890905e-05
+      "avg_volume_20d": 3196995.45,
+      "slot_participation": 2.3342812599762003e-05
     },
     {
       "strategy_id": "YOY",
@@ -349,10 +349,10 @@
       "poc": 250.4431818181818,
       "value_low": 199.77272727272728,
       "value_high": 371.27272727272725,
-      "close_percentile": 0.9863688045923754,
+      "close_percentile": 0.9753128514208609,
       "in_value_area": false,
-      "avg_volume_20d": 14513850.0,
-      "slot_participation": 7.432546509466375e-06
+      "avg_volume_20d": 14707950.0,
+      "slot_participation": 7.91506874785326e-06
     },
     {
       "strategy_id": "YOY",
@@ -364,10 +364,10 @@
       "poc": 107.92613636363637,
       "value_low": 91.57954545454545,
       "value_high": 119.60227272727272,
-      "close_percentile": 0.5292599205333341,
+      "close_percentile": 0.5472307195997215,
       "in_value_area": true,
-      "avg_volume_20d": 11216397.85,
-      "slot_participation": 4.1856893305110195e-05
+      "avg_volume_20d": 10962620.75,
+      "slot_participation": 4.2625730679059405e-05
     },
     {
       "strategy_id": "YOY",
@@ -376,13 +376,13 @@
       "status": "OK",
       "close": 110.5,
       "entry_price": null,
-      "poc": 91.25,
-      "value_low": 86.95454545454545,
-      "value_high": 108.9090909090909,
-      "close_percentile": 0.9876382304604246,
+      "poc": 91.35227272727272,
+      "value_low": 85.72727272727272,
+      "value_high": 109.25,
+      "close_percentile": 0.9940162019511911,
       "in_value_area": false,
-      "avg_volume_20d": 877871.2,
-      "slot_participation": 0.0004931252248626369
+      "avg_volume_20d": 989869.75,
+      "slot_participation": 0.00042446803453372603
     }
   ],
   "fill_landing": {
