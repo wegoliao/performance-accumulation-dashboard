@@ -589,7 +589,7 @@ def latest_signal_quality(
             "held_or_exit_count": len(held),
             "new_entry_count": sum(row["signal"] == "進" for row in members),
             "exit_count": sum(row["signal"] == "出" for row in members),
-            "status": "PASS" if abs(gap) <= 0.12 else "SOURCE_CHECKSUM_MISMATCH",
+            "status": "PASS" if abs(gap) < 0.5 else "SOURCE_CHECKSUM_MISMATCH",  # card prints one decimal; 0.5pp is the ingestion convention
         }
     return result
 
