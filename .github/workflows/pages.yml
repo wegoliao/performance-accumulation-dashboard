@@ -13,6 +13,7 @@ on:
       - realized/**
       - positions/**
       - history/**
+      - watch/**
       - .github/workflows/pages.yml
   # Commits pushed with GITHUB_TOKEN (the daily-close bot) do not trigger
   # `push` events, so re-deploy explicitly when that workflow succeeds.
