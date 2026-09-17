@@ -1,6 +1,6 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-09-17T15:03:28+08:00",
+  "generated_at": "2026-09-17T13:45:32+00:00",
   "source_data_asof": "2026-09-17",
   "actual_valuation_asof": "2026-09-17",
   "source_capture_time": null,
@@ -330,26 +330,26 @@
       "observations": 259,
       "status": "OK",
       "metrics": {
-        "total_return": 0.8429262451299064,
-        "cagr": 0.7780343872006699,
-        "volatility": 0.286329388019131,
-        "sharpe": 2.22291116530699,
-        "sortino": 3.0962234541150324,
+        "total_return": 0.8446274095973985,
+        "cagr": 0.7795793757105276,
+        "volatility": 0.28636435207405403,
+        "sharpe": 2.2258169144882767,
+        "sortino": 3.1006493593976185,
         "max_drawdown": -0.15004890356939793,
-        "calmar": 5.185205414318988,
+        "calmar": 5.195501980792352,
         "worst_day": -0.06507667292960118,
         "positive_day_ratio": 0.5675675675675675
       },
       "relative_to_TAIEX": {
-        "alpha": 0.08264037359935436,
-        "beta": 0.8344925885065703,
-        "r_squared": 0.5981818429878808,
-        "tracking_error": 0.18674037930299753,
-        "information_ratio": -0.14568486560493069,
+        "alpha": 0.08349043224373279,
+        "beta": 0.8345826400692322,
+        "r_squared": 0.5981648573620808,
+        "tracking_error": 0.18676003157006812,
+        "information_ratio": -0.14079790986886742,
         "overlap_returns": 259.0
       },
       "capture": {
-        "up_capture": 0.877488369812205,
+        "up_capture": 0.877965000885525,
         "down_capture": 0.834037088506428,
         "up_days": 147.0,
         "down_days": 112.0,
@@ -361,7 +361,7 @@
         "trough_date": "2026-07-30",
         "recovery_date": "2026-08-05",
         "underwater_days": 15,
-        "current_drawdown": -0.004394210310394109
+        "current_drawdown": -0.0034751886200117266
       },
       "benchmark_TAIEX": {
         "total_return": 0.9066307814105143,
