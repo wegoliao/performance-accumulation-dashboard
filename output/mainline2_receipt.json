@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-09-17T13:58:23",
+  "generated_at": "2026-09-17T15:03:25",
   "signal_asof": "2026-09-16",
-  "price_asof": "2026-09-16",
+  "price_asof": "2026-09-17",
   "profile_window": [
     "2025-08-25",
-    "2026-09-16"
+    "2026-09-17"
   ],
   "mainline2_count": 14,
   "mainline1_positions": 11,
@@ -19,10 +19,10 @@
       "poc": 18.512500000000003,
       "value_low": 15.306818181818182,
       "value_high": 21.097727272727273,
-      "close_percentile": 0.8441898261957859,
+      "close_percentile": 0.9567610129110736,
       "in_value_area": false,
-      "avg_volume_20d": 2935376.35,
-      "slot_participation": 0.0007503784554938475
+      "avg_volume_20d": 2849892.7,
+      "slot_participation": 0.0007465753270177802
     },
     {
       "strategy_id": "BREAKOUT",
@@ -31,13 +31,13 @@
       "status": "OK",
       "close": 54.1,
       "entry_price": 44.9,
-      "poc": 38.56136363636364,
-      "value_low": 34.586363636363636,
-      "value_high": 45.42727272727273,
-      "close_percentile": 1.0,
+      "poc": 38.52045454545454,
+      "value_low": 33.11363636363636,
+      "value_high": 45.590909090909086,
+      "close_percentile": 0.9524736197799237,
       "in_value_area": false,
-      "avg_volume_20d": 2991000.0,
-      "slot_participation": 0.0003089984679855957
+      "avg_volume_20d": 4196600.0,
+      "slot_participation": 0.00021275726608615137
     },
     {
       "strategy_id": "MARGIN",
@@ -46,13 +46,13 @@
       "status": "OK",
       "close": 39.05,
       "entry_price": 32.55,
-      "poc": 34.616477272727266,
-      "value_low": 25.488636363636363,
-      "value_high": 38.006818181818176,
+      "poc": 34.71193181818182,
+      "value_low": 24.032954545454547,
+      "value_high": 38.06818181818182,
       "close_percentile": 1.0,
       "in_value_area": false,
-      "avg_volume_20d": 15052044.35,
-      "slot_participation": 8.506550348517651e-05
+      "avg_volume_20d": 16350820.6,
+      "slot_participation": 7.119791614005499e-05
     },
     {
       "strategy_id": "MARGIN",
@@ -64,10 +64,10 @@
       "poc": 9.890227272727273,
       "value_low": 8.98,
       "value_high": 17.354090909090907,
-      "close_percentile": 0.4950967958275553,
+      "close_percentile": 0.5319309911674632,
       "in_value_area": true,
-      "avg_volume_20d": 13559180.1,
-      "slot_participation": 0.0002363806794725151
+      "avg_volume_20d": 13563266.25,
+      "slot_participation": 0.00022968396698013562
     },
     {
       "strategy_id": "MARGIN",
@@ -79,10 +79,10 @@
       "poc": 57.725568181818176,
       "value_low": 50.05681818181818,
       "value_high": 61.211363636363636,
-      "close_percentile": 0.2497815600763517,
+      "close_percentile": 0.31591541424955255,
       "in_value_area": true,
-      "avg_volume_20d": 261116.0,
-      "slot_participation": 0.0036753507953268
+      "avg_volume_20d": 254224.55,
+      "slot_participation": 0.00369692708300654
     },
     {
       "strategy_id": "MARGIN",
@@ -94,10 +94,10 @@
       "poc": 35.79545454545455,
       "value_low": 33.49545454545455,
       "value_high": 41.440909090909095,
-      "close_percentile": 0.10885094111288951,
+      "close_percentile": 0.1178042964947494,
       "in_value_area": false,
-      "avg_volume_20d": 2687659.65,
-      "slot_participation": 0.0006160114578022734
+      "avg_volume_20d": 2715693.4,
+      "slot_participation": 0.0006066393422726274
     },
     {
       "strategy_id": "MARGIN",
@@ -106,13 +106,13 @@
       "status": "OK",
       "close": 140.0,
       "entry_price": 108.0,
-      "poc": 90.86931818181817,
-      "value_low": 58.43181818181818,
-      "value_high": 115.44318181818181,
-      "close_percentile": 0.9966908037080168,
+      "poc": 89.02272727272727,
+      "value_low": 56.72727272727273,
+      "value_high": 116.86363636363636,
+      "close_percentile": 0.9660834457946115,
       "in_value_area": false,
-      "avg_volume_20d": 14034961.05,
-      "slot_participation": 2.5446658232290366e-05
+      "avg_volume_20d": 15625903.3,
+      "slot_participation": 2.2855821534672953e-05
     },
     {
       "strategy_id": "MARGIN",
@@ -122,12 +122,12 @@
       "close": 550.0,
       "entry_price": 424.0,
       "poc": 288.375,
-      "value_low": 147.1818181818182,
+      "value_low": 135.88636363636363,
       "value_high": 406.9772727272727,
-      "close_percentile": 0.962033741053754,
+      "close_percentile": 0.8756206386563029,
       "in_value_area": false,
-      "avg_volume_20d": 17862254.7,
-      "slot_participation": 5.089452168045219e-06
+      "avg_volume_20d": 19521497.15,
+      "slot_participation": 5.174300937779304e-06
     },
     {
       "strategy_id": "TRUST",
@@ -139,10 +139,10 @@
       "poc": 51.62556818181818,
       "value_low": 49.82386363636364,
       "value_high": 59.60454545454546,
-      "close_percentile": 0.7753758866655007,
+      "close_percentile": 0.8449869042785516,
       "in_value_area": false,
-      "avg_volume_20d": 82267146.5,
-      "slot_participation": 1.0095947402930235e-05
+      "avg_volume_20d": 76569176.15,
+      "slot_participation": 1.0532327151115963e-05
     },
     {
       "strategy_id": "TRUST",
@@ -151,13 +151,13 @@
       "status": "OK",
       "close": 123.0,
       "entry_price": 100.5,
-      "poc": 121.99318181818182,
-      "value_low": 91.13181818181818,
-      "value_high": 129.5,
-      "close_percentile": 0.8374883649380621,
+      "poc": 122.44204545454545,
+      "value_low": 91.37045454545455,
+      "value_high": 130.0,
+      "close_percentile": 0.6724987004720715,
       "in_value_area": true,
-      "avg_volume_20d": 16302050.0,
-      "slot_participation": 2.4935763602776975e-05
+      "avg_volume_20d": 17041000.0,
+      "slot_participation": 2.4865255182167833e-05
     },
     {
       "strategy_id": "TRUST",
@@ -169,10 +169,10 @@
       "poc": 232.9090909090909,
       "value_low": 214.36363636363637,
       "value_high": 249.27272727272725,
-      "close_percentile": 0.6681338294072398,
+      "close_percentile": 0.6228778504757747,
       "in_value_area": true,
-      "avg_volume_20d": 3349017.2,
-      "slot_participation": 6.407619366007185e-05
+      "avg_volume_20d": 3144307.75,
+      "slot_participation": 6.869007061484024e-05
     },
     {
       "strategy_id": "YOY",
@@ -184,10 +184,10 @@
       "poc": 89.21704545454546,
       "value_low": 70.9,
       "value_high": 188.9431818181818,
-      "close_percentile": 0.897108528655009,
+      "close_percentile": 0.958423646386848,
       "in_value_area": false,
-      "avg_volume_20d": 89358701.95,
-      "slot_participation": 2.4979580146451054e-06
+      "avg_volume_20d": 90279993.35,
+      "slot_participation": 2.346748143393179e-06
     },
     {
       "strategy_id": "YOY",
@@ -199,10 +199,10 @@
       "poc": 250.4431818181818,
       "value_low": 199.77272727272728,
       "value_high": 371.27272727272725,
-      "close_percentile": 0.9644108482902272,
+      "close_percentile": 0.9676563346814023,
       "in_value_area": false,
-      "avg_volume_20d": 13821850.0,
-      "slot_participation": 8.531747074515118e-06
+      "avg_volume_20d": 13037750.0,
+      "slot_participation": 8.93943483730832e-06
     },
     {
       "strategy_id": "YOY",
@@ -211,20 +211,20 @@
       "status": "OK",
       "close": 118.0,
       "entry_price": 111.5,
-      "poc": 91.31818181818181,
-      "value_low": 84.22727272727272,
-      "value_high": 109.31818181818181,
-      "close_percentile": 0.9543633591440875,
+      "poc": 91.48295454545455,
+      "value_low": 83.2159090909091,
+      "value_high": 109.67045454545455,
+      "close_percentile": 0.9540000454109512,
       "in_value_area": false,
-      "avg_volume_20d": 1116392.95,
-      "slot_participation": 0.00037955167448820064
+      "avg_volume_20d": 1058638.95,
+      "slot_participation": 0.00039689458547400956
     }
   ],
   "fill_landing": {
     "buy_count": 36,
-    "sell_count": 15,
+    "sell_count": 20,
     "buy_mean_range_position": 0.3668749575435992,
-    "sell_mean_range_position": 0.6421829543971381,
+    "sell_mean_range_position": 0.6294911265929409,
     "buy_mean_vs_close": -0.004823189246982529
   },
   "boundaries": [

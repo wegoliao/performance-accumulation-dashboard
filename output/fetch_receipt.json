@@ -2,21 +2,15 @@
   "status": "SUCCESS",
   "latest_session": "2026-09-17",
   "missing_at_latest_session": [],
-  "missing_at_latest_session_watchlist_only": [
-    "3374",
-    "3624",
-    "6179",
-    "6218",
-    "6727"
-  ],
-  "fetched_at": "2026-09-17T14:48:12+08:00",
+  "missing_at_latest_session_watchlist_only": [],
+  "fetched_at": "2026-09-17T15:03:38+08:00",
   "window": {
-    "start": "2026-09-16",
+    "start": "2026-09-15",
     "end": "2026-09-17"
   },
   "requested_symbols": 5,
-  "price_rows_total": 8839,
-  "price_rows_added_or_refreshed": 5,
+  "price_rows_total": 8844,
+  "price_rows_added_or_refreshed": 15,
   "trading_days": 260,
   "coverage": {
     "first": "2025-08-25",
@@ -24,27 +18,27 @@
   },
   "per_symbol": {
     "3374": {
-      "rows": 1,
+      "rows": 3,
       "market": "TPEX",
       "name": "精材"
     },
     "3624": {
-      "rows": 1,
+      "rows": 3,
       "market": "TPEX",
       "name": "光頡"
     },
     "6179": {
-      "rows": 1,
+      "rows": 3,
       "market": "TPEX",
       "name": "亞通"
     },
     "6218": {
-      "rows": 1,
+      "rows": 3,
       "market": "TPEX",
       "name": "豪勉"
     },
     "6727": {
-      "rows": 1,
+      "rows": 3,
       "market": "TPEX",
       "name": "亞泰金屬"
     }

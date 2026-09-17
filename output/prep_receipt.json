@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-09-17T13:58:22",
+  "generated_at": "2026-09-17T15:03:25",
   "signal_asof": "2026-09-16",
-  "price_asof": "2026-09-16",
+  "price_asof": "2026-09-17",
   "snapshot_asof": "2026-09-17",
   "actions": 1,
   "profiled": 1,
   "missing_history": [],
   "fill_landing": {
     "buys": 36,
-    "sells": 15,
+    "sells": 20,
     "buy_mean": 0.3668749575435992,
-    "sell_mean": 0.6421829543971381,
+    "sell_mean": 0.6294911265929409,
     "deciles": [
       2,
       5,
