@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-09-16T23:20:10",
+  "generated_at": "2026-09-17T13:58:23",
   "signal_asof": "2026-09-16",
   "price_asof": "2026-09-16",
   "profile_window": [
     "2025-08-25",
     "2026-09-16"
   ],
-  "mainline2_count": 13,
-  "mainline1_positions": 15,
+  "mainline2_count": 14,
+  "mainline1_positions": 11,
   "roster": [
     {
       "strategy_id": "BREAKOUT",
@@ -173,6 +173,21 @@
       "in_value_area": true,
       "avg_volume_20d": 3349017.2,
       "slot_participation": 6.407619366007185e-05
+    },
+    {
+      "strategy_id": "YOY",
+      "stock_code": "1303",
+      "stock_name": "南亞",
+      "status": "OK",
+      "close": 224.0,
+      "entry_price": 237.5,
+      "poc": 89.21704545454546,
+      "value_low": 70.9,
+      "value_high": 188.9431818181818,
+      "close_percentile": 0.897108528655009,
+      "in_value_area": false,
+      "avg_volume_20d": 89358701.95,
+      "slot_participation": 2.4979580146451054e-06
     },
     {
       "strategy_id": "YOY",

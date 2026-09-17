@@ -1,18 +1,18 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-09-16T23:21:07+08:00",
-  "source_data_asof": "2026-09-16",
+  "generated_at": "2026-09-17T13:58:26+08:00",
+  "source_data_asof": "2026-09-17",
   "actual_valuation_asof": "2026-09-16",
   "source_capture_time": null,
   "source_status": "USER_PASTED_INTRADAY_SNAPSHOT",
   "snapshot_reconciliation": "PASS",
   "inputs": {
-    "holdings_snapshot_2026-09-16.csv": {
-      "sha256": "78c84a3e59d935d473949795f0a9826695d2803eb173521a72802f8581a3bb80",
-      "rows": 16
+    "holdings_snapshot_2026-09-17.csv": {
+      "sha256": "5f085a37d82f38059406bd08a2d51c2a3fe982903fe5ebcb37a2e9f6ba5beb88",
+      "rows": 12
     },
-    "snapshot_summary_2026-09-16.csv": {
-      "sha256": "cb626865182e9b8aeda7ca7994ccbf97e261560f16bdebf6ad25f09a86111fd6",
+    "snapshot_summary_2026-09-17.csv": {
+      "sha256": "bcef6e3eecd7f8c5866a2cb44e13729d6f4f91b35a39a1eb307bb17c33d3c700",
       "rows": 1
     },
     "account_nav.csv": {
@@ -28,8 +28,8 @@
       "rows": 518
     },
     "actual_fills.csv": {
-      "sha256": "d0d02e926f706cabf50454c3f5302e54920c6224eab73cf607287bf59329af86",
-      "rows": 51
+      "sha256": "b222bd3cd32c483af33c525520ac5d56b1f81970cd201173370044a577a75204",
+      "rows": 56
     },
     "strategy_card_returns.csv": {
       "sha256": "0761fc7555bffba31a7ef3bd05e001088456444fcad222218c2ff75dc8231132",
@@ -45,24 +45,24 @@
     }
   },
   "snapshot": {
-    "shares": 16606.0,
-    "yesterday_shares": 16606.0,
-    "current_value_twd": 1227696.0,
-    "cost_basis_twd": 1282530.0,
-    "unrealized_pnl_twd": -54834.0,
-    "positions": 16,
-    "unrealized_return": -0.04275455544899535,
-    "estimated_daily_price_contribution_twd": 38302.3,
-    "estimated_gross_daily_return": 0.031644884093732964,
-    "gross_current_mark_value_twd": 1248681.2000000002,
-    "gross_previous_mark_value_twd": 1210378.9000000001,
-    "max_weight": 0.11078801266763108,
-    "hhi": 0.07074997471239085,
-    "effective_positions": 14.134280670277954,
-    "winning_positions": 5,
-    "losing_positions": 11,
-    "winning_position_ratio": 0.3125,
-    "source_subtotal_return": -0.042800000000000005,
+    "shares": 13559.0,
+    "yesterday_shares": 13559.0,
+    "current_value_twd": 956916.0,
+    "cost_basis_twd": 964737.0,
+    "unrealized_pnl_twd": -7821.0,
+    "positions": 12,
+    "unrealized_return": -0.008106872650266342,
+    "estimated_daily_price_contribution_twd": 18789.5,
+    "estimated_gross_daily_return": 0.019355377693317365,
+    "gross_current_mark_value_twd": 989553.3,
+    "gross_previous_mark_value_twd": 970763.8,
+    "max_weight": 0.1379598627256729,
+    "hhi": 0.09490407952910054,
+    "effective_positions": 10.53695483863124,
+    "winning_positions": 7,
+    "losing_positions": 5,
+    "winning_position_ratio": 0.5833333333333334,
+    "source_subtotal_return": -0.008100000000000001,
     "reconciliation": "PASS"
   },
   "history": {
@@ -474,16 +474,21 @@
         }
       },
       "reconciliation": "PASS",
-      "reconciled_asof": "2026-09-16",
-      "post_snapshot_positions": {},
+      "reconciled_asof": "2026-09-17",
+      "post_snapshot_positions": {
+        "1303": 211.0,
+        "1590": 63.0,
+        "2103": 2584.0,
+        "6727": 189.0
+      },
       "unassigned": {},
-      "last_fill_date": "2026-09-11",
+      "last_fill_date": "2026-09-17",
       "valuation_asof": "2026-09-16",
       "valuation_basis": "OFFICIAL_CLOSE_ESTIMATED_LIQUIDATION_CARRY_FORWARD_POSITIONS",
       "bundle_current_pnl_twd": 31155.300000000047,
       "active_fill_cash_out_twd": 1204505.4000000001,
-      "source_active_cost_ex_unassigned_twd": 1135530.0,
-      "active_cost_basis_gap_twd": 68975.40000000014,
+      "source_active_cost_ex_unassigned_twd": 817737.0,
+      "active_cost_basis_gap_twd": 386768.40000000014,
       "post_snapshot_fill_cash_out_twd": 0
     },
     "strategy_actual_gap_report": {

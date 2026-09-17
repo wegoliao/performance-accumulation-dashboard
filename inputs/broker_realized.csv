@@ -11,3 +11,8 @@ sell_date,stock_code,stock_name,shares,sell_price,broker_cost_twd,broker_proceed
 2026-09-07,1709,和益,949,34.0,26094,32125,6031,owner_broker_realized_statement_2026-09-07
 2026-09-07,2408,南亞科,198,517.0,94580,101914,7334,owner_broker_realized_statement_2026-09-07
 2026-09-07,3006,晶豪科,257,297.5,68974,76120,7146,owner_broker_realized_statement_2026-09-07
+2026-09-17,1303,南亞,211,237.5,49866,49891,25,owner_broker_realized_statement_2026-09-17
+2026-09-17,1590,亞德客-KY,63,1245,96842,78089,-18753,owner_broker_realized_statement_2026-09-17
+2026-09-17,2103,台橡,2000,27.9,55579,55554,-25,owner_broker_realized_statement_2026-09-17
+2026-09-17,2103,台橡,584,27.95,16140,16251,111,owner_broker_realized_statement_2026-09-17
+2026-09-17,6727,亞泰金屬,189,476.5,99366,89660,-9706,owner_broker_realized_statement_2026-09-17
