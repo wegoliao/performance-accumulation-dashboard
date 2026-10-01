@@ -39,9 +39,9 @@
 
 ## 卡片與績效日期分離
 
-目前最新卡 9/30，帳戶估值和庫存仍 9/17。`shared_comparison_date` 對四策略的 actual/card 日期取交集最大值；無共同日期明確 InputError，禁止 forward fill、補假值。比較表的日期用 COMPARISON_ASOF；理論卡用 THEORY_ASOF。implementation bridge 只讀共同日或以前的卡片，不能用未來表頭對舊帳算 gap。最新卡片收盤是截圖來源資料，不自動寫進官方 price_history。
+目前最新卡 9/30，合併遠端官方行情後帳戶估值 9/30，Owner 庫存快照仍 9/17，10/1 新成交仍在 intake 待費稅核對。`shared_comparison_date` 對四策略的 actual/card 日期取交集最大值；無共同日期明確 InputError，禁止 forward fill、補假值。比較表的日期用 COMPARISON_ASOF；理論卡用 THEORY_ASOF。implementation bridge 只讀共同日或以前的卡片，不能用未來表頭對舊帳算 gap。最新卡片收盤是截圖來源資料，不自動寫進官方 price_history。
 
-本次首頁有 10/1 dated banner，告知已回報賣出尚未納入舊持股與淨績效。歷史對帳 PASS 僅適用既有 9/17 範圍，不能說 10/1 淨績效已完成。未收到完整庫存與行情，不改頁面估值日。舊 Excel 主檔尚未更新，本次正典更新是 CSV。
+本次首頁有 10/1 dated banner，告知已回報賣出尚未納入舊持股與淨績效。歷史成交對帳 PASS 僅適用已收錄成交；9/30 估值使用該成交簿與官方價格，不能說 10/1 淨績效已完成。未收到完整庫存與行情，不改頁面估值日。舊 Excel 主檔尚未更新，本次正典更新是 CSV。
 
 ## 建置、驗證、發布
 
@@ -57,8 +57,10 @@ git -C 66.performance_accumulation_dashboard status --short
 
 檢查最新卡日期、括號列／顏色、表頭、9/30 2354 出、2316 明開進且 effective 10/1；檢查 fee/tax/net 仍空、已有成交未重複計入、預期圖片數與 hash。build_receipt 記錄電腦生成時間，來源各自有 asof。不要跑舊 export_latest_signals 覆寫 dashboard latest。
 
-只有 Owner 已授權公開網站更新才在此獨立 repo commit/push。使用明確檔案清單，禁止 `git add .`；不得提交其他 AI 的 notebook、憑證、主實驗室檔案。dirty files 先辨識來源；本次起始 price_history 的 9/18 本地快取及 9/18–23 history 是既有已記錄同一儀表板資料，隨更新保留，其餘 notebook 排除。主 repo 不提交。
+只有 Owner 已授權公開網站更新才在此獨立 repo commit/push。使用明確檔案清單，禁止 `git add .`；不得提交其他 AI 的 notebook、憑證、主實驗室檔案。dirty files 先辨識來源；本次起始 price_history 的 9/18 本地快取及 9/18–23 history 是既有已記錄同一儀表板資料；合併遠端 main 的9次官方行情更新，價格按 date/code 去重，相同 key 以遠端官方源為準（50列來源重疊），其餘 notebook 排除。主 repo 不提交。
 
 Pages 工作流必須複製所有頁面子目錄；本次補 intake、positions、history、watch（後三項原本有頁面卻未複製）。push 後看 GitHub Actions 的 Pages 結果，再實際 HTTP GET 首頁及 intake，驗證 9/30 卡、147,684.90、−70,000 及關鍵連結；只看到 push 成功還不算上線成功。
 
 Python 與 Git 的網路讀取只用公開行情／GitHub。任何 AI 永不下單；不登入券商、不讀憑證、不發布帳號。
+
+發布環境注意：本機 repo 未設定 Git author，命令使用 `git -c user.name=Codex -c user.email=codex@users.noreply.github.com ...` 為 AI 變更署名，不改全域 Git 身分。
