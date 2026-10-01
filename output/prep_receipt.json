@@ -1,11 +1,13 @@
 {
-  "generated_at": "2026-09-18T09:37:32",
-  "signal_asof": "2026-09-17",
-  "price_asof": "2026-09-17",
+  "generated_at": "2026-10-01T20:18:10",
+  "signal_asof": "2026-09-30",
+  "price_asof": "2026-09-30",
   "snapshot_asof": "2026-09-17",
-  "actions": 0,
-  "profiled": 0,
-  "missing_history": [],
+  "actions": 2,
+  "profiled": 1,
+  "missing_history": [
+    "2316"
+  ],
   "fill_landing": {
     "buys": 36,
     "sells": 20,

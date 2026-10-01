@@ -102,6 +102,8 @@ def analyse_row(sig: dict[str, str], held: dict[str, dict[str, str]], bars, fill
     low20 = min(b["low"] for b in series[-20:])
     atr = bpos.atr(series)
     pos = held.get(code)
+    if signal.startswith('出') and pos is None:
+        return None  # A reported full close is no longer a pending exit.
     row: dict[str, Any] = {
         "code": code, "name": sig["stock_name"].strip(), "strategy": sig["strategy_id"].strip(),
         "signal": signal, "effective": sig.get("effective_date", ""), "entry": entry, "close": close,
@@ -282,6 +284,7 @@ table{min-width:1100px}td{vertical-align:top}
 <title>跟盤表 · {price_asof.isoformat()} 收盤後</title>
 <meta name="description" content="下一個交易日的跟盤表：每一檔卡片名單與持股的進場價、進場後高點、20 日低、MA20、ATR 與已跨過的位置。純量測。">
 {style}{extra}</head><body><div class="wrap">
+<p class="notice">已接回截至 2026-10-01 的成交：鴻準 788 股、緯創 501 股已平倉，蔚華科 1,000 股已回補；持股列表已移除。剩餘部位原始快照成本與行情日期分別標示。</p>
 <header>
   <div class="eyebrow">Watch sheet &middot; built from closes, read during the next session</div>
   <h1>跟盤表 · {price_asof.isoformat()} 收盤後</h1>
@@ -295,8 +298,8 @@ table{min-width:1100px}td{vertical-align:top}
     <span><a href="../">&larr; 實際績效</a></span><span><a href="../positions/">持股體檢</a></span><span><a href="../prep/">備戰頁</a></span>
   </div>
 </header>
-<div class="notice"><b>這頁不看盤。</b>它用官方收盤算出明天要盯的位置；盤中價格請你自己對。3055 融券不在卡上，不列。兆豐（2886）依指示不計。
-庫存用的是最後一次貼給我的股數（{snapshot_day.isoformat()}）——之後有買賣，貼成交或庫存，這頁才會對。</div>
+<div class="notice"><b>這頁不看盤。</b>它用官方收盤算出明天要盯的位置；盤中價格請你自己對。3055 融券已於 9/23 全數回補。兆豐（2886）依指示不計。
+原庫存快照 {snapshot_day.isoformat()}，已套用截至 2026-10-01 回報的平倉股數。</div>
 
 <article class="panel"><h2>四張卡自己的路徑</h2>
 <div class="sub">卡片表頭是「成員相對各自進場價」的平均，它本身就是一條路徑。這裡把每張卡從第一天到今天的表頭排成序列，看它的最高點與現在的距離。</div>

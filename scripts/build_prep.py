@@ -52,9 +52,17 @@ def read(path: Path) -> list[dict[str, str]]:
 
 
 def latest_holdings() -> tuple[date, dict[str, dict[str, str]]]:
+    """Dated snapshot values filtered by confirmed subsequent quantity events."""
+    import owner_account
     path = sorted(INPUTS.glob("holdings_snapshot_????-??-??.csv"))[-1]
     rows = read(path)
     day = datetime.strptime(rows[0]["asof_date"], "%Y-%m-%d").date()
+    report = owner_account.load_account(ROOT)
+    if report:
+        rows = [row for row in rows if row['stock_code'].strip() in report['positions']]
+        for row in rows:
+            if float(row['shares']) != float(report['positions'][row['stock_code'].strip()]):
+                raise ValueError('snapshot quantity changed; refresh valuation before analysis')
     return day, {row["stock_code"].strip(): row for row in rows}
 
 

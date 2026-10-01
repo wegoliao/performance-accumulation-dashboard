@@ -26,7 +26,11 @@ jobs:
       - name: Fetch official TWSE and TPEx close
         run: python scripts/fetch_prices.py --lookback 45 --delay 2.6
       - name: Rebuild dashboard and receipts
-        run: python scripts/build_dashboard.py
+        run: |
+          python scripts/build_dashboard.py
+          python scripts/build_prep.py
+          python scripts/build_positions.py
+          python scripts/build_watch.py
       - name: Verify calculations and fail-closed states
         run: python -m pytest -q tests
       - name: Upload private dashboard artifact
@@ -42,7 +46,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add inputs/price_history.csv inputs/benchmark_nav.csv output/*.json index.html output/performance_dashboard.html DASHBOARD_SUMMARY.md
+          git add inputs/price_history.csv inputs/benchmark_nav.csv output/*.json index.html output/performance_dashboard.html DASHBOARD_SUMMARY.md realized/index.html prep/index.html positions/index.html watch/index.html
           if git diff --cached --quiet; then
             echo "No new official close."
           else

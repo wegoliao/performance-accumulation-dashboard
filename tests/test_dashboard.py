@@ -42,6 +42,23 @@ def test_implementation_bridge_ignores_future_card_levels() -> None:
         assert result[sid]['r_card'] == pytest.approx(0.02)
 
 
+def test_reported_short_is_never_valued_as_a_long_liquidation_asset():
+    holdings = dashboard.load_holdings()
+    summary = dashboard.load_summary()
+    result = dashboard.liquidation_summary(holdings, summary, {}, 0)
+    assert result['net'] == pytest.approx(summary['current_value_twd'])
+    assert result['exit_cost'] == 0
+
+
+def test_published_page_reflects_confirmed_closes_and_short_loss():
+    output, _ = dashboard.build()
+    text = output.read_text(encoding='utf-8')
+    assert 'id="owner-account"' in text
+    assert 'NT$ -70,959.00' in text
+    assert '鴻準、緯創已平倉；蔚華科已回補' in text
+    assert '目前追蹤持股・9 檔' in text
+
+
 def test_pasted_snapshot_reconciles_exact_source_subtotal() -> None:
     holdings = dashboard.load_holdings()
     summary = dashboard.load_summary()
@@ -253,7 +270,12 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     assert f"NT$ {pasted['unrealized_pnl_twd']:+,.0f}" in content
     rendered_pnl = f"NT$ {diagnostics['bundle_current_pnl_twd']:+,.0f}"
     assert rendered_pnl in content
-    assert "差 NT$653" in content
+    # The historical cost gap must be derived from the current sources,
+    # rather than a stale literal from the 8/25 snapshot.
+    gap_rows, _ = dashboard.cost_basis_gap_rows(
+        dashboard.load_actual_fills(), dashboard.load_holdings()
+    )
+    assert gap_rows in content
     assert "ACTUAL_FOUR_STRATEGY_LIQUIDATION_NAV" in content
     assert "THEORY_ASOF_" in content
     assert f"最新四策略卡 · {latest['asof_date']} 收盤" in content

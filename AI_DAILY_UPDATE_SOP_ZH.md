@@ -35,21 +35,24 @@
 
 歷史回報的「成交量」按整股張（1 張＝1,000 股）；本次 10/1 碎筆量按股。歷史表時間是委託時間，不能寫成 fill_time 或覆寫更晚的既有成交時間。原文「券賣」＝開空、「券買」＝回補，不是現股 SELL/BUY。3055 應另列，不塞進四策略多頭帳。
 
-10/1 結果：24 筆回報；15 筆歷史已記錄，7 筆新現賣碎筆，2 筆融券。2354 788 股 @66.3，3231 501 股 @190.5，毛成交總額 147,684.90。缺費稅／淨收款，因此保留 intake，未寫入 actual_fills。3055 毛價差 -70,000，未含費稅或借券費。之後 Owner 補淨收付：核實後寫入成交簿與融券獨立對帳，重建新的庫存快照、調整 pending banner，再更新績效；不改舊快照的資料日期。
+10/1 結果：24 筆回報；15 筆歷史已記錄，7 筆新現賣碎筆，2 筆融券。2354 788 股 @66.3，3231 501 股 @190.5，毛成交總額 147,684.90。缺費稅／淨收款，原始未知欄保持空白，未寫入 actual_fills；但**已確認成交必須立即接回股數**。`scripts/owner_account.py` 以 Decimal、FIFO 重播原成交簿，再聚合同委託碎筆與已回報平倉，2354、3231 股數歸零；3055 券賣及券買獨立對沖歸零，價差 -70,000。原站展示費用模型每委託取整：手續費 0.1425%、賣出稅 0.3%，本批短單費用估算 959，費後試算 -70,959（另加未知借券費）；不能宣稱為券商實收淨損益。原成交簿已實現 51,474.50，加兩筆現賣原實付成本差額、短單價差、減本批費用估算，帳戶累積已實現試算 -14,322.60。未入帳股息、成本調整或借券費不補造。精確費用補齊後再 reconcile，避免 raw fill/report 重複。
 
 ## 卡片與績效日期分離
 
-目前最新卡 9/30，合併遠端官方行情後帳戶估值 9/30，Owner 庫存快照仍 9/17，10/1 新成交仍在 intake 待費稅核對。`shared_comparison_date` 對四策略的 actual/card 日期取交集最大值；無共同日期明確 InputError，禁止 forward fill、補假值。比較表的日期用 COMPARISON_ASOF；理論卡用 THEORY_ASOF。implementation bridge 只讀共同日或以前的卡片，不能用未來表頭對舊帳算 gap。最新卡片收盤是截圖來源資料，不自動寫進官方 price_history。
+目前最新卡 9/30，合併遠端官方行情後帳戶估值 9/30，Owner 庫存快照仍 9/17，10/1 新成交的股數已接回帳戶，目前追蹤多頭 9 檔；精確淨收付仍待費稅核對。`shared_comparison_date` 對四策略的 actual/card 日期取交集最大值；無共同日期明確 InputError，禁止 forward fill、補假值。比較表的日期用 COMPARISON_ASOF；理論卡用 THEORY_ASOF。implementation bridge 只讀共同日或以前的卡片，不能用未來表頭對舊帳算 gap。最新卡片收盤是截圖來源資料，不自動寫進官方 price_history。
 
-本次首頁有 10/1 dated banner，告知已回報賣出尚未納入舊持股與淨績效。歷史成交對帳 PASS 僅適用已收錄成交；9/30 估值使用該成交簿與官方價格，不能說 10/1 淨績效已完成。未收到完整庫存與行情，不改頁面估值日。舊 Excel 主檔尚未更新，本次正典更新是 CSV。
+首頁與已實現頁都有 `owner-account` 當前帳戶區塊，顯示三檔平倉、價差／費後試算與當前股數；舊快照 KPI 收合並明標 9/17，不能與 9/30 曲線或 10/1 帳戶混算。`build_prep.latest_holdings` 在原始快照上套用已確認平倉，備戰／持股體檢／跟盤表同步移除已售部位。歷史券商現值含融券權益，直接核對來源 current_value，不使用多頭 shares*price 公式；舊 liquidation_summary 曾把 3055 高估 28,272，已修復。歷史成交對帳 PASS 僅適用已收錄成交；9/30 估值使用該成交簿與官方價格，不能說 10/1 淨績效已完成。未收到完整庫存與行情，不改頁面估值日。舊 Excel 主檔尚未更新，本次正典更新是 CSV。
 
 ## 建置、驗證、發布
 
-在主根執行（本次已 30 tests 通過）：
+在主根執行；須通過完整 tests，再以公開 HTTP 回讀驗證：
 
 ```powershell
 .venv/Scripts/python.exe Quant_Card/build_cards_csv.py
 .venv/Scripts/python.exe 66.performance_accumulation_dashboard/scripts/build_dashboard.py
+.venv/Scripts/python.exe 66.performance_accumulation_dashboard/scripts/build_prep.py
+.venv/Scripts/python.exe 66.performance_accumulation_dashboard/scripts/build_positions.py
+.venv/Scripts/python.exe 66.performance_accumulation_dashboard/scripts/build_watch.py
 .venv/Scripts/python.exe -m pytest -q 66.performance_accumulation_dashboard/tests
 git -C 66.performance_accumulation_dashboard diff --check
 git -C 66.performance_accumulation_dashboard status --short
@@ -59,8 +62,12 @@ git -C 66.performance_accumulation_dashboard status --short
 
 只有 Owner 已授權公開網站更新才在此獨立 repo commit/push。使用明確檔案清單，禁止 `git add .`；不得提交其他 AI 的 notebook、憑證、主實驗室檔案。dirty files 先辨識來源；本次起始 price_history 的 9/18 本地快取及 9/18–23 history 是既有已記錄同一儀表板資料；合併遠端 main 的9次官方行情更新，價格按 date/code 去重，相同 key 以遠端官方源為準（50列來源重疊），其餘 notebook 排除。主 repo 不提交。
 
-Pages 工作流必須複製所有頁面子目錄；本次補 intake、positions、history、watch（後三項原本有頁面卻未複製）。push 後看 GitHub Actions 的 Pages 結果，再實際 HTTP GET 首頁及 intake，驗證 9/30 卡、147,684.90、−70,000 及關鍵連結；只看到 push 成功還不算上線成功。
+Pages 工作流必須複製所有頁面子目錄；本次補 intake、positions、history、watch（後三項原本有頁面卻未複製）。push 後看 GitHub Actions 的 Pages 結果，再實際 HTTP GET 首頁及 intake，驗證最新來源卡、147,684.90、蔚華科價差 -70,000／費後試算 -70,959、三檔歸零及關鍵連結；只看到 push 成功還不算上線成功。
 
 Python 與 Git 的網路讀取只用公開行情／GitHub。任何 AI 永不下單；不登入券商、不讀憑證、不發布帳號。
 
 發布環境注意：本機 repo 未設定 Git author，命令使用 `git -c user.name=Codex -c user.email=codex@users.noreply.github.com ...` 為 AI 變更署名，不改全域 Git 身分。
+
+## 修正驗收：2026-10-01
+
+`tests/test_owner_account.py` 驗證碎筆聚合、原始買入實付、短單方向、未知費稅不阻止歸零、超賣拒絕、共用持股頁移除三檔。`tests/test_dashboard.py` 再驗證公開主頁內容與融券快照現值不被當多頭。費後模型是假設試算，不能以測試 PASS 宣称券商費用對帳完成。原 Claude `actual_fills.csv`、`broker_realized.csv`、dated holdings/summary 與舊 frozen history 保留不變；新產物 `output/owner_account_receipt.json` 記生成時間、回報 asof、已結算成交簿截止與每檔行情日。每日官方收盤工作流已同步重建主頁、已實現、備戰、持股體檢及跟盤表。
