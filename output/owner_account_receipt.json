@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-01T20:29:29+08:00",
+  "generated_at": "2026-10-01T15:42:21+00:00",
   "account": {
     "asof": "2026-10-01",
     "settled_book_asof": "2026-09-17",
@@ -55,48 +55,48 @@
     },
     "marks": {
       "2397": {
-        "date": "2026-09-30",
-        "close": "63.0000",
+        "date": "2026-10-01",
+        "close": "63.1000",
         "source": "TWSE_STOCK_DAY"
       },
       "2637": {
-        "date": "2026-09-30",
-        "close": "96.4000",
+        "date": "2026-10-01",
+        "close": "95.3000",
         "source": "TWSE_STOCK_DAY"
       },
       "3006": {
-        "date": "2026-09-30",
-        "close": "286.0000",
+        "date": "2026-10-01",
+        "close": "281.0000",
         "source": "TWSE_STOCK_DAY"
       },
       "1712": {
-        "date": "2026-09-30",
-        "close": "39.8000",
+        "date": "2026-10-01",
+        "close": "39.6500",
         "source": "TWSE_STOCK_DAY"
       },
       "1717": {
-        "date": "2026-09-30",
-        "close": "74.0000",
+        "date": "2026-10-01",
+        "close": "73.5000",
         "source": "TWSE_STOCK_DAY"
       },
       "6108": {
-        "date": "2026-09-30",
-        "close": "25.0500",
+        "date": "2026-10-01",
+        "close": "25.0000",
         "source": "TWSE_STOCK_DAY"
       },
       "6179": {
-        "date": "2026-09-30",
-        "close": "36.3000",
+        "date": "2026-10-01",
+        "close": "35.9500",
         "source": "TPEX_STOCK_DAY"
       },
       "6426": {
-        "date": "2026-09-30",
-        "close": "345.0000",
+        "date": "2026-10-01",
+        "close": "339.5000",
         "source": "TWSE_STOCK_DAY"
       },
       "2489": {
-        "date": "2026-09-30",
-        "close": "41.8000",
+        "date": "2026-10-01",
+        "close": "40.6500",
         "source": "TWSE_STOCK_DAY"
       }
     },
