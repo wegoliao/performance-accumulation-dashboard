@@ -71,3 +71,5 @@ Python 與 Git 的網路讀取只用公開行情／GitHub。任何 AI 永不下�
 ## 修正驗收：2026-10-01
 
 `tests/test_owner_account.py` 驗證碎筆聚合、原始買入實付、短單方向、未知費稅不阻止歸零、超賣拒絕、共用持股頁移除三檔。`tests/test_dashboard.py` 再驗證公開主頁內容與融券快照現值不被當多頭。費後模型是假設試算，不能以測試 PASS 宣称券商費用對帳完成。原 Claude `actual_fills.csv`、`broker_realized.csv`、dated holdings/summary 與舊 frozen history 保留不變；新產物 `output/owner_account_receipt.json` 記生成時間、回報 asof、已結算成交簿截止與每檔行情日。每日官方收盤工作流已同步重建主頁、已實現、備戰、持股體檢及跟盤表。
+
+融券部位也不得放入四策略多頭的成本差額表：缺少多頭 BUY 並不代表融券帳面成本差 -147,000。`cost_basis_gap_rows` 僅比較 in_strategy_scope 多頭快照。

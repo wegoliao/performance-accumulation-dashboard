@@ -49,6 +49,12 @@ def test_reported_short_is_never_valued_as_a_long_liquidation_asset():
     assert result['net'] == pytest.approx(summary['current_value_twd'])
     assert result['exit_cost'] == 0
 
+def test_short_equity_is_not_a_long_strategy_book_cost_gap():
+    rows, _ = dashboard.cost_basis_gap_rows(
+        dashboard.load_actual_fills(), dashboard.load_holdings()
+    )
+    assert '3055' not in rows
+
 
 def test_published_page_reflects_confirmed_closes_and_short_loss():
     output, _ = dashboard.build()
