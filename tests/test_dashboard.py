@@ -17,6 +17,31 @@ dashboard = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(dashboard)
 
 
+def test_newer_cards_compare_only_on_actual_shared_date() -> None:
+    old, new = date(2026, 9, 17), date(2026, 9, 30)
+    actual = {s: [(old, 103.0)] for s in dashboard.STRATEGY_LABELS}
+    theory = {s: [(old, 102.0), (new, 120.0)] for s in dashboard.STRATEGY_LABELS}
+    diagnostics = {s: {"active_positions": []} for s in dashboard.STRATEGY_LABELS}
+    table = dashboard.strategy_comparison_table(actual, theory, diagnostics)
+    assert '+2.00%' in table
+    assert '+20.00%' not in table
+
+
+def test_comparison_without_shared_date_fails_with_explicit_contract_error() -> None:
+    actual = {s: [(date(2026, 9, 17), 103.0)] for s in dashboard.STRATEGY_LABELS}
+    theory = {s: [(date(2026, 9, 30), 120.0)] for s in dashboard.STRATEGY_LABELS}
+    with pytest.raises(dashboard.InputError, match='shared comparison date'):
+        dashboard.strategy_comparison_table(actual, theory, {})
+
+
+def test_implementation_bridge_ignores_future_card_levels() -> None:
+    old, new = date(2026, 9, 17), date(2026, 9, 30)
+    theory = {s: [(old, 102.0), (new, 120.0)] for s in dashboard.STRATEGY_LABELS}
+    result = dashboard.implementation_bridge([], {}, theory, [], old)
+    for sid in dashboard.STRATEGY_LABELS:
+        assert result[sid]['r_card'] == pytest.approx(0.02)
+
+
 def test_pasted_snapshot_reconciles_exact_source_subtotal() -> None:
     holdings = dashboard.load_holdings()
     summary = dashboard.load_summary()

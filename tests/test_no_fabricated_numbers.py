@@ -106,6 +106,18 @@ def test_cost_and_price_columns_next_to_held_stocks_match_the_inputs() -> None:
         if not rows:
             continue
         header = _cells(rows[0])
+        # Source-card close and account-mark price have distinct dates/sources.
+        # Verify card tables against their exact latest input, never price_history.
+        if header == ["股票", "產業", "進場", "收盤", "%", "訊"]:
+            latest = _read(dashboard.LATEST_STRATEGY_SIGNALS_PATH)
+            for row_html in rows[1:]:
+                cells = _cells(row_html)
+                code = cells[0].split()[0]
+                candidates = [r for r in latest if r['stock_code'] == code]
+                assert candidates, f"source card code missing: {code}"
+                assert any(abs(_first_number(cells[3]) - float(r['close'])) < 0.005 for r in candidates)
+            tables_checked += 1
+            continue
         cost_cols = [i for i, h in enumerate(header) if any(k in h for k in COST_HEADERS)
                      and "落差" not in h and "簿" not in h and "券商" not in h and "→" not in h]
         price_cols = [i for i, h in enumerate(header) if any(k in h for k in PRICE_HEADERS)

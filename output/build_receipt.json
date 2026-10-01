@@ -1,6 +1,6 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-09-18T09:37:53+08:00",
+  "generated_at": "2026-10-01T18:28:07+08:00",
   "source_data_asof": "2026-09-17",
   "actual_valuation_asof": "2026-09-17",
   "source_capture_time": null,
@@ -32,16 +32,16 @@
       "rows": 56
     },
     "strategy_card_returns.csv": {
-      "sha256": "42306c704f50298eb097175d8d5356866941666906b20304358bd984effb2763",
-      "rows": 108
+      "sha256": "297508093f3ca06f516f790e2f8d95a8f7ae2662d6a674c5f1af385ece8e9681",
+      "rows": 136
     },
     "strategy_position_marks.csv": {
       "sha256": "4fc2f7225996426e23425afd5205a98771d533ec3f0e1db29318d494d2e36299",
       "rows": 6
     },
     "latest_strategy_signals.csv": {
-      "sha256": "4c6417d62b691bd2fc05169c0bcc968513c8780bc8d056499ddcbde4635daea3",
-      "rows": 22
+      "sha256": "1245d9a73ea2d7c5ab3ae3ae6cf50c1e6875636cd11e69dd50a81d168553a3fb",
+      "rows": 31
     }
   },
   "snapshot": {
@@ -381,45 +381,58 @@
       "TRUST",
       "YOY"
     ],
-    "strategy_card_asof": "2026-09-17",
+    "strategy_card_asof": "2026-09-30",
     "latest_strategy_signals": {
-      "asof_date": "2026-09-17",
-      "planned_effective_date": null,
-      "planned_actions": [],
+      "asof_date": "2026-09-30",
+      "planned_effective_date": "2026-10-01",
+      "planned_actions": [
+        {
+          "strategy_id": "MARGIN",
+          "stock_code": "2316",
+          "signal": "進",
+          "actual_fill_status": "WAITING_ACTUAL_FILL"
+        },
+        {
+          "strategy_id": "MARGIN",
+          "stock_code": "2354",
+          "signal": "出",
+          "actual_fill_status": "WAITING_ACTUAL_FILL"
+        }
+      ],
       "quality": {
-        "asof_date": "2026-09-17",
+        "asof_date": "2026-09-30",
         "TRUST": {
-          "header_return_pct": 1.5,
-          "visible_member_mean_pct": 2.5666666666666664,
-          "gap_pp": 1.0666666666666664,
-          "held_or_exit_count": 3,
+          "header_return_pct": -2.5999999999999943,
+          "visible_member_mean_pct": -2.6399999999999997,
+          "gap_pp": -0.040000000000005365,
+          "held_or_exit_count": 5,
           "new_entry_count": 0,
           "exit_count": 0,
-          "status": "SOURCE_CHECKSUM_MISMATCH"
+          "status": "PASS"
         },
         "YOY": {
-          "header_return_pct": 3.299999999999997,
-          "visible_member_mean_pct": 3.4499999999999997,
-          "gap_pp": 0.15000000000000258,
+          "header_return_pct": 2.0,
+          "visible_member_mean_pct": 2.2833333333333337,
+          "gap_pp": 0.28333333333333366,
           "held_or_exit_count": 6,
           "new_entry_count": 0,
           "exit_count": 0,
           "status": "PASS"
         },
         "MARGIN": {
-          "header_return_pct": 11.599999999999994,
-          "visible_member_mean_pct": 11.569999999999999,
-          "gap_pp": -0.029999999999995808,
+          "header_return_pct": 19.900000000000006,
+          "visible_member_mean_pct": 19.859999999999996,
+          "gap_pp": -0.040000000000009805,
           "held_or_exit_count": 10,
-          "new_entry_count": 0,
-          "exit_count": 0,
+          "new_entry_count": 1,
+          "exit_count": 1,
           "status": "PASS"
         },
         "BREAKOUT": {
-          "header_return_pct": 4.700000000000003,
-          "visible_member_mean_pct": 6.766666666666667,
-          "gap_pp": 2.0666666666666638,
-          "held_or_exit_count": 3,
+          "header_return_pct": 35.0,
+          "visible_member_mean_pct": 16.555555555555557,
+          "gap_pp": -18.444444444444443,
+          "held_or_exit_count": 9,
           "new_entry_count": 0,
           "exit_count": 0,
           "status": "SOURCE_CHECKSUM_MISMATCH"
@@ -487,24 +500,26 @@
           "deployed_fraction": 0.620262,
           "cash_twd": 202230.50000000003,
           "realized_pnl_twd": 12361.500000000022,
-          "card_members": 3,
-          "covered_members": 1,
-          "coverage_fraction": 0.3333333333333333,
-          "covered_codes": [
-            "3231"
-          ],
+          "card_members": 5,
+          "covered_members": 0,
+          "coverage_fraction": 0.0,
+          "covered_codes": [],
           "missing_codes": [
-            "3624",
-            "4576"
+            "2404",
+            "3006",
+            "3605",
+            "6026",
+            "6147"
           ],
           "stale_codes": [
             "1717",
-            "2489"
+            "2489",
+            "3231"
           ],
           "planned_entry_codes": [],
           "planned_exit_codes": [],
-          "covered_card_average_return": -0.066,
-          "missing_card_average_return": 0.0715,
+          "covered_card_average_return": null,
+          "missing_card_average_return": -0.0264,
           "weighted_entry_gap": -0.07638357370472093,
           "drivers": {
             "在庫組合與進場": -0.013676929999999952,
@@ -661,8 +676,8 @@
           ],
           "planned_entry_codes": [],
           "planned_exit_codes": [],
-          "covered_card_average_return": 0.11299999999999999,
-          "missing_card_average_return": -0.004749999999999997,
+          "covered_card_average_return": 0.017000000000000005,
+          "missing_card_average_return": 0.025750000000000002,
           "weighted_entry_gap": -0.020983334886171146,
           "drivers": {
             "在庫組合與進場": 0.0026211204000000316,
@@ -801,9 +816,9 @@
           "deployed_fraction": 0.4820016,
           "cash_twd": 259674.2,
           "realized_pnl_twd": 675.0000000000008,
-          "card_members": 10,
+          "card_members": 11,
           "covered_members": 4,
-          "coverage_fraction": 0.4,
+          "coverage_fraction": 0.36363636363636365,
           "covered_codes": [
             "1712",
             "2354",
@@ -813,16 +828,21 @@
           "missing_codes": [
             "1709",
             "1714",
+            "2316",
             "3046",
             "3380",
             "3605",
             "6213"
           ],
           "stale_codes": [],
-          "planned_entry_codes": [],
-          "planned_exit_codes": [],
-          "covered_card_average_return": 0.014499999999999999,
-          "missing_card_average_return": 0.18316666666666667,
+          "planned_entry_codes": [
+            "2316"
+          ],
+          "planned_exit_codes": [
+            "2354"
+          ],
+          "covered_card_average_return": 0.006,
+          "missing_card_average_return": 0.28028571428571425,
           "weighted_entry_gap": -0.008376112185431921,
           "drivers": {
             "在庫組合與進場": -0.04306038559999986,
@@ -961,21 +981,27 @@
           "deployed_fraction": 0.200732,
           "cash_twd": 420377.0,
           "realized_pnl_twd": 20742.999999999996,
-          "card_members": 3,
+          "card_members": 9,
           "covered_members": 1,
-          "coverage_fraction": 0.3333333333333333,
+          "coverage_fraction": 0.1111111111111111,
           "covered_codes": [
             "3006"
           ],
           "missing_codes": [
+            "1709",
             "2030",
-            "6218"
+            "2474",
+            "2630",
+            "6218",
+            "6456",
+            "6919",
+            "7799"
           ],
           "stale_codes": [],
           "planned_entry_codes": [],
           "planned_exit_codes": [],
-          "covered_card_average_return": -0.043,
-          "missing_card_average_return": 0.123,
+          "covered_card_average_return": -0.017,
+          "missing_card_average_return": 0.188375,
           "weighted_entry_gap": -0.007201218667774456,
           "drivers": {
             "在庫組合與進場": -0.017186403999999975,
@@ -1115,9 +1141,9 @@
         "combined_actual_return": 0.02931720000000003,
         "combined_card_return": 0.05274999999999991,
         "combined_gap": -0.02343279999999988,
-        "coverage_fraction": 0.36363636363636365,
-        "covered_members": 8,
-        "card_members": 22,
+        "coverage_fraction": 0.22580645161290322,
+        "covered_members": 7,
+        "card_members": 31,
         "deployed_fraction": 0.40886919999999993,
         "combined_vs_benchmarks": {
           "0050": -0.007133639328537181,

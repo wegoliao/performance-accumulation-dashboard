@@ -1,5 +1,7 @@
 # DeepSeek 每日訊號流水線 SOP（接手包）
 
+> 2026-10-01：以下流程含過時正典與缺卡資訊，留作歷史。現行操作請讀 [AI_DAILY_UPDATE_SOP_ZH.md](AI_DAILY_UPDATE_SOP_ZH.md)，不要用舊 TSV exporter 覆寫最新 dashboard CSV。
+
 > 給 DeepSeek（DSH）或其他 AI 接手「四策略每日卡 → Excel → 公開儀表板」的標準作業程序。
 > 正典根：`D:\Quant_Grill_Lab`。治理契約見專案 `AGENTS.md` 與 `.planning/GRILL_DECISIONS.md`（G027）。
 > 這是例行 SOP；儀表板架構面的精進清單見 [Claude 版精進盤點](claude/)，兩者分工：Claude 修儀表板斷點，本文件固化「訊號入庫」段。

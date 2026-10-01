@@ -993,12 +993,24 @@ def closed_lot_table(lots: list[dict[str, Any]]) -> str:
     return "".join(rows)
 
 
+def shared_comparison_date(actual_curves, card_curves) -> date:
+    common = None
+    for strategy_id in STRATEGY_LABELS:
+        days = {day for day, _ in actual_curves.get(strategy_id, [])} & {
+            day for day, _ in card_curves.get(strategy_id, [])
+        }
+        common = days if common is None else common & days
+    if not common:
+        raise InputError("no shared comparison date across actual and card curves")
+    return max(common)
+
+
 def strategy_comparison_table(
     actual_curves: dict[str, list[tuple[date, float]]],
     card_curves: dict[str, list[tuple[date, float]]],
     diagnostics: dict[str, Any],
 ) -> str:
-    common_asof = min(curve[-1][0] for curve in card_curves.values())
+    common_asof = shared_comparison_date(actual_curves, card_curves)
     rows: list[str] = []
     for strategy_id, label in STRATEGY_LABELS.items():
         actual = dict(actual_curves[strategy_id])
@@ -1792,7 +1804,7 @@ def implementation_bridge(
         weight = position_cost / budget if budget else 0.0
         r_positions = (position_value / position_cost - 1.0) if position_cost else 0.0
         realized_pnl = realized_by.get(strategy_id, {}).get("realized_pnl_twd", 0.0)
-        card_curve = card_curves.get(strategy_id) or []
+        card_curve = [(day, value) for day, value in card_curves.get(strategy_id, []) if day <= asof]
         r_card = (card_curve[-1][1] / 100.0 - 1.0) if card_curve else None
 
         sleeve_return = weight * r_positions + realized_pnl / budget
@@ -3005,6 +3017,7 @@ def build() -> tuple[Path, dict[str, Any]]:
         for strategy_id, curve in card_curves.items()
     }
     theory_asof = min(curve[-1][0] for curve in card_curves.values())
+    comparison_asof = shared_comparison_date(actual_strategy_curves, card_curves)
     actual_bundle_pnl = strategy_diagnostics["bundle_current_pnl_twd"]
     discipline = discipline_ledger(fills, prices, actual_asof)
     expectancy_table, honest_ev = expectancy_rows(
@@ -3028,8 +3041,13 @@ def build() -> tuple[Path, dict[str, Any]]:
     slippage_rows = analytics.build_slippage_ledger(
         SIGNAL_FILLS_PATH, analytics.load_ohlc(PRICE_HISTORY_PATH)
     )
+    bridge_signals = [
+        {**raw, "entry_price": optional_float(raw.get("entry_price"), "entry_price")}
+        for raw in read_csv(SIGNAL_HISTORY_PATH)
+        if parse_date(raw["asof_date"]) == comparison_asof
+    ]
     bridge = implementation_bridge(
-        fills, prices, card_curves, latest_signals, actual_asof
+        fills, prices, card_curves, bridge_signals, comparison_asof
     )
     gap_report = strategy_gap.analyze(
         strategy_labels=STRATEGY_LABELS,
@@ -3252,7 +3270,8 @@ polyline[data-line].off{opacity:.08}
 </head>
 <body><main class="wrap">
 <div class="eyebrow">66 · PERFORMANCE ACCUMULATION</div>
-<section class="hero"><div><h1>績效累積圖</h1><p>實際績效已改用 2026-08-10 起始、2026-08-11 起逐筆成交的四策略 equity curve。不再把今日持股倒推一年。理論卡與實際線分開標示截止日。</p><div class="badges"><span class="badge good">ACTUAL_FILLS_RECONCILED</span><span class="badge good">THEORY_ASOF_{{THEORY_ASOF_COMPACT}}</span><span class="badge warn">RISK_SAMPLE_{{RISK_OBS}}_RETURNS</span><span class="badge">NO_BROKER · NO_ORDER</span><a class="badge good" href="inputs/four_strategy_daily_signals.xlsx" download>下載 Excel 主檔</a></div></div><div><b>四策略估值日</b><br><span class="mono">{{ASOF}}</span><br><small>owner 庫存快照 {{SNAPSHOT_ASOF}}；理論卡 {{THEORY_ASOF}}</small></div></section>
+<article class="panel" style="border-color:var(--accent)"><h2>10/1 成交已回報，淨收付待對帳</h2><p>鴻準 788 股、緯創 501 股已回報賣出，成交總額 NT$147,684.90；費稅未提供，尚未納入本頁成交簿、庫存與淨績效。下方鴻準待出場狀態仍來自舊成交簿，請以本次成交回報為準。<a href="intake/">查看 24 筆回報、去重與待補資料</a>。最新卡片 9/30 表頭：投信 −2.6%、YOY +2.0%、融資 +19.9%、突破 +35.0%（來源卡片口徑，非帳戶報酬）。</p></article>
+<section class="hero"><div><h1>績效累積圖</h1><p>實際績效已改用 2026-08-10 起始、2026-08-11 起逐筆成交的四策略 equity curve。不再把今日持股倒推一年。理論卡與實際線分開標示截止日。</p><div class="badges"><span class="badge good">HISTORICAL_FILLS_RECONCILED_ONLY</span><span class="badge good">THEORY_ASOF_{{THEORY_ASOF_COMPACT}}</span><span class="badge warn">RISK_SAMPLE_{{RISK_OBS}}_RETURNS</span><span class="badge">NO_BROKER · NO_ORDER</span><a class="badge good" href="inputs/four_strategy_daily_signals.xlsx" download>下載 Excel 主檔</a></div></div><div><b>四策略估值日</b><br><span class="mono">{{ASOF}}</span><br><small>owner 庫存快照 {{SNAPSHOT_ASOF}}；理論卡 {{THEORY_ASOF}}</small></div></section>
 <section class="metrics">{{HEADER_CARDS}}</section>
 <section class="grid">
 {{PROVISIONAL_BANNER}}
@@ -3271,7 +3290,7 @@ polyline[data-line].off{opacity:.08}
 <article class="panel full"><h2>部位健康度 · 逐檔量測</h2><div class="sub"><b>這張表不含任何建議。</b>每一欄都是量測：距成本、距卡片自己的進場價、持有天數、自進場以來從最高點的回撤，以及最後一欄 —— <b>你的策略卡現在對這檔說什麼</b>。最後一欄是你自己系統的輸出，把它列出來是回報，不是我的意見。要不要動、動多少，是你的決定。</div><div class="table-wrap"><table><thead><tr><th>股票／策略</th><th class="num">成本均價</th><th class="num">現價</th><th class="num">報酬率</th><th class="num">未實現</th><th class="num">卡片進場</th><th class="num">現價vs卡片</th><th class="num">持有</th><th class="num">自進場高點回撤</th><th>卡片現在說</th></tr></thead><tbody>{{POSITION_HEALTH}}</tbody></table></div></article>
 <article class="panel full"><h2>策略 vs 實際 · 八個角度的診斷</h2><div class="sub">策略卡是當日成員的等權顯示報酬；實際 sleeve 是成交現金流、真實權重、閒置現金、費稅與可變現估值。兩者不是同一種 NAV。這一區回答「差在哪裡」，但不把描述性 bridge 冒充因果歸因或 alpha。</div><div class="gap-lenses">{{GAP_LENS_CARDS}}</div><div class="period-kind">策略層診斷 · 同一起訖日</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際</th><th class="num">卡片</th><th class="num">Gap</th><th>最大描述項</th><th class="num">投入</th><th class="num">覆蓋</th><th class="num">vs TAIEX</th><th class="num">vs 0050</th><th class="num">訊號成交樣本</th></tr></thead><tbody>{{GAP_DRIVER_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">Gap 走勢 · 實際報酬 − 卡片顯示報酬（pp）</div>{{GAP_HISTORY_CHART}}<div class="section-gap"></div><div class="period-kind">成員與狀態 · 缺席不等於損失，未買標的不得虛構 counterfactual P&amp;L</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>同策略已覆蓋</th><th>卡上未持有</th><th>仍持有但已離卡</th><th>計畫進</th><th>計畫出</th><th class="num">實付 vs 卡價</th><th class="num">現金</th></tr></thead><tbody>{{COVERAGE_LENS_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>實施落差橋 · 三項加總的描述性 bridge</h2><div class="sub">只說「差幾 pp」沒有用。這裡用一個<b>代數恆等式</b>把差距拆成三項：<br><code>差距 = 在庫組合與進場 ＋ 現金／未投入 ＋ 已實現</code><br>三項加總會精確回到「實際 − 卡片」，但分類不是因果實驗：第一項同時混合成員覆蓋、實際權重、進場時點、進場價與出場費稅；第二項假設用卡片表頭當作未投入資金的參考報酬；第三項來自平倉現金流。它適合找下一個要查的方向，不適合宣稱哪一項造成未來績效。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">理論卡</th><th class="num">實際 sleeve</th><th class="num">差距</th><th class="num">在庫組合<br>與進場</th><th class="num">現金／<br>未投入</th><th class="num">已實現<br>貢獻</th><th class="num">投入<br>比重</th><th class="num">閒置現金</th></tr></thead><tbody>{{BRIDGE_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">進場價差 · 卡片假設你付的 vs 你實際付的</div><div class="sub" style="margin-bottom:12px">「實付均價」是成交簿的在庫帳面成本 ÷ 股數，含手續費，所以它一定略高於成交價本身。綠色代表實付低於卡片進場價，紅色代表高於；它只描述成交，不代表那個價位是最佳進場。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">卡片進場</th><th class="num">實付均價</th><th class="num">進場價差</th><th class="num">現價</th><th class="num">在庫報酬<br>（扣出場費稅）</th></tr></thead><tbody>{{ENTRY_GAP_TABLE}}</tbody></table></div></article>
-<article class="panel full"><h2>實際 vs 理論 · 四策略差異</h2><div class="sub">「差異」只在共同截止日 {{THEORY_ASOF}} 計算：實際 50 萬 sleeve 可變現報酬 − 理論卡等權顯示報酬。這是描述性 implementation gap，權重與現金比率不同，不冒充 alpha。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際累計<br>{{ASOF}}</th><th class="num">實際損益</th><th class="num">實際<br>{{THEORY_ASOF}}</th><th class="num">理論卡<br>{{THEORY_ASOF}}</th><th class="num">差異<br>pp</th><th class="num">實際/理論<br>持股數</th><th class="num">MDD</th><th class="num">Sharpe</th></tr></thead><tbody>{{STRATEGY_TABLE}}</tbody></table></div></article>
+<article class="panel full"><h2>實際 vs 理論 · 四策略差異</h2><div class="sub">「差異」只在共同截止日 {{COMPARISON_ASOF}} 計算：實際 50 萬 sleeve 可變現報酬 − 理論卡等權顯示報酬。這是描述性 implementation gap，權重與現金比率不同，不冒充 alpha。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際累計<br>{{ASOF}}</th><th class="num">實際損益</th><th class="num">實際<br>{{COMPARISON_ASOF}}</th><th class="num">理論卡<br>{{COMPARISON_ASOF}}</th><th class="num">差異<br>pp</th><th class="num">實際/理論<br>持股數</th><th class="num">MDD</th><th class="num">Sharpe</th></tr></thead><tbody>{{STRATEGY_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>日／週／月／季／年／YTD／累計</h2><div class="sub">basis：{{ANALYSIS_BASIS}}。近一月、季、年若沒有足夠實際觀察就顯示 N/A，不用同一批股票倒推。</div><div class="period-grid">{{PERIOD_CARDS}}</div></article>
 <article class="panel full" id="risk-metrics"><h2>Sharpe／MDD／Alpha／Beta · 完整績效風險衡量</h2><div class="sub">以四策略實際合計曲線計算。MDD 不需要樣本門檻；Sharpe 與 Sortino 需要 20 筆日報酬。<br>{{SHARPE_BAND}}</div><div class="status-grid">{{RISK_METRICS}}</div></article>
 <article class="panel"><h2>歷史期間報酬</h2><div class="sub">資料成長後優先顯示月報酬，再依可用資料退回週／季／年。</div>{{PERIOD_BARS}}</article>
@@ -3284,7 +3303,7 @@ polyline[data-line].off{opacity:.08}
 <article class="panel"><h2>庫存配置</h2><div class="sub">依來源「現值」重算；最大單一持股 {{MAX_WEIGHT}}。</div>{{ALLOCATION}}</article>
 <article class="panel"><h2>今天先看懂三件事</h2><div class="sub">單點資料可以回答的問題，不越界解讀。</div><div class="callout"><b>帳面總體為正：</b>累積未實現損益 {{TOTAL_PNL}}，但 {{POSITIONS_COUNT}} 檔中共有 {{LOSING}} 檔虧損。</div><p><b>累積最大正貢獻：</b>{{TOP_WINNER}}</p><p><b>累積最大負貢獻：</b>{{TOP_LOSER}}</p><p><b>今日估算最大推升：</b>{{TOP_DAY_WINNER}}</p><p><b>今日估算最大拖累：</b>{{TOP_DAY_LOSER}}</p></article>
 <article class="panel full"><h2>持股明細</h2><div class="sub">現值與損益完全對上 owner 貼入小計；配置比例由現值重新計算。</div><div class="table-wrap"><table><thead><tr><th>股票</th><th class="num">股數</th><th class="num">成本均價</th><th class="num">現價</th><th class="num">今日漲跌幅</th><th class="num">現值</th><th class="num">未實現損益</th><th class="num">獲利率</th><th class="num">配置</th></tr></thead><tbody>{{HOLDINGS_TABLE}}</tbody></table></div></article>
-<article class="panel full"><h2>資料品質與限制</h2><div class="sub">畫面能否拿來做決策，先看資料是否足夠。</div><div class="quality"><article><b class="positive">PASS · 庫存小計</b><p>{{POSITIONS_COUNT}} 檔股數、現值、成本與損益均對上 owner 快照（已排除測試單）。</p></article><article><b class="positive">PASS · 四策略成交歸屬</b><p>買賣重建後的活動股數與庫存一致（排除測試單）。</p></article><article><b class="positive">PASS · 重疊股拆分</b><p>1709：突破 3,644／融資 305 股；2301：YOY 261／投信 365 股；3702 賣出損益納入 YOY。</p></article><article><b class="negative">CHECK · 成本口徑差</b><p>成交簿在庫實付 NT$1,178,519；快照在庫成本 NT$1,177,866，差 NT$653。四策略損益以逐筆成交現金流為準。</p></article><article><b class="negative">CHECK · YOY 來源矛盾</b><p>8/24 表頭 +3.7%，六檔可見數字平均 +4.33%，差 +0.63pp；兩者原樣保留，等待來源端說明。</p></article><article><b class="negative">SHORT SAMPLE · 風險統計</b><p>目前僅 {{RISK_OBS}} 筆實際日報酬；MDD 可描述，Sharpe、Alpha、Beta 等尚不顯示數字。</p></article><article><b class="positive">CURRENT · 理論卡</b><p>四策略來源均更新到 {{THEORY_ASOF}}，與目前實際估值同日。</p></article><article><b class="negative">GAP · 8/21 策略卡</b><p>未收到 8/21 來源圖，因此保留空缺，不用前值或行情補造策略卡。</p></article><article><b class="positive">SAFE · 公開唯讀</b><p>HTML builder 無券商登入或下單；每日 updater 只讀 TWSE／TPEx 公開收盤行情。</p></article></div></article>
+<article class="panel full"><h2>資料品質與限制</h2><div class="sub">畫面能否拿來做決策，先看資料是否足夠。</div><div class="quality"><article><b class="positive">PASS · 庫存小計</b><p>{{POSITIONS_COUNT}} 檔股數、現值、成本與損益均對上 owner 快照（已排除測試單）。</p></article><article><b class="positive">PASS · 四策略成交歸屬</b><p>買賣重建後的活動股數與庫存一致（排除測試單）。</p></article><article><b class="positive">PASS · 重疊股拆分</b><p>1709：突破 3,644／融資 305 股；2301：YOY 261／投信 365 股；3702 賣出損益納入 YOY。</p></article><article><b class="negative">CHECK · 成本口徑差</b><p>成交簿在庫實付 NT$1,178,519；快照在庫成本 NT$1,177,866，差 NT$653。四策略損益以逐筆成交現金流為準。</p></article><article><b class="negative">CHECK · YOY 來源矛盾</b><p>8/24 表頭 +3.7%，六檔可見數字平均 +4.33%，差 +0.63pp；兩者原樣保留，等待來源端說明。</p></article><article><b class="negative">SHORT SAMPLE · 風險統計</b><p>目前僅 {{RISK_OBS}} 筆實際日報酬；MDD 可描述，Sharpe、Alpha、Beta 等尚不顯示數字。</p></article><article><b class="positive">CURRENT · 理論卡</b><p>四策略來源均更新到 {{THEORY_ASOF}}，實際估值日為 {{ASOF}}；比較只用共同資料日 {{COMPARISON_ASOF}}。</p></article><article><b class="negative">CHECK · 缺卡日期</b><p>8/21 原圖已補入本地卡片彙整。沒有來源圖的日期保持缺值，不用前值或行情補造策略卡。</p></article><article><b class="positive">SAFE · 公開唯讀</b><p>HTML builder 無券商登入或下單；每日 updater 只讀 TWSE／TPEx 公開收盤行情。</p></article></div></article>
 </section>
 <footer class="footer"><span><a href="realized/" style="color:var(--green);text-decoration:none">已實現頁 已變現盈虧 →</a> · <a href="prep/" style="color:var(--green);text-decoration:none">備戰頁 下一交易日動作量測 →</a> · <a href="mainline2/" style="color:var(--green);text-decoration:none">主線二 未持有訊號追蹤 →</a> · <a href="claude/" style="color:var(--green);text-decoration:none">Claude 版精進盤點 →</a> · <a href="positions/" style="color:var(--green);text-decoration:none">持股體檢 每檔位置 →</a> · <a href="history/" style="color:var(--green);text-decoration:none">歷史存檔 每日凍結版 →</a> · <a href="watch/" style="color:var(--green);text-decoration:none">跟盤表 明日警訊 →</a> · 口徑：252 trading days · rf=0 · CAGR 365.25 calendar days · Alpha=daily OLS intercept×252</span><span>生成時間：<span class="mono">{{GENERATED_AT}}</span></span></footer>
 </main><script>
@@ -3409,6 +3428,7 @@ polyline[data-line].off{opacity:.08}
         "{{RISK_OBS}}": str(return_obs),
         "{{THEORY_ASOF}}": theory_asof.isoformat(),
         "{{THEORY_ASOF_COMPACT}}": theory_asof.isoformat(),
+        "{{COMPARISON_ASOF}}": comparison_asof.isoformat(),
         "{{HEADER_CARDS}}": header_cards,
         "{{LINE_CHART}}": line_chart(series),
         "{{THEORY_CHART}}": line_chart(theory_series, "theory"),
@@ -3499,7 +3519,7 @@ polyline[data-line].off{opacity:.08}
             f"- 累積未實現報酬：`{fmt_pct(snapshot['unrealized_return'], sign=True)}`",
             f"- 今日價格變動估算：`NT$ {fmt_ntd(snapshot['estimated_daily_price_contribution_twd'], sign=True)}`（約 `{fmt_pct(snapshot['estimated_gross_daily_return'], sign=True)}`）",
             f"- 四策略實際累計損益：`NT$ {fmt_ntd(actual_bundle_pnl, sign=True)}`（以 NT$200 萬起始資金）",
-            f"- 理論卡最新日：`{theory_asof.isoformat()}`（與實際估值同日）",
+            f"- 理論卡最新日：`{theory_asof.isoformat()}`；實際比較共同日：`{comparison_asof.isoformat()}`",
             (
                 f"- {planned_effective_label} 計畫訊號："
                 + "、".join(

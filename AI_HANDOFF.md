@@ -1,5 +1,7 @@
 # 其他 AI 接手說明
 
+> 現行入口（2026-10-01）：[四策略截圖、成交與發布 SOP](AI_DAILY_UPDATE_SOP_ZH.md)。以下為早期歷史說明，與新 SOP 衝突時以新 SOP 和根 AGENTS.md 為準。
+
 ## 正典與邊界
 
 - 唯一可寫根：`D:\Quant_Grill_Lab\66.performance_accumulation_dashboard`
