@@ -55,14 +55,18 @@ def test_short_equity_is_not_a_long_strategy_book_cost_gap():
     )
     assert '3055' not in rows
 
+def test_historical_cost_gap_never_compares_new_closes_to_old_snapshot():
+    rows,_=dashboard.cost_basis_gap_rows(dashboard.load_actual_fills(),dashboard.load_holdings())
+    assert '2354' not in rows and '3231' not in rows
+
 
 def test_published_page_reflects_confirmed_closes_and_short_loss():
     output, _ = dashboard.build()
     text = output.read_text(encoding='utf-8')
     assert 'id="owner-account"' in text
-    assert 'NT$ -70,959.00' in text
-    assert '鴻準、緯創已平倉；蔚華科已回補' in text
-    assert '目前追蹤持股・9 檔' in text
+    assert '-71,052.00' in text
+    assert '券買・已回補' in text and '現賣・已平倉' in text
+    assert '目前持股・9 檔' in text
 
 
 def test_pasted_snapshot_reconciles_exact_source_subtotal() -> None:
@@ -254,11 +258,8 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
             per_sleeve[code] += shares
     # Only rows the sleeves may own: the unassigned share and any short sale
     # sit in the broker's subtotal but belong to no strategy.
-    account = {
-        row["stock_code"].strip(): row["shares"]
-        for row in dashboard.load_holdings()
-        if dashboard.in_strategy_scope(row)
-    }
+    import owner_account
+    account = {code:float(shares) for code,shares in owner_account.load_account(ROOT)['positions'].items()}
     assert dict(per_sleeve) == pytest.approx(account)
     shared = [code for code in account if sum(
         1 for s in dashboard.STRATEGY_LABELS

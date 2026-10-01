@@ -1,75 +1,70 @@
-# 四策略截圖、成交回報與 GitHub Pages 更新 SOP
+# 四策略卡、成交對帳與 GitHub 更新 SOP
 
-2026-10-01 Codex 實作並驗證。此文件取代舊 `DEEPSEEK_RUNBOOK.md` 的正典、匯出和缺卡描述；舊檔留作歷史。唯一根目錄 `D:/Quant_Grill_Lab`。先遵守根 AGENTS.md 與 Knowl 查詢流程。
+目前版本：2026-10-02。唯一根目錄 D:/Quant_Grill_Lab；遵守根 AGENTS.md、Knowl 查詢、文件路由。獨立 Git repo 是 66.performance_accumulation_dashboard。Owner 已授權本次公開網站更新；不提交主專案、不加入其他 AI notebook，不登入券商或下單。
 
-## 正典與口徑
+## 正典與日期
 
-| 資料 | 寫入位置 | 注意事項 |
+| 資料 | 位置 | 規則 |
 |---|---|---|
-| 8/10–8/24 歷史卡 | 主專案 `data/strategy_signals.tsv`、`data/strategy_sleeve_header.tsv` | 不以舊 TSV 覆寫 8/25 後的最新卡 |
-| 8/25 起卡片逐列 | 本 repo `inputs/signal_history.csv` | key = asof_date + strategy_id + stock_code |
-| 卡片表頭 | `inputs/strategy_card_returns.csv` | 原圖表頭原樣保存；不是帳戶 NAV，也不是日報酬 |
-| 最新卡 | `inputs/latest_strategy_signals.csv` | history 最新一天子集；恰好一個日期 |
-| 使用者尚缺費稅的成交 | `inputs/owner_reported_fills_YYYY-MM-DD.csv` | 回報已發生成交；不是委託指令；未知值留空 |
-| 已完成費稅／淨收付的四策略成交 | `inputs/actual_fills.csv` | 只能 BUY/SELL 與四策略 ID；unique trade_id；不得塞入融券或未知淨收付 |
-| 券商已實現損益 | `inputs/broker_realized.csv` | 需券商成本、淨收款、實現損益；不能用毛價差冒充 |
-| Quant_Card 可讀匯整 | 主專案 `Quant_Card/cards.csv`、`card_headers.csv`、`latest.csv` | 由 `build_cards_csv.py` 產生，不手改 |
+| 8/10–8/24 歷史卡 | 主專案 data/strategy_signals.tsv、strategy_sleeve_header.tsv | 不覆寫8/25後 |
+| 8/25後逐列卡 | inputs/signal_history.csv | 日期／策略／股票去重 |
+| 最新卡 | inputs/latest_strategy_signals.csv | 最新來源日所有列 |
+| 原卡表頭 | inputs/strategy_card_returns.csv | 不是帳戶報酬 |
+| 完整券商成交 | inputs/broker_statement_fills.csv | 59筆物理交易、實際費稅收付、已去識別 |
+| 原檔檢核 | inputs/broker_statement_receipt.json | SHA、來源合計、來源日期及電腦時間 |
+| 四策略成交 | inputs/actual_fills.csv | 58列、原Claude策略分配、實際淨收付；不含融券 |
+| Owner舊貼文 | inputs/owner_reported_fills_*.csv | 歷史證據，與statement同單不能疊加 |
+| Owner本次選擇 | inputs/owner_preferences.csv | 特定卡日偏好，不是成交或永久交易規則 |
+| 官方行情 | inputs/price_history.csv | TWSE／TPEx；不得以卡片取代 |
+| 舊券商損益、庫存 | broker_realized.csv、dated snapshot | 歷史不同成本口徑；不能當目前帳戶 |
 
-`Quant_Card/headers_manual.csv` 是先前因日期耦合而暫存的表頭。2026-10-01 已同步進 dashboard 正典，不再為了避免 KeyError 把新表頭藏在外面。遇到新欄位先讀實際 CSV header；目前表頭 CSV 有 source_basis、source、strategy_name、daily_return_pct，後兩欄本次未填。
+來源日期與生成時間分開。卡可以更新較快，actual/card比較用所有四策略日期交集最大日；無交集拒絕，不能前填。9/17快照及frozen history保持原始日期。
 
-## 收圖流程
+## 收圖
 
-1. 根目錄 `Quant_Card` 是收件匣，`processed` 是已驗證圖片。逐張看圖，讀圖中日期，不能用截圖檔名當資料日。一張圖可能有不同日期與多策略。
-2. 記錄 SHA-256、日期、策略、每列代碼、名稱、產業、進場、收盤、紅綠幅度、訊號及表頭。產業截斷原樣保留並加註，不自補。辨識不清保持待確認。
-3. 紅字報酬為正、綠字為負、灰字零；綠色「出」是訊號顏色，不能據此判報酬正負。保留 `(抱)`、`(進*)` 等括號與星號。突破括號列為來源反向口徑，不能按 entry/close 改成多頭報酬。原圖 -0.1 即使 entry=close 仍保留。
-4. 依 key 去重；重複圖片不重複入庫。若原始卡修正既有轉錄，留 before/after 證據。來源卡表頭與可見平均不一致，兩者保留且標 mismatch，不能改數字湊綠燈。
-5. 更新 history、表頭，再從最新日期生成 latest。純「進／出」填下一交易日；注意既有程式只有週末處理，遇休市先核實交易日，不盲目採用 weekday 推算。
-6. 跑主專案 `.venv/Scripts/python.exe Quant_Card/build_cards_csv.py`。缺來源日期不得前填。2026-09-25/28 未提供卡片；缺平日提示不等於漏卡，需另外核對休市日。
-7. dashboard build 與 tests 通過、逐圖核對完成後，更新 `screenshot_index.csv`，把原圖移到 `processed`，確認 SHA 未變。
+1. Quant_Card根目錄是收件匣；讀圖中日期而非檔名。一圖可能多策略／多日期。記SHA及逐列代碼、名稱、產業、進場、收盤、印出報酬、訊號、表頭。
+2. 紅字正、綠字負、灰字零；訊號顏色不是報酬方向。括號反向口徑不按多頭價格公式改寫；括號星號及截斷產業保留。印出平均與表頭不一致標來源差，不改數字湊一致。
+3. 去重及修改留before/after；進／出填下一真實交易日。weekday helper不含休市，需核實交易日。更新history／header，再產生latest。
+4. 主.venv執行 Quant_Card/build_cards_csv.py 產生cards.csv、card_headers.csv、latest.csv；不要跑舊export覆寫正典。
+5. build、tests及逐圖核對後移processed，SHA必須不變。10/2批次：2圖、4卡31列，來源日10/1。
 
-本次批次可重播入口（固定 2026-10-01，不能拿來匯入未來圖片）：主專案 `Quant_Card/import_20261001.py`、`reconcile_fills_20261001.py`、`finalize_20261001.py`。證據在 `Quant_Card/evidence_20261001/`；不要公開原始帳號或憑證。轉錄腳本重跑會保留 key 去重，但會更新本次 computer_time 收據。finalize 是本次 migration，會寫入固定日期頁面文字，禁止作每日通用入口。
+Quant_Card/update_20261002.py 是固定本批重播；舊 import_20261001/finalize_20261001會寫固定日期文字，不可每日通用。證據在本批evidence_20261002，不能重跑改旧收據。
 
-## 成交對帳
+## 對帳
 
-用成交日、委託單號、股票、買賣別、股數、價核對。既有 trade_id 可含日期或策略後綴；不能只用精確 ID 字串找重複。同委託碎筆必須保留每筆，或在確認後有可追溯的聚合表，避免最低手續費被重複估算。
+scripts/statement_account.py用標準庫讀cp950 HTML，白名單移除帳號與姓名。原HTML只留Owner本機，不能放公開repo。匯入先核每筆現金等式及來源合計，拒絕重複、未知方向、負數及未支援融資。
 
-歷史回報的「成交量」按整股張（1 張＝1,000 股）；本次 10/1 碎筆量按股。歷史表時間是委託時間，不能寫成 fill_time 或覆寫更晚的既有成交時間。原文「券賣」＝開空、「券買」＝回補，不是現股 SELL/BUY。3055 應另列，不塞進四策略多頭帳。
+    .venv/Scripts/python.exe 66.performance_accumulation_dashboard/scripts/statement_account.py 'C:/Users/Wego/Downloads/3102.xls.html'
 
-10/1 結果：24 筆回報；15 筆歷史已記錄，7 筆新現賣碎筆，2 筆融券。2354 788 股 @66.3，3231 501 股 @190.5，毛成交總額 147,684.90。缺費稅／淨收款，原始未知欄保持空白，未寫入 actual_fills；但**已確認成交必須立即接回股數**。`scripts/owner_account.py` 以 Decimal、FIFO 重播原成交簿，再聚合同委託碎筆與已回報平倉，2354、3231 股數歸零；3055 券賣及券買獨立對沖歸零，價差 -70,000。原站展示費用模型每委託取整：手續費 0.1425%、賣出稅 0.3%，本批短單費用估算 959，費後試算 -70,959（另加未知借券費）；不能宣稱為券商實收淨損益。原成交簿已實現 51,474.50，加兩筆現賣原實付成本差額、短單價差、減本批費用估算，帳戶累積已實現試算 -14,322.60。未入帳股息、成本調整或借券費不補造。精確費用補齊後再 reconcile，避免 raw fill/report 重複。
+本statement數量已是股；舊委託表可能是張。没有成交時間留空，委託時間不能冒充成交時間。券商價金是整數截斷，不能拿價乘股數取代淨交割。現賣減股數；券賣開空、券買回補。
 
-## 卡片與績效日期分離
+多頭FIFO實現＝淨收款−匹配買入實付；未平倉成本含實際買入費用。融券核對保證金、擔保品及完整收付；3055實付147000、回補實收75948，損失71052。利息24是加回；借券費117已確認。保證金／擔保品重複列示不能當收入。完整數字與獨立現金橋接見 STATEMENT_RECONCILIATION_2026-10-01.md。
 
-目前最新卡 9/30，合併遠端官方行情後帳戶估值 9/30，Owner 庫存快照仍 9/17，10/1 新成交的股數已接回帳戶，目前追蹤多頭 9 檔；精確淨收付仍待費稅核對。`shared_comparison_date` 對四策略的 actual/card 日期取交集最大值；無共同日期明確 InputError，禁止 forward fill、補假值。比較表的日期用 COMPARISON_ASOF；理論卡用 THEORY_ASOF。implementation bridge 只讀共同日或以前的卡片，不能用未來表頭對舊帳算 gap。最新卡片收盤是截圖來源資料，不自動寫進官方 price_history。
+reconcile_strategy_fills(root)按日期／委託原號／股票／方向／價對齐historical fills，更新費稅收付並沿用策略。跨策略同價成交按股數拆到分，尾列補餘差。保存before/after；新增平倉沿用可確定原買策略。56→58列与物理59筆是不同粒度，不能硬要求行數相等。
 
-首頁與已實現頁都有 `owner-account` 當前帳戶區塊，顯示三檔平倉、價差／費後試算與當前股數；舊快照 KPI 收合並明標 9/17，不能與 9/30 曲線或 10/1 帳戶混算。`build_prep.latest_holdings` 在原始快照上套用已確認平倉，備戰／持股體檢／跟盤表同步移除已售部位。歷史券商現值含融券權益，直接核對來源 current_value，不使用多頭 shares*price 公式；舊 liquidation_summary 曾把 3055 高估 28,272，已修復。歷史成交對帳 PASS 僅適用已收錄成交；9/30 估值使用該成交簿與官方價格，不能說 10/1 淨績效已完成。未收到完整庫存與行情，不改頁面估值日。舊 Excel 主檔尚未更新，本次正典更新是 CSV。
+完整statement存在時，owner_account優先呼叫statement_account，不再疊加先前貼文。來源日以後有新成交時必須補來源，不能用舊statement暗示已涵蓋。無完整statement時的舊fallback可用已確定成交減股數，但未知費用要明示未知，不能估值冒充實收。
+
+2886僅1股賣出淨收50、無原買成本，損益未知；收付包含但損益不補零成本。未提供股息與成本調整不臆造。3主指標：已配對累積已實現（實際費後）、未實現（官方收盤市值−買入實付，未扣未來賣出費稅）、兩者合計（不是帳戶餘額）。四策略曲線另外用假設出場費稅及排除融券，不能與主帳戶混用。
 
 ## 建置、驗證、發布
 
-在主根執行；須通過完整 tests，再以公開 HTTP 回讀驗證：
+先fetch與fast-forward乾淨tracked tree，保留其他AI未提交檔。官方行情取既有fetch_prices.py或遠端自動更新。所有持股用同日官方價格且不早於最新成交；缺行情就fail closed，不用舊價掩飾。
 
-```powershell
-.venv/Scripts/python.exe Quant_Card/build_cards_csv.py
-.venv/Scripts/python.exe 66.performance_accumulation_dashboard/scripts/build_dashboard.py
-.venv/Scripts/python.exe 66.performance_accumulation_dashboard/scripts/build_prep.py
-.venv/Scripts/python.exe 66.performance_accumulation_dashboard/scripts/build_positions.py
-.venv/Scripts/python.exe 66.performance_accumulation_dashboard/scripts/build_watch.py
-.venv/Scripts/python.exe -m pytest -q 66.performance_accumulation_dashboard/tests
-git -C 66.performance_accumulation_dashboard diff --check
-git -C 66.performance_accumulation_dashboard status --short
-```
+    .venv/Scripts/python.exe Quant_Card/build_cards_csv.py
+    .venv/Scripts/python.exe 66.performance_accumulation_dashboard/scripts/build_dashboard.py
+    .venv/Scripts/python.exe 66.performance_accumulation_dashboard/scripts/build_prep.py
+    .venv/Scripts/python.exe 66.performance_accumulation_dashboard/scripts/build_positions.py
+    .venv/Scripts/python.exe 66.performance_accumulation_dashboard/scripts/build_watch.py
+    .venv/Scripts/python.exe -m pytest -q 66.performance_accumulation_dashboard/tests
+    git -C 66.performance_accumulation_dashboard diff --check
+    git -C 66.performance_accumulation_dashboard status --short
 
-檢查最新卡日期、括號列／顏色、表頭、9/30 2354 出、2316 明開進且 effective 10/1；檢查 fee/tax/net 仍空、已有成交未重複計入、預期圖片數與 hash。build_receipt 記錄電腦生成時間，來源各自有 asof。不要跑舊 export_latest_signals 覆寫 dashboard latest。
+build_dashboard也重建intake安全下載。共用持股helper重建股數、成本和官方市值供子頁，不改原快照。test_statement_account golden amounts、現金橋接、未知成本、利息方向、CSV投影、超賣／重複拒絕及逐欄來源都是驗收。未實現價格會刷新，測試應驗不變量而非鎖每日行情。
 
-只有 Owner 已授權公開網站更新才在此獨立 repo commit/push。使用明確檔案清單，禁止 `git add .`；不得提交其他 AI 的 notebook、憑證、主實驗室檔案。dirty files 先辨識來源；本次起始 price_history 的 9/18 本地快取及 9/18–23 history 是既有已記錄同一儀表板資料；合併遠端 main 的9次官方行情更新，價格按 date/code 去重，相同 key 以遠端官方源為準（50列來源重疊），其餘 notebook 排除。主 repo 不提交。
+發布前所有新公開檔檢查無原帳號姓名。只明確清單add，禁止git add .；不提交主repo或其他AI notebook。沒有Git author時可單命令使用 git -c user.name=Codex -c user.email=codex@users.noreply.github.com，不改全域。只有Owner授權才push此独立repo。
 
-Pages 工作流必須複製所有頁面子目錄；本次補 intake、positions、history、watch（後三項原本有頁面卻未複製）。push 後看 GitHub Actions 的 Pages 結果，再實際 HTTP GET 首頁及 intake，驗證最新來源卡、147,684.90、蔚華科價差 -70,000／費後試算 -70,959、三檔歸零及關鍵連結；只看到 push 成功還不算上線成功。
+Pages需包含main、realized、prep、positions、watch、intake及historical子頁。push後看Actions成功，再HTTP回讀全部現行頁、新CSV与receipt，驗主3數字、最新日期、71052、9檔與投信偏好。只push成功不等於上線；公開圖及收據存主專案本批evidence。
 
-Python 與 Git 的網路讀取只用公開行情／GitHub。任何 AI 永不下單；不登入券商、不讀憑證、不發布帳號。
+## 歷史
 
-發布環境注意：本機 repo 未設定 Git author，命令使用 `git -c user.name=Codex -c user.email=codex@users.noreply.github.com ...` 為 AI 變更署名，不改全域 Git 身分。
-
-## 修正驗收：2026-10-01
-
-`tests/test_owner_account.py` 驗證碎筆聚合、原始買入實付、短單方向、未知費稅不阻止歸零、超賣拒絕、共用持股頁移除三檔。`tests/test_dashboard.py` 再驗證公開主頁內容與融券快照現值不被當多頭。費後模型是假設試算，不能以測試 PASS 宣称券商費用對帳完成。原 Claude `actual_fills.csv`、`broker_realized.csv`、dated holdings/summary 與舊 frozen history 保留不變；新產物 `output/owner_account_receipt.json` 記生成時間、回報 asof、已結算成交簿截止與每檔行情日。每日官方收盤工作流已同步重建主頁、已實現、備戰、持股體檢及跟盤表。
-
-融券部位也不得放入四策略多頭的成本差額表：缺少多頭 BUY 並不代表融券帳面成本差 -147,000。`cost_basis_gap_rows` 僅比較 in_strategy_scope 多頭快照。
+10/1缺費用時曾發布短單試算70959與累積試算-14322.60；已由本版實際費稅取代，不能重新加進績效。舊批次／frozen history保持歷史。舊Excel未更新，頁面標舊資料，CSV是本次正典。理論卡、同日OHLC、收盤價、可變現估費都不是實際成交。

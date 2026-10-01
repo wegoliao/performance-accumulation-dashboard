@@ -10,43 +10,43 @@ def load_module():
     import owner_account
     return owner_account
 
-def test_owner_reported_closes_remove_positions_without_known_fees():
+def test_statement_closes_remove_positions_with_actual_fees():
     m = load_module()
     report = m.load_account(ROOT)
     assert report['positions'].get('2354', 0) == 0
     assert report['positions'].get('3231', 0) == 0
     assert report['short_remaining_shares'] == 0
     assert len(report['positions']) == 9
-    assert report['short_price_pnl'] == Decimal('-70000')
-    assert report['short_estimated_cost'] == Decimal('959')
-    assert report['short_net_estimate'] == Decimal('-70959')
-    assert report['exact_net_status'] == 'UNKNOWN_UNREPORTED_FEES'
+    assert report['short_closes'][0]['price_pnl'] == Decimal('-70000')
+    assert report['short_realized'] == Decimal('-71052')
+    assert report['exact_net_status'] == 'EXACT_MATCHED_SETTLEMENTS'
 
 def test_reported_fragments_aggregate_once_and_preserve_known_buy_costs():
     m = load_module()
     r = m.load_account(ROOT)
-    assert len(r['new_long_closes']) == 2
-    by_code = {x['stock_code']:x for x in r['new_long_closes']}
-    assert by_code['2354']['gross'] == Decimal('52244.40')
+    by_code = {x['stock_code']:x for x in r['long_closes'] if x['date']==r['asof']}
+    assert len(by_code) == 2
+    assert by_code['2354']['gross'] == Decimal('52244')
     assert by_code['2354']['entry_cash_out'] == Decimal('49556')
-    assert by_code['3231']['gross'] == Decimal('95440.50')
-    assert r['known_realized_before_missing_costs'] == Decimal('-12711.60')
-    assert r['net_realized_estimate'] == Decimal('-14322.60')
+    assert by_code['3231']['gross'] == Decimal('95440')
+    assert r['realized'] == Decimal('-14418')
 
 def test_rendered_current_view_is_separate_from_historical_snapshot():
     m = load_module()
     r = m.load_account(ROOT)
     content = m.render(r)
-    assert '已回補' in content and '70,959' in content
+    assert '已回補' in content and '71,052' in content
     assert '已平倉' in content and '9 檔' in content
-    assert '費稅估算' in content and '借券費' in content
+    assert '券商成交對帳' in content and '借券費' in content
+    assert '目前持股未實現損益' in content and '累積已實現損益' in content
+    assert '成本缺口' in content
     assert max(mark['date'] for mark in r['marks'].values()) in content
     assert r['asof'] in content
 
 def test_current_subpages_use_replayed_quantity_not_old_snapshot():
     import build_prep
     snapshot_day, held = build_prep.latest_holdings()
-    assert snapshot_day.isoformat() == '2026-09-17'
+    assert snapshot_day.isoformat() == load_module().load_account(ROOT)['marks_asof']
     assert len(held) == 9
     assert not ({'2354', '3231', '3055'} & held.keys())
 

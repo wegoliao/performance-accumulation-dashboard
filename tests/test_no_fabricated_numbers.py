@@ -106,6 +106,22 @@ def test_cost_and_price_columns_next_to_held_stocks_match_the_inputs() -> None:
         if not rows:
             continue
         header = _cells(rows[0])
+        if header == ['股票','股數','含費成本均價','收盤價','買入支出','收盤市值','未實現損益','報酬率']:
+            import owner_account
+            report=owner_account.load_account(ROOT)
+            seen=set()
+            for row_html in rows[1:]:
+                cells=_cells(row_html);code=cells[0].split()[0]
+                if code not in report['positions']:continue
+                qty=float(report['positions'][code]);cost=float(report['costs'][code])
+                close=float(report['marks'][code]['close']);value=qty*close;pnl=value-cost
+                expected=[qty,cost/qty,close,cost,value,abs(pnl),abs(pnl/cost*100)]
+                for cell,want in zip(cells[1:],expected):
+                    assert abs(_first_number(cell)-want)<0.0051, f'{code}: {cell} != {want}'
+                seen.add(code)
+            assert seen==set(report['positions'])
+            tables_checked+=1
+            continue
         # Source-card close and account-mark price have distinct dates/sources.
         # Verify card tables against their exact latest input, never price_history.
         if header == ["股票", "產業", "進場", "收盤", "%", "訊"]:

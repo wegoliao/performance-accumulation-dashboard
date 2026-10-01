@@ -63,6 +63,16 @@ def latest_holdings() -> tuple[date, dict[str, dict[str, str]]]:
         for row in rows:
             if float(row['shares']) != float(report['positions'][row['stock_code'].strip()]):
                 raise ValueError('snapshot quantity changed; refresh valuation before analysis')
+        if 'statement_rows' in report:
+            day=date.fromisoformat(report['marks_asof'])
+            for row in rows:
+                code=row['stock_code'].strip()
+                qty=report['positions'][code];cost=report['costs'][code]
+                close=report['marks'][code]['close'];value=qty*close;pnl=value-cost
+                row.update(asof_date=day.isoformat(),source='BROKER_SETTLEMENT_REPLAY_AND_OFFICIAL_CLOSE',
+                           cost_basis_twd=str(cost),avg_cost=str(cost/qty),last_price=str(close),
+                           current_value_twd=str(value),unrealized_pnl_twd=str(pnl),
+                           unrealized_return_pct=str(pnl/cost*100))
     return day, {row["stock_code"].strip(): row for row in rows}
 
 
@@ -277,6 +287,9 @@ def action_rows(rows: list[dict]) -> str:
             f'{row["unrealized_pct"]:+.2f}%</small>'
             if row.get("held") else '<span class="neutral">零部位</span>'
         )
+        import owner_account
+        pref=owner_account.preference(ROOT,row['strategy_id'],read(INPUTS/'latest_strategy_signals.csv')[0]['asof_date'])
+        if pref:holding+=f'<br><small class="neutral">{html.escape(pref)}</small>'
         if row["status"] != "OK":
             out.append(
                 f'<tr><td>{badge}</td><td>{html.escape(label)}</td>'
@@ -421,7 +434,7 @@ footer{{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:
     <span>訊號日 <code>{SIGNAL_ASOF}</code></span>
     <span>生效日 <code>{EFFECTIVE}</code></span>
     <span>行情截止 <code>{PRICE_ASOF}</code></span>
-    <span>庫存快照 <code>{SNAPSHOT_ASOF}</code></span>
+    <span>成交重建估值 <code>{SNAPSHOT_ASOF}</code></span>
     <span><a href="../">&larr; 實際績效</a></span>
     <span><a href="../mainline2/">主線二</a></span>
   </div>

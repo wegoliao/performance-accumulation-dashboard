@@ -1,6 +1,6 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-10-01T15:42:21+00:00",
+  "generated_at": "2026-10-02T00:58:17+08:00",
   "source_data_asof": "2026-09-17",
   "actual_valuation_asof": "2026-10-01",
   "source_capture_time": null,
@@ -24,23 +24,23 @@
       "rows": 0
     },
     "benchmark_nav.csv": {
-      "sha256": "8297685a62f0fac6847a52cdbfbc0ac46747385f4560d7c1250badde5aa958d0",
+      "sha256": "7a34b8275b594b5d4c8d014a24ad67f267d521812116bdaaff5ea17313fc7f90",
       "rows": 536
     },
     "actual_fills.csv": {
-      "sha256": "413865b82f003f6084c175b0f39e7b7a4ae666501f2617f1982b629b4bb9fe16",
-      "rows": 56
+      "sha256": "ecf8db1d794671ccabc4bfeb263b2520cb444b823ea647b5fae37eac13b45266",
+      "rows": 58
     },
     "strategy_card_returns.csv": {
-      "sha256": "297508093f3ca06f516f790e2f8d95a8f7ae2662d6a674c5f1af385ece8e9681",
-      "rows": 136
+      "sha256": "f437a2aa13c3f75b807aa3b75edd09ff158a3147638c6818bc72bc70efa7924d",
+      "rows": 140
     },
     "strategy_position_marks.csv": {
       "sha256": "4fc2f7225996426e23425afd5205a98771d533ec3f0e1db29318d494d2e36299",
       "rows": 6
     },
     "latest_strategy_signals.csv": {
-      "sha256": "1245d9a73ea2d7c5ab3ae3ae6cf50c1e6875636cd11e69dd50a81d168553a3fb",
+      "sha256": "6291670a42aad4df5a7a07fba86b48d89e4ca1b6c20d406d754261c1da5b2cc7",
       "rows": 31
     }
   },
@@ -381,57 +381,57 @@
       "TRUST",
       "YOY"
     ],
-    "strategy_card_asof": "2026-09-30",
+    "strategy_card_asof": "2026-10-01",
     "latest_strategy_signals": {
-      "asof_date": "2026-09-30",
-      "planned_effective_date": "2026-10-01",
+      "asof_date": "2026-10-01",
+      "planned_effective_date": "2026-10-02",
       "planned_actions": [
         {
-          "strategy_id": "MARGIN",
-          "stock_code": "2316",
-          "signal": "進",
+          "strategy_id": "TRUST",
+          "stock_code": "6026",
+          "signal": "出",
           "actual_fill_status": "WAITING_ACTUAL_FILL"
         },
         {
-          "strategy_id": "MARGIN",
-          "stock_code": "2354",
-          "signal": "出",
+          "strategy_id": "TRUST",
+          "stock_code": "3042",
+          "signal": "進",
           "actual_fill_status": "WAITING_ACTUAL_FILL"
         }
       ],
       "quality": {
-        "asof_date": "2026-09-30",
+        "asof_date": "2026-10-01",
         "TRUST": {
-          "header_return_pct": -2.5999999999999943,
-          "visible_member_mean_pct": -2.6399999999999997,
-          "gap_pp": -0.040000000000005365,
+          "header_return_pct": -0.9000000000000057,
+          "visible_member_mean_pct": -0.8600000000000001,
+          "gap_pp": 0.04000000000000559,
           "held_or_exit_count": 5,
-          "new_entry_count": 0,
-          "exit_count": 0,
+          "new_entry_count": 1,
+          "exit_count": 1,
           "status": "PASS"
         },
         "YOY": {
-          "header_return_pct": 2.0,
-          "visible_member_mean_pct": 2.2833333333333337,
-          "gap_pp": 0.28333333333333366,
+          "header_return_pct": 2.200000000000003,
+          "visible_member_mean_pct": 2.4,
+          "gap_pp": 0.19999999999999707,
           "held_or_exit_count": 6,
           "new_entry_count": 0,
           "exit_count": 0,
           "status": "PASS"
         },
         "MARGIN": {
-          "header_return_pct": 19.900000000000006,
-          "visible_member_mean_pct": 19.859999999999996,
+          "header_return_pct": 21.400000000000006,
+          "visible_member_mean_pct": 21.359999999999996,
           "gap_pp": -0.040000000000009805,
           "held_or_exit_count": 10,
-          "new_entry_count": 1,
-          "exit_count": 1,
+          "new_entry_count": 0,
+          "exit_count": 0,
           "status": "PASS"
         },
         "BREAKOUT": {
-          "header_return_pct": 35.0,
-          "visible_member_mean_pct": 16.555555555555557,
-          "gap_pp": -18.444444444444443,
+          "header_return_pct": 40.400000000000006,
+          "visible_member_mean_pct": 19.31111111111111,
+          "gap_pp": -21.088888888888896,
           "held_or_exit_count": 9,
           "new_entry_count": 0,
           "exit_count": 0,
@@ -441,17 +441,16 @@
     },
     "strategy_diagnostics": {
       "TRUST": {
-        "cash_twd": 202230.5,
-        "liquidation_value_twd": 304973.5,
+        "cash_twd": 297246.04,
+        "liquidation_value_twd": 209955.0,
         "active_positions": {
           "1717": 1210.0,
-          "2489": 3000.0,
-          "3231": 501.0
+          "2489": 3000.0
         }
       },
       "YOY": {
-        "cash_twd": 351454.4,
-        "liquidation_value_twd": 165531.59999999992,
+        "cash_twd": 351455.96,
+        "liquidation_value_twd": 165531.59999999998,
         "active_positions": {
           "2397": 1045.0,
           "6426": 157.0,
@@ -459,18 +458,17 @@
         }
       },
       "MARGIN": {
-        "cash_twd": 259674.2,
-        "liquidation_value_twd": 242060.49999999994,
+        "cash_twd": 311687.69,
+        "liquidation_value_twd": 190124.90000000002,
         "active_positions": {
-          "2354": 788.0,
           "2637": 1000.0,
           "6108": 2136.0,
           "1712": 1066.0
         }
       },
       "BREAKOUT": {
-        "cash_twd": 420377.0,
-        "liquidation_value_twd": 97356.0,
+        "cash_twd": 420378.31,
+        "liquidation_value_twd": 97356.00000000006,
         "active_positions": {
           "3006": 348.0
         }
@@ -479,13 +477,13 @@
       "reconciled_asof": "2026-09-17",
       "post_snapshot_positions": {},
       "unassigned": {},
-      "last_fill_date": "2026-09-17",
+      "last_fill_date": "2026-10-01",
       "valuation_asof": "2026-10-01",
       "valuation_basis": "OFFICIAL_CLOSE_ESTIMATED_LIQUIDATION_CARRY_FORWARD_POSITIONS",
-      "bundle_current_pnl_twd": 43657.69999999972,
-      "active_fill_cash_out_twd": 886712.4,
+      "bundle_current_pnl_twd": 43735.500000000466,
+      "active_fill_cash_out_twd": 744840.0,
       "source_active_cost_ex_unassigned_twd": 817737.0,
-      "active_cost_basis_gap_twd": 68975.40000000002,
+      "active_cost_basis_gap_twd": -72897.0,
       "post_snapshot_fill_cash_out_twd": 0
     },
     "strategy_actual_gap_report": {
@@ -494,42 +492,46 @@
       "strategies": {
         "TRUST": {
           "label": "投信",
-          "actual_return": 0.016496000000000073,
-          "card_return": -0.025999999999999912,
-          "gap": 0.042495999999999985,
-          "deployed_fraction": 0.620262,
-          "cash_twd": 202230.50000000003,
-          "realized_pnl_twd": 12361.500000000022,
-          "card_members": 5,
+          "actual_return": 0.01440207999999999,
+          "card_return": -0.009000000000000008,
+          "gap": 0.02340208,
+          "deployed_fraction": 0.435632,
+          "cash_twd": 297246.04,
+          "realized_pnl_twd": 15062.040000000003,
+          "card_members": 6,
           "covered_members": 0,
           "coverage_fraction": 0.0,
           "covered_codes": [],
           "missing_codes": [
             "2404",
             "3006",
+            "3042",
             "3605",
             "6026",
             "6147"
           ],
           "stale_codes": [
             "1717",
-            "2489",
-            "3231"
+            "2489"
           ],
-          "planned_entry_codes": [],
-          "planned_exit_codes": [],
+          "planned_entry_codes": [
+            "3042"
+          ],
+          "planned_exit_codes": [
+            "6026"
+          ],
           "covered_card_average_return": null,
-          "missing_card_average_return": -0.0264,
+          "missing_card_average_return": -0.007166666666666668,
           "weighted_entry_gap": null,
           "drivers": {
-            "在庫組合與進場": 0.007899811999999973,
-            "現金／未投入": 0.009873187999999967,
-            "已實現": 0.024723000000000044
+            "在庫組合與進場": -0.01180131200000001,
+            "現金／未投入": 0.005079312000000004,
+            "已實現": 0.030124080000000004
           },
           "dominant_driver": "已實現",
           "active_vs_benchmarks": {
-            "0050": -0.0664776211031175,
-            "TAIEX": -0.05972978499829495
+            "0050": -0.06857154110311758,
+            "TAIEX": -0.06182370499829503
           },
           "execution": {
             "observations": 3,
@@ -611,81 +613,85 @@
             },
             {
               "date": "2026-09-04",
-              "gap_pp": 0.6045000000000016
+              "gap_pp": 0.6040080000000074
             },
             {
               "date": "2026-09-07",
-              "gap_pp": -0.8518999999999863
+              "gap_pp": -0.8523919999999947
             },
             {
               "date": "2026-09-08",
-              "gap_pp": 0.681999999999988
+              "gap_pp": 0.6815079999999796
             },
             {
               "date": "2026-09-09",
-              "gap_pp": 0.3721000000000174
+              "gap_pp": 0.37160800000000904
             },
             {
               "date": "2026-09-10",
-              "gap_pp": -0.48989999999999156
+              "gap_pp": -0.49039199999999994
             },
             {
               "date": "2026-09-14",
-              "gap_pp": -2.697800000000001
+              "gap_pp": -2.698291999999995
             },
             {
               "date": "2026-09-15",
-              "gap_pp": -4.0035000000000025
+              "gap_pp": -4.003991999999997
             },
             {
               "date": "2026-09-16",
-              "gap_pp": -3.7046999999999883
+              "gap_pp": -3.7051919999999967
             },
             {
               "date": "2026-09-17",
-              "gap_pp": 0.5350000000000108
+              "gap_pp": 0.5345080000000024
             },
             {
               "date": "2026-09-18",
-              "gap_pp": -1.2738000000000085
+              "gap_pp": -1.2742920000000169
             },
             {
               "date": "2026-09-21",
-              "gap_pp": 5.3115999999999985
+              "gap_pp": 5.31110799999999
             },
             {
               "date": "2026-09-22",
-              "gap_pp": 5.4173999999999864
+              "gap_pp": 5.4169080000000065
             },
             {
               "date": "2026-09-23",
-              "gap_pp": 4.053900000000013
+              "gap_pp": 4.053408000000005
             },
             {
               "date": "2026-09-24",
-              "gap_pp": 2.425600000000003
+              "gap_pp": 2.4251079999999945
             },
             {
               "date": "2026-09-29",
-              "gap_pp": 3.869799999999998
+              "gap_pp": 3.8693079999999895
             },
             {
               "date": "2026-09-30",
-              "gap_pp": 4.249600000000001
+              "gap_pp": 4.249107999999993
+            },
+            {
+              "date": "2026-10-01",
+              "gap_pp": 2.340208000000004
             }
           ],
-          "gap_change_5_observations_pp": -1.0619999999999976,
-          "best_gap_pp": 5.4173999999999864,
+          "gap_change_5_observations_pp": -3.0767000000000024,
+          "best_gap_pp": 5.4169080000000065,
           "worst_gap_pp": -7.594399999999993
         },
         "YOY": {
           "label": "YOY",
-          "actual_return": 0.03639359999999998,
-          "card_return": 0.020000000000000018,
-          "gap": 0.01639359999999996,
-          "deployed_fraction": 0.33248120000000003,
-          "cash_twd": 351454.4,
-          "realized_pnl_twd": 17694.999999999996,
+          "actual_return": 0.033975120000000025,
+          "card_return": 0.02200000000000002,
+          "gap": 0.011975120000000006,
+          "deployed_fraction": 0.33248,
+          "cash_twd": 351455.96,
+          "realized_pnl_twd": 17695.959999999995,
           "card_members": 6,
           "covered_members": 2,
           "coverage_fraction": 0.3333333333333333,
@@ -704,18 +710,18 @@
           ],
           "planned_entry_codes": [],
           "planned_exit_codes": [],
-          "covered_card_average_return": 0.017000000000000005,
-          "missing_card_average_return": 0.025750000000000002,
-          "weighted_entry_gap": -0.020983334886171146,
+          "covered_card_average_return": 0.0040000000000000036,
+          "missing_card_average_return": 0.034,
+          "weighted_entry_gap": -0.020989164164268978,
           "drivers": {
-            "在庫組合與進場": -0.005646024000000019,
-            "現金／未投入": -0.013350376000000011,
-            "已實現": 0.03538999999999999
+            "在庫組合與進場": -0.008731359999999978,
+            "現金／未投入": -0.014685440000000013,
+            "已實現": 0.03539191999999999
           },
           "dominant_driver": "已實現",
           "active_vs_benchmarks": {
-            "0050": -0.04658002110311759,
-            "TAIEX": -0.039832184998295043
+            "0050": -0.04899850110311754,
+            "TAIEX": -0.042250664998294996
           },
           "execution": {
             "observations": 4,
@@ -797,87 +803,90 @@
             },
             {
               "date": "2026-09-04",
-              "gap_pp": -1.5302000000000078
+              "gap_pp": -1.529908000000006
             },
             {
               "date": "2026-09-07",
-              "gap_pp": 4.042019999999994
+              "gap_pp": 4.042212000000006
             },
             {
               "date": "2026-09-08",
-              "gap_pp": 2.1562000000000126
+              "gap_pp": 2.1563919999999968
             },
             {
               "date": "2026-09-09",
-              "gap_pp": 2.062899999999985
+              "gap_pp": 2.0630919999999975
             },
             {
               "date": "2026-09-10",
-              "gap_pp": 1.307479999999984
+              "gap_pp": 1.3076719999999966
             },
             {
               "date": "2026-09-14",
-              "gap_pp": 2.8129800000000103
+              "gap_pp": 2.81329199999999
             },
             {
               "date": "2026-09-15",
-              "gap_pp": 4.538740000000004
+              "gap_pp": 4.539051999999998
             },
             {
               "date": "2026-09-16",
-              "gap_pp": 2.689879999999988
+              "gap_pp": 2.6901920000000104
             },
             {
               "date": "2026-09-17",
-              "gap_pp": 1.598300000000009
+              "gap_pp": 1.598612000000017
             },
             {
               "date": "2026-09-18",
-              "gap_pp": 1.0142200000000088
+              "gap_pp": 1.0145320000000169
             },
             {
               "date": "2026-09-21",
-              "gap_pp": 1.169639999999987
+              "gap_pp": 1.1699520000000092
             },
             {
               "date": "2026-09-22",
-              "gap_pp": 2.062139999999985
+              "gap_pp": 2.0624520000000075
             },
             {
               "date": "2026-09-23",
-              "gap_pp": 2.193240000000003
+              "gap_pp": 2.193551999999997
             },
             {
               "date": "2026-09-24",
-              "gap_pp": 2.026439999999994
+              "gap_pp": 2.026752000000002
             },
             {
               "date": "2026-09-29",
-              "gap_pp": 1.6203999999999894
+              "gap_pp": 1.6207120000000117
             },
             {
               "date": "2026-09-30",
-              "gap_pp": 1.6393599999999964
+              "gap_pp": 1.6396719999999902
+            },
+            {
+              "date": "2026-10-01",
+              "gap_pp": 1.1975120000000032
             }
           ],
-          "gap_change_5_observations_pp": 0.46972000000000946,
-          "best_gap_pp": 4.538740000000004,
+          "gap_change_5_observations_pp": -0.8649400000000043,
+          "best_gap_pp": 4.539051999999998,
           "worst_gap_pp": -2.982039999999998
         },
         "MARGIN": {
           "label": "融資",
-          "actual_return": 0.005404800000000028,
-          "card_return": 0.19900000000000007,
-          "gap": -0.19359520000000005,
-          "deployed_fraction": 0.4820016,
-          "cash_twd": 259674.2,
-          "realized_pnl_twd": 675.0000000000008,
-          "card_members": 11,
-          "covered_members": 4,
-          "coverage_fraction": 0.36363636363636365,
+          "actual_return": 0.0036251799999999956,
+          "card_return": 0.21399999999999997,
+          "gap": -0.21037481999999996,
+          "deployed_fraction": 0.382888,
+          "cash_twd": 311687.69,
+          "realized_pnl_twd": 3131.6900000000014,
+          "card_members": 10,
+          "covered_members": 3,
+          "coverage_fraction": 0.3,
           "covered_codes": [
             "1712",
-            "2354",
             "2637",
             "6108"
           ],
@@ -891,24 +900,20 @@
             "6213"
           ],
           "stale_codes": [],
-          "planned_entry_codes": [
-            "2316"
-          ],
-          "planned_exit_codes": [
-            "2354"
-          ],
-          "covered_card_average_return": 0.006,
-          "missing_card_average_return": 0.28028571428571425,
-          "weighted_entry_gap": -0.008376112185431921,
+          "planned_entry_codes": [],
+          "planned_exit_codes": [],
+          "covered_card_average_return": -0.011000000000000003,
+          "missing_card_average_return": 0.3098571428571428,
+          "weighted_entry_gap": -0.009679885408071803,
           "drivers": {
-            "在庫組合與進場": -0.0918635184,
-            "現金／未投入": -0.10308168160000003,
-            "已實現": 0.0013500000000000016
+            "在庫組合與進場": -0.084576232,
+            "現金／未投入": -0.13206196799999997,
+            "已實現": 0.006263380000000002
           },
           "dominant_driver": "現金／未投入",
           "active_vs_benchmarks": {
-            "0050": -0.07756882110311754,
-            "TAIEX": -0.07082098499829499
+            "0050": -0.07934844110311758,
+            "TAIEX": -0.07260060499829503
           },
           "execution": {
             "observations": 1,
@@ -986,85 +991,89 @@
             },
             {
               "date": "2026-09-03",
-              "gap_pp": -5.310509999999979
+              "gap_pp": -5.31035
             },
             {
               "date": "2026-09-04",
-              "gap_pp": -6.210980000000006
+              "gap_pp": -6.210819999999998
             },
             {
               "date": "2026-09-07",
-              "gap_pp": -5.988839999999996
+              "gap_pp": -5.988941999999994
             },
             {
               "date": "2026-09-08",
-              "gap_pp": -5.9771399999999915
+              "gap_pp": -5.97724199999999
             },
             {
               "date": "2026-09-09",
-              "gap_pp": -7.931619999999995
+              "gap_pp": -7.9317219999999935
             },
             {
               "date": "2026-09-10",
-              "gap_pp": -6.984640000000013
+              "gap_pp": -6.984742000000011
             },
             {
               "date": "2026-09-14",
-              "gap_pp": -6.012280000000004
+              "gap_pp": -6.012382000000002
             },
             {
               "date": "2026-09-15",
-              "gap_pp": -6.538240000000002
+              "gap_pp": -6.538342000000014
             },
             {
               "date": "2026-09-16",
-              "gap_pp": -9.53792
+              "gap_pp": -9.538021999999998
             },
             {
               "date": "2026-09-17",
-              "gap_pp": -10.179819999999978
+              "gap_pp": -10.179921999999976
             },
             {
               "date": "2026-09-18",
-              "gap_pp": -10.295459999999991
+              "gap_pp": -10.295562000000004
             },
             {
               "date": "2026-09-21",
-              "gap_pp": -14.880680000000012
+              "gap_pp": -14.88078200000001
             },
             {
               "date": "2026-09-22",
-              "gap_pp": -16.35419999999999
+              "gap_pp": -16.354302000000004
             },
             {
               "date": "2026-09-23",
-              "gap_pp": -16.926179999999988
+              "gap_pp": -16.926281999999986
             },
             {
               "date": "2026-09-24",
-              "gap_pp": -17.177419999999998
+              "gap_pp": -17.177521999999996
             },
             {
               "date": "2026-09-29",
-              "gap_pp": -18.351399999999998
+              "gap_pp": -18.35150200000001
             },
             {
               "date": "2026-09-30",
-              "gap_pp": -19.359520000000003
+              "gap_pp": -19.359622
+            },
+            {
+              "date": "2026-10-01",
+              "gap_pp": -21.03748200000001
             }
           ],
-          "gap_change_5_observations_pp": -4.478839999999991,
+          "gap_change_5_observations_pp": -4.683180000000007,
           "best_gap_pp": -4.700000000000003,
-          "worst_gap_pp": -19.359520000000003
+          "worst_gap_pp": -21.03748200000001
         },
         "BREAKOUT": {
           "label": "突破",
-          "actual_return": 0.038932,
-          "card_return": 0.3500000000000001,
-          "gap": -0.31106800000000007,
+          "actual_return": 0.03546861999999999,
+          "card_return": 0.40400000000000014,
+          "gap": -0.36853138000000013,
           "deployed_fraction": 0.200732,
-          "cash_twd": 420377.0,
-          "realized_pnl_twd": 20742.999999999996,
+          "cash_twd": 420378.31,
+          "realized_pnl_twd": 20744.309999999994,
           "card_members": 9,
           "covered_members": 1,
           "coverage_fraction": 0.1111111111111111,
@@ -1084,18 +1093,18 @@
           "stale_codes": [],
           "planned_entry_codes": [],
           "planned_exit_codes": [],
-          "covered_card_average_return": -0.017,
-          "missing_card_average_return": 0.188375,
+          "covered_card_average_return": -0.034,
+          "missing_card_average_return": 0.22149999999999997,
           "weighted_entry_gap": -0.007201218667774456,
           "drivers": {
-            "在庫組合與進場": -0.0728102,
-            "現金／未投入": -0.27974380000000004,
-            "已實現": 0.041485999999999995
+            "在庫組合與進場": -0.08711572800000002,
+            "現金／未投入": -0.3229042720000001,
+            "已實現": 0.04148861999999999
           },
           "dominant_driver": "現金／未投入",
           "active_vs_benchmarks": {
-            "0050": -0.044041621103117566,
-            "TAIEX": -0.03729378499829502
+            "0050": -0.047505001103117575,
+            "TAIEX": -0.04075716499829503
           },
           "execution": {
             "observations": 1,
@@ -1181,68 +1190,72 @@
             },
             {
               "date": "2026-09-07",
-              "gap_pp": -6.9831999999999965
+              "gap_pp": -6.98293799999999
             },
             {
               "date": "2026-09-08",
-              "gap_pp": -5.92240000000001
+              "gap_pp": -5.9221379999999755
             },
             {
               "date": "2026-09-09",
-              "gap_pp": -7.185199999999995
+              "gap_pp": -7.184937999999988
             },
             {
               "date": "2026-09-10",
-              "gap_pp": -6.698799999999991
+              "gap_pp": -6.698537999999985
             },
             {
               "date": "2026-09-14",
-              "gap_pp": -4.167600000000007
+              "gap_pp": -4.167338000000001
             },
             {
               "date": "2026-09-15",
-              "gap_pp": -3.2919999999999874
+              "gap_pp": -3.291737999999995
             },
             {
               "date": "2026-09-16",
-              "gap_pp": 0.3837999999999937
+              "gap_pp": 0.3840620000000001
             },
             {
               "date": "2026-09-17",
-              "gap_pp": -1.3266000000000133
+              "gap_pp": -1.326338000000007
             },
             {
               "date": "2026-09-18",
-              "gap_pp": -5.76039999999999
+              "gap_pp": -5.760138000000012
             },
             {
               "date": "2026-09-21",
-              "gap_pp": -5.5762
+              "gap_pp": -5.575937999999994
             },
             {
               "date": "2026-09-22",
-              "gap_pp": -23.026600000000016
+              "gap_pp": -23.02633800000001
             },
             {
               "date": "2026-09-23",
-              "gap_pp": -25.338400000000007
+              "gap_pp": -25.338138
             },
             {
               "date": "2026-09-24",
-              "gap_pp": -23.9692
+              "gap_pp": -23.968937999999994
             },
             {
               "date": "2026-09-29",
-              "gap_pp": -25.976200000000006
+              "gap_pp": -25.975938
             },
             {
               "date": "2026-09-30",
-              "gap_pp": -31.106800000000007
+              "gap_pp": -31.106538
+            },
+            {
+              "date": "2026-10-01",
+              "gap_pp": -36.853138
             }
           ],
-          "gap_change_5_observations_pp": -25.530600000000007,
+          "gap_change_5_observations_pp": -13.826799999999992,
           "best_gap_pp": 0.9335199999999872,
-          "worst_gap_pp": -31.106800000000007
+          "worst_gap_pp": -36.853138
         }
       },
       "benchmarks": {
@@ -1250,20 +1263,20 @@
         "TAIEX": 0.07622578499829502
       },
       "summary": {
-        "combined_actual_return": 0.02430660000000002,
-        "combined_card_return": 0.13575000000000007,
-        "combined_gap": -0.11144340000000005,
-        "coverage_fraction": 0.22580645161290322,
-        "covered_members": 7,
+        "combined_actual_return": 0.021867750000000002,
+        "combined_card_return": 0.15775000000000003,
+        "combined_gap": -0.13588225000000004,
+        "coverage_fraction": 0.1935483870967742,
+        "covered_members": 6,
         "card_members": 31,
-        "deployed_fraction": 0.40886919999999993,
+        "deployed_fraction": 0.337933,
         "combined_vs_benchmarks": {
-          "0050": -0.05866702110311755,
-          "TAIEX": -0.051919184998295
+          "0050": -0.06110587110311756,
+          "TAIEX": -0.054358034998295016
         },
         "execution_observations": 9,
         "execution_status": "WAITING_MIN_30_SIGNAL_FILLS",
-        "gap_history_observations": 34
+        "gap_history_observations": 35
       }
     },
     "legacy_strategy_series": [],
@@ -1275,13 +1288,13 @@
     "risk_metric_status": "OK",
     "relative_metric_status": "OK",
     "period_returns": {
-      "今日": -0.002418953465690765,
-      "近一週": 0.0005698915986864783,
-      "近一月": -0.006190974347627498,
+      "今日": -0.0023809278579737247,
+      "近一週": 0.0006080312809793043,
+      "近一月": -0.006153141034252241,
       "近一季": null,
       "近一年": null,
-      "YTD": 0.0218288499999999,
-      "累計": 0.0218288499999999
+      "YTD": 0.021867750000000186,
+      "累計": 0.021867750000000186
     }
   },
   "safety": {

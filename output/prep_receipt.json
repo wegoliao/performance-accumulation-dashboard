@@ -1,18 +1,19 @@
 {
-  "generated_at": "2026-10-01T15:42:19",
-  "signal_asof": "2026-09-30",
+  "generated_at": "2026-10-02T00:52:41",
+  "signal_asof": "2026-10-01",
   "price_asof": "2026-10-01",
-  "snapshot_asof": "2026-09-17",
+  "snapshot_asof": "2026-10-01",
   "actions": 2,
-  "profiled": 1,
+  "profiled": 0,
   "missing_history": [
-    "2316"
+    "6026",
+    "3042"
   ],
   "fill_landing": {
     "buys": 36,
-    "sells": 20,
+    "sells": 22,
     "buy_mean": 0.3668749575435992,
-    "sell_mean": 0.6294911265929409,
+    "sell_mean": 0.6209659592403359,
     "deciles": [
       2,
       5,

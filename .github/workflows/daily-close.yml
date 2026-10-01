@@ -46,7 +46,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add inputs/price_history.csv inputs/benchmark_nav.csv output/*.json index.html output/performance_dashboard.html DASHBOARD_SUMMARY.md realized/index.html prep/index.html positions/index.html watch/index.html
+          git add inputs/price_history.csv inputs/benchmark_nav.csv output/*.json index.html output/performance_dashboard.html DASHBOARD_SUMMARY.md realized/index.html prep/index.html positions/index.html watch/index.html intake/index.html intake/account_reconciliation.json
           if git diff --cached --quiet; then
             echo "No new official close."
           else

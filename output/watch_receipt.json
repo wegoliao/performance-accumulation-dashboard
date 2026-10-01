@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-10-01T15:42:19",
-  "signal_asof": "2026-09-30",
+  "generated_at": "2026-10-02T00:52:42",
+  "signal_asof": "2026-10-01",
   "price_asof": "2026-10-01",
-  "snapshot_asof": "2026-09-17",
+  "snapshot_asof": "2026-10-01",
   "rows": 25,
   "rows_with_alerts": 17,
   "alerts": {

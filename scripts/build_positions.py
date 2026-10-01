@@ -333,14 +333,14 @@ table.lv{min-width:0}
 <title>持股體檢 · {snapshot_day.isoformat()} 每一檔的位置</title>
 <meta name="description" content="每一檔持股的均線、波段高低、分價分布與在各價位了結的淨損益。純量測，不含買賣建議。">
 {style}{extra}</head><body><div class="wrap">
-<p class="notice">已接回截至 2026-10-01 的成交：鴻準 788 股、緯創 501 股已平倉，蔚華科 1,000 股已回補；持股列表已移除。剩餘部位原始快照成本、收盤價與損益保留 9/17 口徑；均線與價位分布使用表列行情截止日。最近官方收盤與毛市值請看首頁目前帳戶。</p>
+<p class="notice">股數與買入成本依完整券商成交對帳單重建，收盤價使用 {snapshot_day.isoformat()} 官方行情。未實現損益尚未扣未來賣出費稅；下方「在這裡了結」另外使用估算賣出費稅。鴻準、緯創、蔚華科已平倉。</p>
 <header>
   <div class="eyebrow">Positions &middot; measurement only</div>
-  <h1>持股體檢 · 剩餘部位與原快照價格</h1>
+  <h1>持股體檢 · 目前 9 檔持股</h1>
   <p class="lede">沒有新資金的時候，問題從「買什麼」變成「每一檔在哪裡」。這頁把每一檔持股放回它自己的
   <b>均線、波段高低、六個月分價分布</b>，並算出在每一個位置了結的淨損益 —— 讓你一檔一檔自己確認。</p>
   <div class="meta">
-    <span>庫存快照 <code>{snapshot_day.isoformat()}</code></span>
+    <span>成交重建估值 <code>{snapshot_day.isoformat()}</code></span>
     <span>行情截止 <code>{price_asof.isoformat()}</code></span>
     <span>最新卡片 <code>{signal_asof.isoformat()}</code></span>
     <span><a href="../">&larr; 實際績效</a></span><span><a href="../prep/">備戰頁</a></span><span><a href="../history/">歷史存檔</a></span>
@@ -350,20 +350,20 @@ table.lv{min-width:0}
 均線、波段低點、價值區下緣都只是「曾經」，會不會再守住，這頁不知道，這個 repo 裡也沒有東西知道。
 每一列最右邊的「在這裡了結」是扣掉手續費與交易稅後對成本的淨損益 —— 認賠認多少，先看數字再決定。</div>
 
-<article class="panel"><h2>總覽 · 原快照損益（9/17），已平倉部位移除</h2>
+<article class="panel"><h2>總覽 · 最新官方收盤與實際買入成本</h2>
 <div class="sub">「一天典型波動」是 ATR(14) × 股數，是這個部位一天通常會晃的金額。「最近的下方位置」是收盤以下第一個過去停過的價位（放空部位改看上方）。</div>
 <div class="table-wrap"><table><thead><tr><th>股票</th><th>卡片現況</th><th class="num">市值</th><th class="num">未實現</th><th class="num">一天典型波動</th><th>最近的下方位置</th></tr></thead>
 <tbody>{summary_table(rows)}</tbody></table></div></article>
 
 {"".join(position_card(row) for row in rows)}
 
-<footer>資料：inputs/price_history.csv（TWSE／TPEx 公開日資料）、inputs/holdings_snapshot_{snapshot_day.isoformat()}.csv（你貼的庫存）、inputs/actual_fills.csv（你的成交）。
+<footer>資料：inputs/price_history.csv（TWSE／TPEx 公開日資料）、inputs/broker_statement_fills.csv（完整券商成交，去識別）、inputs/actual_fills.csv（四策略歷史分配）。
 沒有券商連線、沒有委託路徑、沒有買賣價格建議。兆豐（2886）依指示不計。</footer>
 </div></body></html>
 """
     SITE.mkdir(parents=True, exist_ok=True)
     target = SITE / "index.html"
-    target.write_text(page, encoding="utf-8", newline="\n")
+    target.write_text("\n".join(line.rstrip() for line in page.splitlines())+"\n", encoding="utf-8", newline="\n")
     receipt = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "snapshot_asof": snapshot_day.isoformat(),

@@ -284,7 +284,7 @@ table{min-width:1100px}td{vertical-align:top}
 <title>跟盤表 · {price_asof.isoformat()} 收盤後</title>
 <meta name="description" content="下一個交易日的跟盤表：每一檔卡片名單與持股的進場價、進場後高點、20 日低、MA20、ATR 與已跨過的位置。純量測。">
 {style}{extra}</head><body><div class="wrap">
-<p class="notice">已接回截至 2026-10-01 的成交：鴻準 788 股、緯創 501 股已平倉，蔚華科 1,000 股已回補；持股列表已移除。剩餘部位原始快照成本與行情日期分別標示。</p>
+<p class="notice">完整對帳單已接回實際股數與買入成本；鴻準、緯創、蔚華科已平倉。你的本次偏好：近期投信進出暫不跟進；來源卡仍完整保留。</p>
 <header>
   <div class="eyebrow">Watch sheet &middot; built from closes, read during the next session</div>
   <h1>跟盤表 · {price_asof.isoformat()} 收盤後</h1>
@@ -293,13 +293,13 @@ table{min-width:1100px}td{vertical-align:top}
   <div class="meta">
     <span>卡片日 <code>{signal_asof.isoformat()}</code></span>
     <span>收盤 <code>{price_asof.isoformat()}</code></span>
-    <span>庫存快照 <code>{snapshot_day.isoformat()}</code></span>
+    <span>成交重建估值 <code>{snapshot_day.isoformat()}</code></span>
     <span>有警訊 <code>{n_alert} / {len(rows)}</code></span>
     <span><a href="../">&larr; 實際績效</a></span><span><a href="../positions/">持股體檢</a></span><span><a href="../prep/">備戰頁</a></span>
   </div>
 </header>
 <div class="notice"><b>這頁不看盤。</b>它用官方收盤算出明天要盯的位置；盤中價格請你自己對。3055 融券已於 9/23 全數回補。兆豐（2886）依指示不計。
-原庫存快照 {snapshot_day.isoformat()}，已套用截至 2026-10-01 回報的平倉股數。</div>
+持股以完整對帳單重建；成本含實際買入手續費，未實現損益按 {snapshot_day.isoformat()} 官方收盤且未扣未來賣出費稅。</div>
 
 <article class="panel"><h2>四張卡自己的路徑</h2>
 <div class="sub">卡片表頭是「成員相對各自進場價」的平均，它本身就是一條路徑。這裡把每張卡從第一天到今天的表頭排成序列，看它的最高點與現在的距離。</div>
@@ -307,7 +307,7 @@ table{min-width:1100px}td{vertical-align:top}
 
 {"".join(sections)}
 
-<footer>資料：inputs/latest_strategy_signals.csv、signal_history.csv、strategy_card_returns.csv、price_history.csv、holdings_snapshot_{snapshot_day.isoformat()}.csv、actual_fills.csv。
+<footer>資料：inputs/latest_strategy_signals.csv、signal_history.csv、strategy_card_returns.csv、price_history.csv、broker_statement_fills.csv、actual_fills.csv。
 沒有券商連線、沒有委託路徑、沒有買賣價格建議。</footer>
 </div></body></html>
 """

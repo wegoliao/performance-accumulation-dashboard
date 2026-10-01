@@ -1,0 +1,46 @@
+{
+  "source_label": "3102.xls.html",
+  "source_sha256": "11f75ebc3fbaf68e80d2b4c4b9ad66d3ff932384e6da9f232de5f53239a3ac10",
+  "computer_time": "2026-10-02T00:29:11.887650+08:00",
+  "data_asof": "2026-10-01",
+  "first_trade": "2026-08-11",
+  "row_count": 59,
+  "totals": {
+    "shares": "38411.000000",
+    "gross": "3941514.000000",
+    "financing": "0.000000",
+    "collateral": "292466.000000",
+    "margin": "294000.000000",
+    "fee": "5588.000000",
+    "tax": "4885.000000",
+    "interest": "24.000000",
+    "borrow_fee": "117.000000",
+    "payable": "2243555.000000",
+    "receivable": "1553321.000000"
+  },
+  "status": "PASS",
+  "safe_projection": [
+    "trade_date",
+    "type",
+    "stock_code",
+    "stock_name",
+    "shares",
+    "price",
+    "gross",
+    "financing",
+    "collateral",
+    "margin",
+    "fee",
+    "tax",
+    "interest",
+    "borrow_fee",
+    "payable",
+    "receivable",
+    "order_id",
+    "currency"
+  ],
+  "excluded_columns": [
+    "帳號",
+    "帳號名"
+  ]
+}
