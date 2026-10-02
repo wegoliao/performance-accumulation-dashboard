@@ -37,6 +37,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import build_mainline2 as m2  # noqa: E402
 import build_prep as prep  # noqa: E402
+import broker_pnl_snapshot  # noqa: E402
 
 INPUTS = ROOT / "inputs"
 OUTPUT = ROOT / "output"
@@ -333,6 +334,7 @@ table.lv{min-width:0}
 <title>持股體檢 · {snapshot_day.isoformat()} 每一檔的位置</title>
 <meta name="description" content="每一檔持股的均線、波段高低、分價分布與在各價位了結的淨損益。純量測，不含買賣建議。">
 {style}{extra}</head><body><div class="wrap">
+{broker_pnl_snapshot.notice(ROOT)}
 <p class="notice">股數與買入成本依完整券商成交對帳單重建，收盤價使用 {snapshot_day.isoformat()} 官方行情。未實現損益尚未扣未來賣出費稅；下方「在這裡了結」另外使用估算賣出費稅。鴻準、緯創、蔚華科已平倉。</p>
 <header>
   <div class="eyebrow">Positions &middot; measurement only</div>

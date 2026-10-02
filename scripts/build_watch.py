@@ -38,6 +38,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import build_mainline2 as m2  # noqa: E402
 import build_positions as bpos  # noqa: E402
 import build_prep as prep  # noqa: E402
+import broker_pnl_snapshot  # noqa: E402
 
 INPUTS = ROOT / "inputs"
 OUTPUT = ROOT / "output"
@@ -288,6 +289,7 @@ table{min-width:1100px}td{vertical-align:top}
 <header>
   <div class="eyebrow">Watch sheet &middot; built from closes, read during the next session</div>
   <h1>跟盤表 · {price_asof.isoformat()} 收盤後</h1>
+  {broker_pnl_snapshot.notice(ROOT)}
   <p class="lede">卡片只印「相對進場價幾 %」，沒有路徑、沒有高點、沒有回撤。這頁把記憶補回來：每一檔<b>從卡片進場那天到現在</b>走過的最高點、回撤，
   加上它自己的 20 日低與 MA20，還有一天通常走多遠（ATR）。「警訊」＝收盤已經跨過、或離不到一個 ATR 的位置。它是距離，不是指令。</p>
   <div class="meta">

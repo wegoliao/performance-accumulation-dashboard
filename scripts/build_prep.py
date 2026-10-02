@@ -39,6 +39,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import build_mainline2 as m2  # noqa: E402  (reuse the profiling block)
+import broker_pnl_snapshot  # noqa: E402
 
 INPUTS = ROOT / "inputs"
 OUTPUT = ROOT / "output"
@@ -58,6 +59,8 @@ def latest_holdings() -> tuple[date, dict[str, dict[str, str]]]:
     rows = read(path)
     day = datetime.strptime(rows[0]["asof_date"], "%Y-%m-%d").date()
     report = owner_account.load_account(ROOT)
+    if report and 'statement_reference' in report:
+        report = report['statement_reference']  # Technical views retain official close dates.
     if report:
         rows = [row for row in rows if row['stock_code'].strip() in report['positions']]
         for row in rows:
@@ -424,6 +427,7 @@ footer{{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:
 </style>
 </head>
 <body><div class="wrap">
+{BROKER_PNL_NOTICE}
 
 <header>
   <div class="eyebrow">Preparation &middot; measurement only</div>
@@ -499,6 +503,7 @@ def render(rows, landing, signal_asof, price_asof, snapshot_day) -> str:
         (row["effective"] for row in rows if row["effective"]), price_asof.isoformat()
     )
     return TEMPLATE.format(
+        BROKER_PNL_NOTICE=broker_pnl_snapshot.notice(ROOT),
         EFFECTIVE=effective,
         SIGNAL_ASOF=signal_asof.isoformat(),
         PRICE_ASOF=price_asof.isoformat(),

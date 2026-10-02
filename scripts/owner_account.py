@@ -86,7 +86,8 @@ def fee_estimate(gross, sell=False):
 def load_account(root: Path):
     if (root / 'inputs/broker_statement_fills.csv').exists():
         import statement_account
-        return statement_account.load_account(root)
+        import broker_pnl_snapshot
+        return broker_pnl_snapshot.apply(root, statement_account.load_account(root))
     inputs = root / 'inputs'
     raw = read(inputs / 'actual_fills.csv')
     books = defaultdict(deque)
@@ -177,6 +178,9 @@ def load_account(root: Path):
 
 def render(r):
     if not r: return ''
+    if 'broker_snapshot' in r:
+        import broker_pnl_snapshot
+        return broker_pnl_snapshot.render(r)
     if 'statement_rows' in r:
         return render_statement(r)
     h=html.escape

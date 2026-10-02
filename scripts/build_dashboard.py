@@ -2960,10 +2960,11 @@ def build() -> tuple[Path, dict[str, Any]]:
     account_report = owner_account.load_account(ROOT)
     active_holdings = [dict(row) for row in holdings if not account_report or row['stock_code'] in account_report['positions']]
     if account_report and 'statement_rows' in account_report:
+        technical_account = account_report.get('statement_reference', account_report)
         for row in active_holdings:
-            code=row['stock_code'];qty=account_report['positions'][code];cost=account_report['costs'][code]
-            close=account_report['marks'][code]['close'];value=qty*close;pnl=value-cost
-            row.update(asof_date=parse_date(account_report['marks_asof']),cost_basis_twd=float(cost),
+            code=row['stock_code'];qty=technical_account['positions'][code];cost=technical_account['costs'][code]
+            close=technical_account['marks'][code]['close'];value=qty*close;pnl=value-cost
+            row.update(asof_date=parse_date(technical_account['marks_asof']),cost_basis_twd=float(cost),
                        avg_cost=float(cost/qty),last_price=float(close),current_value_twd=float(value),
                        unrealized_pnl_twd=float(pnl),unrealized_return_pct=float(pnl/cost*100))
     source_summary = load_summary()
@@ -3537,8 +3538,9 @@ polyline[data-line].off{opacity:.08}
             "# 公開績效累積圖 · 最新摘要",
             "",
             f"- 已回報成交截止：`{account_report['asof']}`；鴻準、緯創已平倉，蔚華科已回補",
-            f"- 已配對帳戶累積已實現：`NT$ {owner_account.money(account_report['realized'])}`；其中融券：`NT$ {owner_account.money(account_report['short_realized'])}`（實際費稅、借券費與利息）",
-            f"- 目前持股未實現：`NT$ {owner_account.money(account_report['unrealized'])}`；合計：`NT$ {owner_account.money(account_report['combined'])}`；追蹤多頭 `{len(account_report['positions'])}` 檔；缺成本兆豐金 1 股另列",
+            f"- 券商累積已實現（排除兆豐金測試買賣）：`NT$ {owner_account.money(account_report['realized'])}`；其中融券：`NT$ {owner_account.money(account_report['short_realized'])}`（實際費稅、借券費與利息）",
+            f"- 券商持股未實現試算：`NT$ {owner_account.money(account_report['unrealized'])}`；合計：`NT$ {owner_account.money(account_report['combined'])}`；9 檔，截圖日 `{account_report['marks_asof']}`，精確報價時間未提供，含預估賣出費稅",
+            "- 來源年份待核對：本次已實現圖印為 2025，先前完整 HTML 印為 2026；按唯一委託單號、股票、股數、價格與淨收付核對，不改寫原日期。",
             f"- 四策略估值日：`{actual_asof.isoformat()}`",
             f"- owner 庫存快照日：`{source_summary['asof_date'].isoformat()}`",
             f"- 庫存現值：`NT$ {fmt_ntd(snapshot['current_value_twd'])}`",

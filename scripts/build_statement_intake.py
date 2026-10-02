@@ -8,10 +8,13 @@ import statement_account
 
 def build(root):
     target=root/'intake';target.mkdir(exist_ok=True)
+    r=owner_account.load_account(root)  # Validate source paths before copying public files.
     files=['broker_statement_fills.csv','broker_statement_receipt.json','actual_fills.csv',
            'latest_strategy_signals.csv','strategy_card_returns.csv','owner_preferences.csv']
+    if (root/'inputs/broker_pnl_snapshot.json').exists():
+        receipt=json.loads((root/'inputs/broker_pnl_snapshot.json').read_text(encoding='utf-8'))
+        files+=['broker_pnl_snapshot.json',receipt['realized_file'],receipt['positions_file']]
     for name in files:shutil.copyfile(root/'inputs'/name,target/name)
-    r=statement_account.load_account(root)
     (target/'account_reconciliation.json').write_text(json.dumps(r,ensure_ascii=False,indent=2,default=str)+'\n',encoding='utf-8')
     labels={'broker_statement_fills.csv':'完整成交對帳・59 筆（已移除帳號姓名）',
             'broker_statement_receipt.json':'來源 SHA 與總額檢核收據',
@@ -19,7 +22,11 @@ def build(root):
             'latest_strategy_signals.csv':'10/1 原始策略卡・31 列',
             'strategy_card_returns.csv':'各日卡片表頭（來源報酬）',
             'owner_preferences.csv':'Owner 本次投信偏好',
-            'account_reconciliation.json':'損益、庫存與收付橋接驗算'}
+            'account_reconciliation.json':'券商主指標與獨立成交現金重建（分開保存）'}
+    if 'broker_snapshot' in r:
+        labels.update({'broker_pnl_snapshot.json':'最新券商損益截圖・來源口徑與小計',
+                       receipt['realized_file']:'券商已實現明細・22 列（兆豐金標示排除）',
+                       receipt['positions_file']:'券商目前持股・9 檔損益試算'})
     links=''.join(f'<li><a href="{name}" download>{html.escape(label)}</a></li>' for name,label in labels.items())
     rows=[]
     for x in statement_account.read(root/'inputs/broker_statement_fills.csv'):

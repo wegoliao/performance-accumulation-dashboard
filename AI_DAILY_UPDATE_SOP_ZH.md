@@ -12,6 +12,7 @@
 | 原卡表頭 | inputs/strategy_card_returns.csv | 不是帳戶報酬 |
 | 完整券商成交 | inputs/broker_statement_fills.csv | 59筆物理交易、實際費稅收付、已去識別 |
 | 原檔檢核 | inputs/broker_statement_receipt.json | SHA、來源合計、來源日期及電腦時間 |
+| 券商績效正典 | inputs/broker_pnl_snapshot.json 及其指向的兩份報表 CSV | Owner 10/2 指定券商已實現／未實現画面，優先作主指標 |
 | 四策略成交 | inputs/actual_fills.csv | 58列、原Claude策略分配、實際淨收付；不含融券 |
 | Owner舊貼文 | inputs/owner_reported_fills_*.csv | 歷史證據，與statement同單不能疊加 |
 | Owner本次選擇 | inputs/owner_preferences.csv | 特定卡日偏好，不是成交或永久交易規則 |
@@ -44,7 +45,21 @@ reconcile_strategy_fills(root)按日期／委託原號／股票／方向／價�
 
 完整statement存在時，owner_account優先呼叫statement_account，不再疊加先前貼文。來源日以後有新成交時必須補來源，不能用舊statement暗示已涵蓋。無完整statement時的舊fallback可用已確定成交減股數，但未知費用要明示未知，不能估值冒充實收。
 
-2886僅1股賣出淨收50、無原買成本，損益未知；收付包含但損益不補零成本。未提供股息與成本調整不臆造。3主指標：已配對累積已實現（實際費後）、未實現（官方收盤市值−買入實付，未扣未來賣出費稅）、兩者合計（不是帳戶餘額）。四策略曲線另外用假設出場費稅及排除融券，不能與主帳戶混用。
+原 statement_reference 中2886僅1股賣出淨收50、無原買成本，收付包含但不補零成本。Owner 新提供損益畫面有買入40、賣出50、損益10，且明確要求此測試買賣不計；因此主績效排除整筆，而不是減50元。原始現金來源仍保存。未提供股息與成本調整不臆造。
+
+## 最新券商損益畫面（10/2 主指標正典）
+
+本次兩圖安全轉錄為 broker_realized_report_2026-10-02.csv（22列，1列測試單排除）及 broker_positions_report_2026-10-02.csv（9列）。原圖含姓名帳號，只存 Quant_Card/processed；GitHub 只發布白名單 CSV、來源hash與收據，不發布原圖。
+
+- 已實現畫面小計−9551，扣除測試獲利10後 **−9561**。現股已實現61491，融券−71052。
+- 目前持股成本675866、畫面現值674499，未實現試算 **−1367**；與已實現合計 **−10928**。畫面「損益不含稅費」未勾選，這是含預估賣出費稅的試算，不能再扣一次。
+- 報價來源為10/2盤中截圖，精確報價時間未提供。不能塞進官方 price_history.csv，也不能稱官方收盤或即時連線。每日行情自動更新只刷新另標日期的技術量測與四策略曲線；券商快照等待新的來源圖。
+- 已實現圖成交年份印2025，完整HTML印2026。按唯一委託單號／股票／股數／價格／淨收付核對21筆，但保留兩來源日期與UNRESOLVED年份差異，不能默默改年。查詢起2025-08-01、止2026-10-02。
+- 券商已實現配對成本與成交FIFO成本有4857的損益差；逐筆來源差在主頁折疊區，原因未提供，不推測配息，不把差額寫成現金收入。
+- scripts/broker_pnl_snapshot.py套用畫面到owner_account；獨立 statement_account 數字與現金橋留在 statement_reference，所有既有成交／四策略分配不改。公開 account_reconciliation.json 分開保存兩個口徑。
+- 每筆損益等式、兩圖小計、股票／股數／買入成本覆蓋及賣出淨收款都需驗證。新實際成交晚於画面涵蓋日期或無法完整配對就fail closed，不靜默把舊券商快照稱新績效。
+
+驗證 tests/test_broker_pnl_snapshot.py 與完整tests。安全轉錄器 Quant_Card/import_broker_pnl_20261002.py 只重播本批已核對資料，不是通用OCR；不要每日重跑或改舊receipt電腦時間。明細/收據/intake與主頁同步發布；不把 screenshot 淨估值傳成另一種gross官方市值。
 
 ## 建置、驗證、發布
 

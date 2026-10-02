@@ -176,6 +176,7 @@ def load_account(root):
                 basis+=cost;lot[1]-=cost;lot[0]-=take;remaining-=take
                 if not lot[0]:books[c].popleft()
             closes.append({'stock_code':c,'stock_name':names[c],'date':r['trade_date'],'shares':qty,
+                           'order_id':r['order_id'],
                            'price':r['price'],'gross':r['gross'],'fees':r['fee'],'tax':r['tax'],
                            'entry_cash_out':basis,'proceeds':r['receivable'],'pnl':r['receivable']-basis})
         elif r['type']=='券賣':
@@ -190,6 +191,7 @@ def load_account(root):
             pnl=r['receivable']-opened['payable']
             if pnl!=price_pnl-fees-tax-borrow+interest:raise ValueError('short P&L cash bridge failed')
             short_closes.append({'stock_code':c,'stock_name':names[c],'date':r['trade_date'],
+                                 'order_id':r['order_id'],
                                  'open_date':opened['trade_date'],'shares':qty,'entry_price':opened['price'],
                                  'exit_price':r['price'],'price_pnl':price_pnl,'fees':fees,'tax':tax,
                                  'borrow_fee':borrow,'interest_credit':interest,'margin_paid':opened['payable'],

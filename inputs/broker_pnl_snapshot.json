@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "computer_time": "2026-10-02T10:30:45.120739+08:00",
+  "data_asof": "2026-10-02",
+  "realized_period_start": "2025-08-01",
+  "realized_period_end": "2026-10-02",
+  "quote_time": null,
+  "quote_basis": "OWNER_SUPPLIED_INTRADAY_SCREENSHOT_NOT_OFFICIAL_CLOSE",
+  "value_basis": "BROKER_REPORTED_NET_ESTIMATE_INCLUDES_ESTIMATED_SELL_FEES_TAX",
+  "realized_file": "broker_realized_report_2026-10-02.csv",
+  "positions_file": "broker_positions_report_2026-10-02.csv",
+  "realized_totals": {
+    "rows": 22,
+    "shares": "13571",
+    "buy_amount": "1491820",
+    "sell_amount": "1624373",
+    "pnl": "-9551"
+  },
+  "unrealized_totals": {
+    "rows": 9,
+    "shares": "11270",
+    "cost": "675866",
+    "reported_value": "674499",
+    "pnl": "-1367"
+  },
+  "excluded_stock_codes": [
+    "2886"
+  ],
+  "exclusion_provenance": "OWNER_CONFIRMED_TEST_TRADE_2026-10-02",
+  "date_match_policy": "EXACT_ORDER_CODE_QUANTITY_PRICE_PRESERVE_SOURCE_DATES",
+  "source_date_conflict": "BROKER_REALIZED_ROWS_2025_VS_STATEMENT_ROWS_2026_UNRESOLVED",
+  "source_images": [
+    {
+      "role": "realized",
+      "sha256": "da27ab0cb328aad1e2a3c61b4e394a68a6c6c430ea9697a56e6327a42edaa774",
+      "local_archive": "broker_pnl_20261002_realized.png",
+      "public_image": false
+    },
+    {
+      "role": "unrealized",
+      "sha256": "1cd9589fa307e70dc09b932a1dcbab8f289b296a63bc556c40805d9769fdcd8c",
+      "local_archive": "broker_pnl_20261002_unrealized.png",
+      "public_image": false
+    }
+  ],
+  "safe_projection": "NO_ACCOUNT_OR_PERSON_NAME_COLUMNS"
+}
