@@ -1,6 +1,6 @@
 {
   "status": "SUCCESS",
-  "generated_at": "2026-10-02T10:39:46+08:00",
+  "generated_at": "2026-10-02T15:18:11+08:00",
   "source_data_asof": "2026-09-17",
   "actual_valuation_asof": "2026-10-01",
   "source_capture_time": null,
@@ -1280,6 +1280,9 @@
       }
     },
     "legacy_strategy_series": [],
+    "theoretical_nav_status": "WAITING_STRATEGY_NAV",
+    "card_chart_basis": "RAW_SOURCE_HEADER_PERCENT_NOT_NAV_NOT_REBASED",
+    "actual_curve_scope": "ALLOCATED_LONG_FILLS_ASSUMED_500000_PER_SLEEVE_EXCLUDES_ACCOUNT_SHORT",
     "benchmark_series": [
       "0050",
       "TAIEX"

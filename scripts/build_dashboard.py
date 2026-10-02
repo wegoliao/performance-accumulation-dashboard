@@ -1392,7 +1392,7 @@ def drawdown_visual(curve: list[tuple[date, float]]) -> str:
     )
 
 
-def line_chart(series: dict[str, list[tuple[date, float]]], chart_id: str = "curve") -> str:
+def line_chart(series: dict[str, list[tuple[date, float]]], chart_id: str = "curve", *, rebase: bool = True) -> str:
     """Rebased-to-100 curves with a hover readout.
 
     Every line starts at 100 on the first shared session, so what the eye
@@ -1401,8 +1401,12 @@ def line_chart(series: dict[str, list[tuple[date, float]]], chart_id: str = "cur
     on hover carries both the rebased level and the move from 100, because
     "102.4" and "+2.4%" are the same fact and the second one is the one people
     actually reason about.
+
+    With rebase=False, levels are 100 + the original card percentage. Display
+    the original percentage and never treat the snapshot series as a NAV.
     """
-    usable = {name: normalize_curve(values) for name, values in series.items() if len(values) >= 2}
+    usable = {name: normalize_curve(values) if rebase else values for name, values in series.items() if len(values) >= 2}
+    basis_label = "相對起始日的累積報酬" if rebase else "卡片原始表頭；不是累積淨值"
     if not usable:
         return (
             '<div class="empty-chart"><div class="empty-icon">↗</div>'
@@ -1432,11 +1436,15 @@ def line_chart(series: dict[str, list[tuple[date, float]]], chart_id: str = "cur
     # used to collide on green, which made the one number that matters the
     # hardest to find.
     palette = {
-        "四策略實際合計": "#ffffff",
-        "實際·投信": "#f5bd58",
-        "實際·YOY": "#4d9dff",
-        "實際·融資": "#c77dff",
-        "實際·突破": "#ff6b6b",
+        "四策略現股重建合計": "#ffffff",
+        "重建·投信": "#f5bd58",
+        "重建·YOY": "#4d9dff",
+        "重建·融資": "#c77dff",
+        "重建·突破": "#ff6b6b",
+        "卡片表頭·投信": "#f5bd58",
+        "卡片表頭·YOY": "#4d9dff",
+        "卡片表頭·融資": "#c77dff",
+        "卡片表頭·突破": "#ff6b6b",
         "Benchmark·加權指數": "#2fbf9b",
         "Benchmark·0050 元大台灣50": "#8d99ae",
     }
@@ -1446,9 +1454,10 @@ def line_chart(series: dict[str, list[tuple[date, float]]], chart_id: str = "cur
     for index in range(5):
         y = top + plot_h * index / 4
         value = high - (high - low) * index / 4
+        axis_value = f"{value:.1f}" if rebase else f"{value - 100:.1f}%"
         grid.append(
             f'<line x1="{left}" y1="{y:.1f}" x2="{width-right}" y2="{y:.1f}" class="grid-line"/>'
-            f'<text x="{left-8}" y="{y+4:.1f}" class="axis-text" text-anchor="end">{value:.1f}</text>'
+            f'<text x="{left-8}" y="{y+4:.1f}" class="axis-text" text-anchor="end">{axis_value}</text>'
         )
     # the 100 baseline: every line starts here, so it is the only level that
     # separates "made money" from "lost money" at a glance
@@ -1456,7 +1465,7 @@ def line_chart(series: dict[str, list[tuple[date, float]]], chart_id: str = "cur
         y100 = y_of(100.0)
         grid.append(
             f'<line x1="{left}" y1="{y100:.1f}" x2="{width-right}" y2="{y100:.1f}" class="base-line"/>'
-            f'<text x="{width-right+6}" y="{y100+4:.1f}" class="axis-text base-tag">100</text>'
+            f'<text x="{width-right+6}" y="{y100+4:.1f}" class="axis-text base-tag">{"100" if rebase else "0%"}</text>'
         )
 
     paths: list[str] = []
@@ -1464,7 +1473,7 @@ def line_chart(series: dict[str, list[tuple[date, float]]], chart_id: str = "cur
     payload: list[str] = []
     for index, (name, points) in enumerate(usable.items()):
         color = palette.get(name, fallback[index % len(fallback)])
-        emphasis = 3.4 if name == "四策略實際合計" else 2.1
+        emphasis = 3.4 if name == "四策略現股重建合計" else 2.1
         coords = " ".join(f"{x_of(day):.1f},{y_of(value):.1f}" for day, value in points)
         paths.append(
             f'<polyline points="{coords}" fill="none" stroke="{color}" '
@@ -1488,14 +1497,15 @@ def line_chart(series: dict[str, list[tuple[date, float]]], chart_id: str = "cur
     geom = (
         f'{{"left":{left},"top":{top},"plotW":{plot_w},"plotH":{plot_h},'
         f'"low":{low:.6f},"high":{high:.6f},"minDate":"{min_date.isoformat()}",'
-        f'"span":{date_span},"width":{width},"height":{height}}}'
+        f'"span":{date_span},"width":{width},"height":{height},'
+        f'"rebase":{json.dumps(rebase)},"basisLabel":{json.dumps(basis_label, ensure_ascii=False)}}}'
     )
     return (
         f'<div class="chart-box" id="{chart_id}">'
         '<div class="chart-legend">' + "".join(legend) + "</div>"
         f'<div class="chart-frame">'
         f'<svg class="line-chart" viewBox="0 0 {width} {height}" role="img" '
-        f'aria-label="績效累積曲線，全部以起始日 100 為基準">'
+        f'aria-label="{basis_label}">'
         + "".join(grid)
         + "".join(paths)
         + f'<line class="crosshair" x1="0" y1="{top}" x2="0" y2="{top+plot_h}" style="opacity:0"/>'
@@ -1512,6 +1522,36 @@ def line_chart(series: dict[str, list[tuple[date, float]]], chart_id: str = "cur
         f'{{"series":{data},"geom":{geom}}}</script>'
         "</div>"
     )
+
+def theoretical_nav_panel(curves: dict[str, list[tuple[date, float]]], benchmarks: dict[str, list[tuple[date, float]]]) -> str:
+    """Plot source NAVs only; source-card snapshots cannot stand in for NAV."""
+    if set(curves) != set(STRATEGY_LABELS):
+        return '<div class="callout" data-status="WAITING_STRATEGY_NAV"><b>尚缺四策略每日淨值，累積報酬目前無法核算。</b><p>需要原策略涵蓋歷次平倉、現金、費用與持股的每日淨值紀錄。現有卡片會換股，只記來源顯示報酬，不能補成累積績效。</p></div>'
+    common = sorted(set.intersection(*(set(dict(curves[s])) for s in STRATEGY_LABELS)))
+    if len(common) < 2:
+        return '<div class="callout" data-status="WAITING_STRATEGY_NAV"><b>尚缺共同期間</b><p>四策略至少需兩個共同淨值日期。</p></div>'
+    selected = {f"理論累積·{STRATEGY_LABELS[s]}": [(d, dict(curves[s])[d]) for d in common] for s in STRATEGY_LABELS}
+    for code in ('TAIEX', '0050'):
+        if code in benchmarks:
+            points = dict(benchmarks[code])
+            if all(d in points for d in common):
+                selected[f"Benchmark·{BENCHMARK_LABELS[code]}"] = [(d, points[d]) for d in common]
+    return line_chart(selected, 'theoretical-nav')
+
+
+def return_basis_panel(split: dict[str, Any], curves: dict[str, list[tuple[date, float]]], benchmarks: dict[str, list[tuple[date, float]]]) -> str:
+    """Explain the denominator and realized/open distinction beside the chart."""
+    trust = split['TRUST']; breakout = curves['BREAKOUT']
+    start, end = breakout[0][0], breakout[-1][0]
+    market = slice_and_normalize(benchmarks.get('TAIEX', []), start, end)
+    comparison = ''
+    if market and market[0][0] == start and market[-1][0] == end:
+        strategy_return = breakout[-1][1] / breakout[0][1] * 100 - 100
+        market_return = market[-1][1] - 100
+        comparison = f'<p>{start} 至 {end}：突破在 50 萬預算口徑為 <b>{strategy_return:+.2f}%</b>，加權指數 <b>{market_return:+.2f}%</b>，差 <b>{strategy_return-market_return:+.2f} 個百分點</b>。這裡比較整份預算（含閒置現金），不是股票全額投入的報酬；benchmark採價格報酬。</p>'
+    return (f'<div class="callout"><b>這張曲線不等於券商帳戶績效。</b><p>四策略只涵蓋已分配的現股成交，<b>不含蔚華科融券損益</b>。每策略 50 萬是設定的起始預算，不是已核對的帳戶入金；券商損益以頁首為準。</p>'
+            f'<p>投信截至 {end}：已實現 {fmt_ntd(trust["realized_pnl_twd"], sign=True)} ＋ 持股未實現 {fmt_ntd(trust["unrealized_pnl_twd"], sign=True)} ＝ 累積 {fmt_ntd(trust["total_pnl_twd"], sign=True)}。持股正在虧損，與累積仍有獲利可以同時成立。這裡採成交成本與官方收盤淨變現試算，與頁首券商日期及成本口徑不同。</p>{comparison}</div>')
+
 
 def holdings_table(holdings: list[dict[str, Any]]) -> str:
     rows: list[str] = []
@@ -1906,7 +1946,7 @@ def gap_lens_cards(report: dict[str, Any]) -> str:
     return "".join(
         [
             metric_card(
-                "四策略實際",
+                "四策略現股重建",
                 fmt_pct(summary["combined_actual_return"], sign=True),
                 "成交現金流＋每日可變現價值",
                 css_value_class(summary["combined_actual_return"]),
@@ -3015,9 +3055,9 @@ def build() -> tuple[Path, dict[str, Any]]:
     )
 
     series: dict[str, list[tuple[date, float]]] = {}
-    series["四策略實際合計"] = actual_curve
+    series["四策略現股重建合計"] = actual_curve
     for strategy_id, curve in actual_strategy_curves.items():
-        series[f"實際·{STRATEGY_LABELS[strategy_id]}"] = curve
+        series[f"重建·{STRATEGY_LABELS[strategy_id]}"] = curve
     # Both benchmarks, not just the preferred one. 0050 is what the owner could
     # actually have bought instead; TAIEX is the market. They answer different
     # questions and the gap between them is itself informative.
@@ -3032,7 +3072,7 @@ def build() -> tuple[Path, dict[str, Any]]:
         if aligned:
             series[f"Benchmark·{BENCHMARK_LABELS.get(benchmark_id, benchmark_id)}"] = aligned
     theory_series = {
-        f"理論卡·{STRATEGY_LABELS[strategy_id]}": curve
+        f"卡片表頭·{STRATEGY_LABELS[strategy_id]}": curve
         for strategy_id, curve in card_curves.items()
     }
     theory_asof = min(curve[-1][0] for curve in card_curves.values())
@@ -3147,11 +3187,11 @@ def build() -> tuple[Path, dict[str, Any]]:
     sharpe_band = sharpe_standard_error(analysis_curve)
     risk_metrics = "".join(
         [
-            status_metric("四策略實際累計", fmt_pct(actual_metrics["total_return"], sign=True), history_status, "4×50 萬；成交現金流＋可變現價值"),
+            status_metric("四策略現股重建累計", fmt_pct(actual_metrics["total_return"], sign=True), history_status, "4×50 萬；成交現金流＋可變現價值"),
             status_metric("CAGR", fmt_pct(actual_metrics["cagr"], sign=True), "SHORT_SAMPLE", f"實際日曆日年化；僅 {(analysis_curve[-1][0]-analysis_curve[0][0]).days} 日，數值極不穩定"),
             status_metric("Sharpe", fmt_num(actual_metrics["sharpe"]), risk_status, "日報酬、252 日年化、rf=0"),
             status_metric("Sortino", fmt_num(actual_metrics["sortino"]), risk_status, "只以負報酬估 downside risk"),
-            status_metric("MDD", fmt_pct(actual_metrics["max_drawdown"]), history_status, f"實際四策略合計曲線；{return_obs} 筆日報酬"),
+            status_metric("MDD", fmt_pct(actual_metrics["max_drawdown"]), history_status, f"設定預算現股重建曲線；{return_obs} 筆日報酬"),
             status_metric("Calmar", fmt_num(actual_metrics["calmar"]), "SHORT_SAMPLE", "CAGR ÷ |MDD|；短樣本不作穩健評價"),
             status_metric("Alpha", fmt_pct(relative["alpha"], sign=True), relative_status, "日 OLS intercept × 252、rf=0"),
             status_metric("Beta", fmt_num(relative["beta"]), relative_status, "相對主 benchmark 的日報酬斜率"),
@@ -3290,7 +3330,7 @@ polyline[data-line].off{opacity:.08}
 <body><main class="wrap">
 <div class="eyebrow">66 · PERFORMANCE ACCUMULATION</div>
 {{OWNER_ACCOUNT}}
-<section class="hero"><div><h1>績效累積圖</h1><p>實際績效已改用 2026-08-10 起始、2026-08-11 起逐筆成交的四策略 equity curve。不再把今日持股倒推一年。理論卡與實際線分開標示截止日。</p><div class="badges"><a class="badge good" href="intake/">完整券商成交已接回・59 筆</a><span class="badge good">THEORY_ASOF_{{THEORY_ASOF_COMPACT}}</span><span class="badge warn">RISK_SAMPLE_{{RISK_OBS}}_RETURNS</span><span class="badge">NO_BROKER · NO_ORDER</span><a class="badge good" href="inputs/four_strategy_daily_signals.xlsx" download>下載舊 Excel 主檔（未含本批）</a></div></div><div><b>四策略估值日</b><br><span class="mono">{{ASOF}}</span><br><small>owner 庫存快照 {{SNAPSHOT_ASOF}}；理論卡 {{THEORY_ASOF}}</small></div></section>
+<section class="hero"><div><h1>績效累積圖</h1><p>帳戶損益以頁首券商報表為準。下方現股曲線依逐筆成交與設定預算重建；理論累積淨值與卡片表頭另外呈現，三種口徑不混用。</p><div class="badges"><a class="badge good" href="intake/">完整券商成交已接回・59 筆</a><span class="badge good">THEORY_ASOF_{{THEORY_ASOF_COMPACT}}</span><span class="badge warn">RISK_SAMPLE_{{RISK_OBS}}_RETURNS</span><span class="badge">NO_BROKER · NO_ORDER</span><a class="badge good" href="inputs/four_strategy_daily_signals.xlsx" download>下載舊 Excel 主檔（未含本批）</a></div></div><div><b>四策略估值日</b><br><span class="mono">{{ASOF}}</span><br><small>owner 庫存快照 {{SNAPSHOT_ASOF}}；理論卡 {{THEORY_ASOF}}</small></div></section>
 <details class="panel"><summary>歷史資料・{{SNAPSHOT_ASOF}} 庫存快照與舊成交簿（不代表目前帳戶）</summary><section class="metrics">{{HEADER_CARDS}}</section></details>
 <section class="grid">
 {{PROVISIONAL_BANNER}}
@@ -3300,8 +3340,9 @@ polyline[data-line].off{opacity:.08}
 <article class="panel full"><h2>{{PLANNED_DATE}} 策略訊號與目前部位</h2><div class="sub">已回報的平倉立即更新股數；本批已用完整對帳單核對實際費稅與收付。原策略卡仍保留，四策略曲線截止 {{ASOF}}。</div>{{PLANNED_SIGNALS}}</article>
 <article class="panel full"><h2>「順著買低」反事實 · 用你自己的成交驗證</h2><div class="sub">你的觀察是：買了之後常常還有更低價。這裡不是替你決定要不要分批，是把這個假設<b>放回已經發生的價格裡跑一遍</b>。每一筆真實買進，同一筆錢拆三等份：成交價、成交價 −2%、成交價 −4%；下面兩檔只有在<b>成交日起 5 個交易日內最低價碰到</b>才算成交，沒碰到那份錢就留著。然後兩邊都用最新收盤估值，扣同一套出場費稅。<br><b>三個誠實的但書：</b>① 碰到價位不等於成交（3624 在 9/10 就是站在 100.00 地板上沒買到），所以這張表偏樂觀；② 價格沒跌下來時階梯買得比較少，損益是算在較小的部位上，所以「留著的現金」欄一起列；③ 31 筆是小樣本，−2%／−4% 是隨手定的參數，換一組數字答案會不一樣 —— 參數寫出來是為了讓你可以爭論它，不是要你相信它。<br>這張表<b>不會產生任何委託</b>。要不要分批、分幾批、掛哪裡，是你的決定。</div><div class="table-wrap"><table><thead><tr><th>買進日</th><th>股票</th><th class="num">實際成交</th><th>階梯成交 (%↓)</th><th class="num">階梯均價</th><th class="num">最新收盤</th><th class="num">實際損益</th><th class="num">階梯損益</th><th class="num">留著的現金</th><th class="num">差</th></tr></thead><tbody>{{LADDER_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>訊號 → 成交 · 履約落差帳</h2><div class="sub">策略卡報的是訊號價，帳戶付的是成交價，中間的差就是「這個策略能不能被執行」的全部答案。正的 bp 代表對自己不利。累積夠多筆之後，才知道策略卡報酬要打幾折。</div>{{SLIPPAGE_TABLE}}</article>
-<article class="panel full"><h2>四策略實際績效 · 累積曲線</h2><div class="sub">每個 sleeve 以 NT$50 萬現金起始，用實際成交、費稅、已實現損益與每日可變現價值重建；合計初始資金 NT$200 萬。</div>{{LINE_CHART}}</article>
-<article class="panel full"><h2>四策略理論卡 · 來源顯示曲線</h2><div class="sub">這是 owner 策略卡的「當日持倉成分等權顯示報酬」，不是可投資 NAV，也不將每日百分比複利串接。資料只到 {{THEORY_ASOF}}。</div>{{THEORY_CHART}}</article>
+<article class="panel full"><h2>四策略現股成交重建 · 假設資金累積曲線</h2><div class="sub">每策略設定 NT$50 萬現金起始（合計 NT$200 萬），用已分配現股成交、費稅、平倉現金與官方收盤淨變現試算重建。這是設定預算下的績效，不是完整券商帳戶淨值。</div>{{RETURN_BASIS}}{{LINE_CHART}}</article>
+<article class="panel full"><h2>四策略理論績效 · 累積淨值</h2><div class="sub">累積報酬＝每日策略淨值 ÷ 同期間起始淨值 − 1。淨值須保留換股前的已實現損益，並納入現金、持股與費用；同期間比較大盤。不能每日累乘卡片自進場以來的百分比。</div>{{THEORETICAL_NAV}}</article>
+<article class="panel full"><h2>四策略卡片 · 原始表頭歷史</h2><div class="sub">依來源原樣顯示百分比，不重新定基為 100。卡片成分與進場日期會改變，包含括號方向；這些數值不是策略累積淨值，也不能拿來證明勝過同期間大盤。資料只到 {{THEORY_ASOF}}。</div>{{THEORY_CHART}}</article>
 <article class="panel full"><h2>成本口徑落差 · 歷史四策略多頭（{{SNAPSHOT_ASOF}}）</h2><div class="sub">成交簿記的是實際付出的現金（價金＋手續費），券商『付出成本』欄記的是它自己的成本基礎。兩者不一致時，這裡列出是哪一檔、差多少、每股差多少。<b>差額不是要去抹平的誤差，是成交簿還不知道的事件</b> —— 配息、成本重算、券商用不同方式記費用。在有人解釋它之前，它應該一直看得見。四策略實績一律以逐筆成交現金流為準。</div><div class="table-wrap"><table><thead><tr><th>股票</th><th class="num">成交簿成本</th><th class="num">券商成本欄</th><th class="num">差額</th><th class="num">股數</th><th class="num">每股差</th></tr></thead><tbody>{{COST_GAP_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>資料累積 · 還差多少才說得出話</h2><div class="sub">每一個顯示 <code>N/A</code> 的統計，背後都有一個樣本門檻。在門檻之前它不是壞掉，是還不知道 —— 而「不知道」和「不好」是兩件事。這裡把每天堆疊的資料換算成進度：現在有幾筆、需要幾筆、到了會解鎖什麼。<b>暫計成交不計入</b>，因為那不是真的執行紀錄。</div>{{ACCRUAL}}</article>
 <article class="panel full"><h2>每日更新時間軸</h2><div class="sub">四個來源，各自有自己的更新節奏。實心格代表那一天有這個來源的資料；空格代表沒有，而不是「和前一天一樣」。右欄的日期若比最後一欄舊，代表這個來源正在落後，畫面上與它有關的數字都還停在那一天。{{TIMELINE_SUMMARY}}。</div>{{UPDATE_TIMELINE}}</article>
@@ -3309,9 +3350,9 @@ polyline[data-line].off{opacity:.08}
 <article class="panel full"><h2>目前持股 · 對帳成本與官方收盤（{{ASOF}}）</h2><div class="sub"><b>這張表不含任何建議。</b>每一欄都是量測：距成本、距卡片自己的進場價、持有天數、自進場以來從最高點的回撤，以及最後一欄 —— <b>你的策略卡現在對這檔說什麼</b>。最後一欄是你自己系統的輸出，把它列出來是回報，不是我的意見。要不要動、動多少，是你的決定。</div><div class="table-wrap"><table><thead><tr><th>股票／策略</th><th class="num">實付成本均價</th><th class="num">官方收盤</th><th class="num">帳面報酬率</th><th class="num">帳面未實現</th><th class="num">卡片進場</th><th class="num">現價vs卡片</th><th class="num">持有</th><th class="num">自進場高點回撤</th><th>卡片現在說</th></tr></thead><tbody>{{POSITION_HEALTH}}</tbody></table></div></article>
 <article class="panel full"><h2>策略 vs 實際 · 八個角度的診斷</h2><div class="sub">策略卡是當日成員的等權顯示報酬；實際 sleeve 是成交現金流、真實權重、閒置現金、費稅與可變現估值。兩者不是同一種 NAV。這一區回答「差在哪裡」，但不把描述性 bridge 冒充因果歸因或 alpha。</div><div class="gap-lenses">{{GAP_LENS_CARDS}}</div><div class="period-kind">策略層診斷 · 同一起訖日</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際</th><th class="num">卡片</th><th class="num">Gap</th><th>最大描述項</th><th class="num">投入</th><th class="num">覆蓋</th><th class="num">vs TAIEX</th><th class="num">vs 0050</th><th class="num">訊號成交樣本</th></tr></thead><tbody>{{GAP_DRIVER_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">Gap 走勢 · 實際報酬 − 卡片顯示報酬（pp）</div>{{GAP_HISTORY_CHART}}<div class="section-gap"></div><div class="period-kind">成員與狀態 · 缺席不等於損失，未買標的不得虛構 counterfactual P&amp;L</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>同策略已覆蓋</th><th>卡上未持有</th><th>仍持有但已離卡</th><th>計畫進</th><th>計畫出</th><th class="num">實付 vs 卡價</th><th class="num">現金</th></tr></thead><tbody>{{COVERAGE_LENS_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>實施落差橋 · 三項加總的描述性 bridge</h2><div class="sub">只說「差幾 pp」沒有用。這裡用一個<b>代數恆等式</b>把差距拆成三項：<br><code>差距 = 在庫組合與進場 ＋ 現金／未投入 ＋ 已實現</code><br>三項加總會精確回到「實際 − 卡片」，但分類不是因果實驗：第一項同時混合成員覆蓋、實際權重、進場時點、進場價與出場費稅；第二項假設用卡片表頭當作未投入資金的參考報酬；第三項來自平倉現金流。它適合找下一個要查的方向，不適合宣稱哪一項造成未來績效。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">理論卡</th><th class="num">實際 sleeve</th><th class="num">差距</th><th class="num">在庫組合<br>與進場</th><th class="num">現金／<br>未投入</th><th class="num">已實現<br>貢獻</th><th class="num">投入<br>比重</th><th class="num">閒置現金</th></tr></thead><tbody>{{BRIDGE_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">進場價差 · 卡片假設你付的 vs 你實際付的</div><div class="sub" style="margin-bottom:12px">「實付均價」是成交簿的在庫帳面成本 ÷ 股數，含手續費，所以它一定略高於成交價本身。綠色代表實付低於卡片進場價，紅色代表高於；它只描述成交，不代表那個價位是最佳進場。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">卡片進場</th><th class="num">實付均價</th><th class="num">進場價差</th><th class="num">現價</th><th class="num">在庫報酬<br>（扣出場費稅）</th></tr></thead><tbody>{{ENTRY_GAP_TABLE}}</tbody></table></div></article>
-<article class="panel full"><h2>實際 vs 理論 · 四策略差異</h2><div class="sub">「差異」只在共同截止日 {{COMPARISON_ASOF}} 計算：實際 50 萬 sleeve 可變現報酬 − 理論卡等權顯示報酬。這是描述性 implementation gap，權重與現金比率不同，不冒充 alpha。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">實際累計<br>{{ASOF}}</th><th class="num">實際損益</th><th class="num">實際<br>{{COMPARISON_ASOF}}</th><th class="num">理論卡<br>{{COMPARISON_ASOF}}</th><th class="num">差異<br>pp</th><th class="num">實際持股/<br>原卡列數</th><th class="num">MDD</th><th class="num">Sharpe</th></tr></thead><tbody>{{STRATEGY_TABLE}}</tbody></table></div></article>
+<article class="panel full"><h2>實際 vs 理論 · 四策略差異（現股重建 vs 卡片表頭）</h2><div class="sub">「差異」只在共同截止日 {{COMPARISON_ASOF}} 計算：實際 50 萬 sleeve 可變現報酬 − 理論卡等權顯示報酬。這是描述性 implementation gap，權重與現金比率不同，不冒充 alpha。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">現股重建累計<br>{{ASOF}}</th><th class="num">實際損益</th><th class="num">實際<br>{{COMPARISON_ASOF}}</th><th class="num">理論卡<br>{{COMPARISON_ASOF}}</th><th class="num">差異<br>pp</th><th class="num">實際持股/<br>原卡列數</th><th class="num">MDD</th><th class="num">Sharpe</th></tr></thead><tbody>{{STRATEGY_TABLE}}</tbody></table></div></article>
 <article class="panel full"><h2>日／週／月／季／年／YTD／累計</h2><div class="sub">basis：{{ANALYSIS_BASIS}}。近一月、季、年若沒有足夠實際觀察就顯示 N/A，不用同一批股票倒推。</div><div class="period-grid">{{PERIOD_CARDS}}</div></article>
-<article class="panel full" id="risk-metrics"><h2>Sharpe／MDD／Alpha／Beta · 完整績效風險衡量</h2><div class="sub">以四策略實際合計曲線計算。MDD 不需要樣本門檻；Sharpe 與 Sortino 需要 20 筆日報酬。<br>{{SHARPE_BAND}}</div><div class="status-grid">{{RISK_METRICS}}</div></article>
+<article class="panel full" id="risk-metrics"><h2>Sharpe／MDD／Alpha／Beta · 完整績效風險衡量</h2><div class="sub">以設定預算的四策略現股重建曲線計算，排除帳戶融券。MDD 不需要樣本門檻；Sharpe 與 Sortino 需要 20 筆日報酬。<br>{{SHARPE_BAND}}</div><div class="status-grid">{{RISK_METRICS}}</div></article>
 <article class="panel"><h2>歷史期間報酬</h2><div class="sub">資料成長後優先顯示月報酬，再依可用資料退回週／季／年。</div>{{PERIOD_BARS}}</article>
 <article class="panel"><h2>水下回撤圖</h2><div class="sub">每天相對歷史淨值高點的跌幅；MDD 就是最深位置。</div>{{DRAWDOWN}}</article>
 <article class="panel full"><h2>月度績效熱圖</h2><div class="sub">橫向為月份、縱向為年份，快速看 regime、季節性與連續虧損月份。</div>{{MONTHLY_HEATMAP}}</article>
@@ -3385,14 +3426,14 @@ polyline[data-line].off{opacity:.08}
         var cls = move > 0 ? "up" : (move < 0 ? "down" : "");
         rows += '<div class="tip-r"><i style="background:' + line.color + '"></i>'
           + '<span class="n">' + line.name + '</span>'
-          + '<span class="v">' + hit.toFixed(2) + '</span>'
+          + (g.rebase === false ? '' : '<span class="v">' + hit.toFixed(2) + '</span>')
           + '<span class="p ' + cls + '">' + (move >= 0 ? "+" : "") + move.toFixed(2) + '%</span></div>';
         marks += '<circle cx="' + bx.toFixed(1) + '" cy="' + yOf(hit).toFixed(1)
           + '" r="3.6" fill="' + line.color + '" stroke="var(--panel)" stroke-width="1.4"/>';
       });
       dots.innerHTML = marks;
       tip.innerHTML = '<div class="tip-d">' + best + '　<span style="font-weight:400;opacity:.7">'
-        + '相對 ' + g.minDate + ' 進場</span></div>' + rows;
+        + (g.rebase === false ? g.basisLabel : '相對 ' + g.minDate + ' 起始淨值') + '</span></div>' + rows;
       tip.hidden = false;
 
       var fw = frame.clientWidth;
@@ -3451,7 +3492,9 @@ polyline[data-line].off{opacity:.08}
         "{{HEADER_CARDS}}": header_cards,
         "{{OWNER_ACCOUNT}}": owner_account.render(account_report),
         "{{LINE_CHART}}": line_chart(series),
-        "{{THEORY_CHART}}": line_chart(theory_series, "theory"),
+        "{{THEORY_CHART}}": line_chart(theory_series, "theory", rebase=False),
+        "{{RETURN_BASIS}}": return_basis_panel(pnl_breakdown, actual_strategy_curves, benchmark_curves),
+        "{{THEORETICAL_NAV}}": theoretical_nav_panel(legacy_strategy_curves, benchmark_curves),
         "{{LATEST_SIGNAL_CARDS}}": latest_signal_cards(latest_signals, card_curves),
         "{{PLANNED_SIGNALS}}": planned_signal_table(latest_signals, active_holdings, fills),
         "{{STRATEGY_TABLE}}": strategy_comparison_table(
@@ -3638,6 +3681,9 @@ polyline[data-line].off{opacity:.08}
             "strategy_diagnostics": strategy_diagnostics,
             "strategy_actual_gap_report": gap_report,
             "legacy_strategy_series": sorted(legacy_strategy_curves),
+            "theoretical_nav_status": "SOURCE_NAV_AVAILABLE" if set(legacy_strategy_curves) == set(STRATEGY_LABELS) and len(set.intersection(*(set(dict(legacy_strategy_curves[s])) for s in STRATEGY_LABELS))) >= 2 else "WAITING_STRATEGY_NAV",
+            "card_chart_basis": "RAW_SOURCE_HEADER_PERCENT_NOT_NAV_NOT_REBASED",
+            "actual_curve_scope": "ALLOCATED_LONG_FILLS_ASSUMED_500000_PER_SLEEVE_EXCLUDES_ACCOUNT_SHORT",
             "benchmark_series": sorted(benchmark_curves),
             "performance_status": history_status,
             "risk_metric_status": risk_status,

@@ -83,3 +83,12 @@ Pages需包含main、realized、prep、positions、watch、intake及historical�
 ## 歷史
 
 10/1缺費用時曾發布短單試算70959與累積試算-14322.60；已由本版實際費稅取代，不能重新加進績效。舊批次／frozen history保持歷史。舊Excel未更新，頁面標舊資料，CSV是本次正典。理論卡、同日OHLC、收盤價、可變現估費都不是實際成交。
+## 2026-10-02：累積曲線口徑修正
+
+頁首券商損益是帳戶績效；四策略現股成交重建採每策略設定50萬預算，排除帳戶融券，不能稱完整帳戶NAV。現持股虧損與先前平倉獲利須分列，不能只看曲線正負。
+
+卡片表頭採原始百分比（圖內100＋表頭，座標／tooltip顯示表頭百分比），不重新定基、不複利。換股及不同進場日期使它不能當累積策略報酬，也不能直接與benchmark比輸贏。
+
+真正理論累積圖使用既有 `inputs/strategy_nav.csv`，四策略須至少兩個共同日期；缺少來源淨值顯示 `WAITING_STRATEGY_NAV`。淨值須已納入歷次平倉、持股、現金與成本，外部入出金須已消除其影響；`note` 說明策略版本、權重、多空、成交時点、費用及股息處理。禁止用 `strategy_card_returns.csv` 補成NAV。
+
+查核與缺口見 [RETURN_BASIS_AUDIT_2026-10-02.md](RETURN_BASIS_AUDIT_2026-10-02.md)。新增 `tests/test_return_basis.py` 驗卡片原負報酬、缺NAV拒畫、換股後平倉利益仍累積及共同期間benchmark。主專案的 `Quant_Card/audit_return_basis_20261002.py` 重播來源hash與金額。
