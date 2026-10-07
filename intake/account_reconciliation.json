@@ -554,52 +554,52 @@
     },
     "marks": {
       "2397": {
-        "date": "2026-10-06",
-        "close": "64.3000",
+        "date": "2026-10-07",
+        "close": "63.4000",
         "source": "TWSE_STOCK_DAY"
       },
       "3006": {
-        "date": "2026-10-06",
-        "close": "273.5000",
+        "date": "2026-10-07",
+        "close": "270.5000",
         "source": "TWSE_STOCK_DAY"
       },
       "2637": {
-        "date": "2026-10-06",
-        "close": "100.0000",
+        "date": "2026-10-07",
+        "close": "96.8000",
         "source": "TWSE_STOCK_DAY"
       },
       "1717": {
-        "date": "2026-10-06",
-        "close": "74.9000",
+        "date": "2026-10-07",
+        "close": "75.6000",
         "source": "TWSE_STOCK_DAY"
       },
       "1712": {
-        "date": "2026-10-06",
-        "close": "39.7000",
+        "date": "2026-10-07",
+        "close": "39.8500",
         "source": "TWSE_STOCK_DAY"
       },
       "6108": {
-        "date": "2026-10-06",
-        "close": "25.4000",
+        "date": "2026-10-07",
+        "close": "25.9500",
         "source": "TWSE_STOCK_DAY"
       },
       "2489": {
-        "date": "2026-10-06",
-        "close": "39.4000",
+        "date": "2026-10-07",
+        "close": "41.4000",
         "source": "TWSE_STOCK_DAY"
       },
       "6179": {
-        "date": "2026-10-06",
-        "close": "37.5500",
+        "date": "2026-10-07",
+        "close": "37.7500",
         "source": "TPEX_STOCK_DAY"
       },
       "6426": {
-        "date": "2026-10-06",
-        "close": "351.0000",
+        "date": "2026-10-07",
+        "close": "347.5000",
         "source": "TWSE_STOCK_DAY"
       }
     },
-    "marks_asof": "2026-10-06",
+    "marks_asof": "2026-10-07",
     "long_closes": [
       {
         "stock_code": "3702",
@@ -931,9 +931,9 @@
     "realized": "-14418.00",
     "cash_change": "-690234.000000",
     "open_cost": "675866.000000",
-    "market_value": "671997.5000000000",
-    "unrealized": "-3868.5000000000",
-    "combined": "-18286.5000000000",
+    "market_value": "674706.8000000000",
+    "unrealized": "-1159.2000000000",
+    "combined": "-15577.2000000000",
     "short_remaining_shares": "0",
     "exact_net_status": "EXACT_MATCHED_SETTLEMENTS",
     "coverage_status": "MATCHED_TRADES_WITH_ONE_UNKNOWN_COST",
