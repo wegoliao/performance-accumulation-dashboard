@@ -99,12 +99,15 @@ def test_preference_is_dated_and_does_not_change_original_signals():
     assert owner_account.preference(ROOT,'TRUST','2026-10-01')=='Owner 本次暫不跟進'
     assert owner_account.preference(ROOT,'TRUST','2026-10-02')==''
     assert owner_account.preference(ROOT,'YOY','2026-10-01')==''
-    signals=list(csv.DictReader((ROOT/'inputs/latest_strategy_signals.csv').open(encoding='utf-8-sig')))
+    history=list(csv.DictReader((ROOT/'inputs/signal_history.csv').open(encoding='utf-8-sig')))
+    signals=[r for r in history if r['asof_date']=='2026-10-01']
     trust={r['stock_code']:r for r in signals if r['strategy_id']=='TRUST'}
     assert trust['6026']['signal']=='出' and trust['3042']['signal']=='進'
     assert trust['3042']['entry_price']==''
     assert trust['3042']['effective_date']=='2026-10-02'
     assert len(signals)==31
+    latest=list(csv.DictReader((ROOT/'inputs/latest_strategy_signals.csv').open(encoding='utf-8-sig')))
+    assert {r['asof_date'] for r in latest}=={max(r['asof_date'] for r in history)}
 
 def test_future_unreconciled_owner_fill_cannot_be_silently_ignored(tmp_path):
     import shutil
