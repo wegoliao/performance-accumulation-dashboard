@@ -596,13 +596,24 @@ def latest_signal_quality(
     return result
 
 
+NOT_FOLLOWED_NOTE = "括號（反向）與 * 特殊標的目前不跟（尚有問題待釐清）"
+
+
+def card_excluded(row: dict[str, Any]) -> bool:
+    """Bracketed side or any * marker: owner does not follow these yet."""
+    signal = (row.get("signal") or "").strip()
+    return signal.startswith("(") or "*" in signal or "*" in (row.get("stock_name") or "")
+
+
+STOP_LABEL = "10/13 起不跟（測試）"
+
+
 def latest_signal_cards(
     rows: list[dict[str, Any]],
     card_curves: dict[str, list[tuple[date, float]]],
 ) -> str:
     asof = rows[0]["asof_date"]
     cards: list[str] = []
-    stopped_cards: list[str] = []
     status = broker_pnl_snapshot.strategy_status(ROOT)
     style_names = {"TRUST": "trust", "YOY": "yoy", "MARGIN": "margin", "BREAKOUT": "breakout"}
     order = sorted(STRATEGY_LABELS.items(), key=lambda item: status.get(item[0]) == "STOPPED")
@@ -612,9 +623,11 @@ def latest_signal_cards(
         for row in [item for item in rows if item["strategy_id"] == strategy_id]:
             value_class = css_value_class(row["signed_return_pct"])
             signal_class = "enter" if row["signal"] == "進" else "exit" if row["signal"] == "出" else "hold"
+            skip = ' <small class="neutral">目前不跟</small>' if card_excluded(row) else ""
+            dim = ' style="opacity:.55"' if skip else ""
             body.append(
-                "<tr>"
-                f'<td><b>{html.escape(row["stock_code"])} {html.escape(row["stock_name"])}</b></td>'
+                f'<tr{dim}>'
+                f'<td><b>{html.escape(row["stock_code"])} {html.escape(row["stock_name"])}</b>{skip}</td>'
                 f'<td>{html.escape(row["industry"])}</td>'
                 f'<td class="num">{html.escape(row["entry_display"])}</td>'
                 f'<td class="num">{row["close"]:,.2f}</td>'
@@ -622,20 +635,61 @@ def latest_signal_cards(
                 f'<td><span class="signal {signal_class}">{row["signal"]}</span></td>'
                 "</tr>"
             )
-        mark = "　<small class=\"neutral\">Owner 已停止參與・僅保存歷史</small>" if status.get(strategy_id) == "STOPPED" else ("　<small>追蹤中</small>" if status.get(strategy_id) == "FOLLOW" else "")
-        (stopped_cards if status.get(strategy_id) == "STOPPED" else cards).append(
+        mark = "　<small class=\"negative\">%s</small>" % STOP_LABEL if status.get(strategy_id) == "STOPPED" else ("　<small>追蹤中</small>" if status.get(strategy_id) == "FOLLOW" else "")
+        cards.append(
             f'<section class="strategy-card {style_names[strategy_id]}">'
             f'<h3>{asof.strftime("%Y/%m/%d")} {html.escape(label)}策略：<span class="{css_value_class(header_return)}">{header_return:+.1f}%</span>{mark}</h3>'
             '<div class="table-wrap"><table><thead><tr><th>股票</th><th>產業</th><th class="num">進場</th><th class="num">收盤</th><th class="num">%</th><th>訊</th></tr></thead>'
             f'<tbody>{"".join(body)}</tbody></table></div></section>'
         )
-    if stopped_cards:
-        names = "、".join(STRATEGY_LABELS[k] for k, v in status.items() if v == "STOPPED")
-        cards.append(
-            f'<details style="grid-column:1/-1"><summary>{html.escape(names)}：Owner 2026-10-12 起不再參與，卡片仍逐日保存（點開查看）</summary>'
-            f'{"".join(stopped_cards)}</details>'
-        )
     return "".join(cards)
+
+
+def card_alignment(rows: list[dict[str, Any]], holdings: list[dict[str, Any]], fills: list[dict[str, Any]]) -> str:
+    """Followed-strategy cards versus what the account actually holds."""
+    status = broker_pnl_snapshot.strategy_status(ROOT)
+    follow = [k for k, v in status.items() if v == "FOLLOW"]
+    if not follow:
+        return ""
+    held = {row["stock_code"].strip(): row for row in holdings}
+    owners = sleeve_owners(fills)
+    out: list[str] = []
+    on_card: set[str] = set()
+    for row in rows:
+        if row["strategy_id"] not in follow:
+            continue
+        code = row["stock_code"].strip()
+        on_card.add(code)
+        action = row["signal"].strip("()*")
+        if card_excluded(row):
+            state, klass = "目前不跟（括號／*）", "neutral"
+        elif code in held and action == "出":
+            state, klass = "持有中・卡片說出 → 待出", "negative"
+        elif code in held:
+            state, klass = "已對齊・持有", "positive"
+        elif action == "進":
+            state, klass = "卡片新進 → 待進", "neutral"
+        elif action == "出":
+            state, klass = "卡片出・本來就沒持有", "neutral"
+        else:
+            state, klass = "未對齊・卡片持有、帳戶沒有", "negative"
+        out.append(
+            f'<tr><td>{html.escape(STRATEGY_LABELS[row["strategy_id"]])}</td><td>{code} {html.escape(row["stock_name"])}</td>'
+            f'<td>{html.escape(row["signal"])}</td><td class="{klass}">{state}</td></tr>'
+        )
+    for code, row in sorted(held.items()):
+        if code in on_card:
+            continue
+        sleeves = "、".join(STRATEGY_LABELS.get(s, s) for s in sorted(owners.get(code, ())))
+        stop = any(status.get(s) == "STOPPED" for s in owners.get(code, ()))
+        state = f"{STOP_LABEL} · 待擇機清倉" if stop else "帳戶持有・追蹤卡上沒有"
+        out.append(f'<tr><td>{html.escape(sleeves or "—")}</td><td>{code} {html.escape(str(row.get("stock_name", "")))}</td><td>—</td><td class="negative">{state}</td></tr>')
+    return (
+        '<article class="panel full" id="alignment"><h2>卡片對齊 · 融資、突破 vs 實際持股</h2>'
+        f'<div class="sub">以最新卡與目前持股逐檔比對。{NOT_FOLLOWED_NOTE}。這是對照，不是指示。</div>'
+        '<div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th>卡片訊號</th><th>對齊狀態</th></tr></thead><tbody>'
+        + "".join(out) + "</tbody></table></div></article>"
+    )
 
 
 def sleeve_owners(fills: list[dict[str, Any]]) -> dict[str, set[str]]:
@@ -674,8 +728,8 @@ def planned_signal_table(
     def still_open(row: dict[str, Any]) -> bool:
         code = row["stock_code"].strip()
         action = row.get("signal_action") or row["signal"].strip("()*")
-        if row["signal"].strip().startswith("("):
-            return False  # bracketed side, ignored per owner
+        if card_excluded(row):
+            return False  # bracketed side or * marker: not followed yet
         if action == "出":
             if status.get(row["strategy_id"]) == "STOPPED" and row["strategy_id"] not in owners[code]:
                 return False  # another, followed sleeve owns these shares
@@ -703,7 +757,7 @@ def planned_signal_table(
         f'<td><span class="signal {"enter" if row["signal"] == "進" else "exit"}">{row["signal"]}</span></td>'
         f'<td>{html.escape(row["entry_display"])}</td>'
         f'<td class="num">{row["close"]:,.2f}</td>'
-        f'<td><span class="badge warn">{("已停止參與 · 待擇機清倉" if status.get(row["strategy_id"]) == "STOPPED" else "") or owner_account.preference(ROOT,row["strategy_id"],row["asof_date"]) or ("仍持有 · 待出" if row["signal"].strip("()*") == "出" else "零部位 · 待進")}</span></td>'
+        f'<td><span class="badge warn">{(STOP_LABEL + " · 待擇機清倉" if status.get(row["strategy_id"]) == "STOPPED" else "") or owner_account.preference(ROOT,row["strategy_id"],row["asof_date"]) or ("仍持有 · 待出" if row["signal"].strip("()*") == "出" else "零部位 · 待進")}</span></td>'
         "</tr>"
         for row in planned
     )
@@ -1477,6 +1531,7 @@ def line_chart(series: dict[str, list[tuple[date, float]]], chart_id: str = "cur
         "卡片表頭·突破": "#ff6b6b",
         "Benchmark·加權指數": "#2fbf9b",
         "Benchmark·0050 元大台灣50": "#8d99ae",
+        "0050 ETF·同期買進持有": "#2fbf9b",
     }
     fallback = ["#57d3a2", "#f5bd58", "#72a7ff", "#d689ff", "#ff7f7f", "#2fbf9b", "#8d99ae"]
 
@@ -2761,8 +2816,8 @@ def unexecuted_signals(
     rows: list[str] = []
     for raw in history:
         signal = raw["signal"].strip()
-        if signal.startswith("("):
-            continue  # bracketed side, ignored per owner
+        if card_excluded(raw):
+            continue  # bracketed side or * marker: not followed yet
         action = signal.strip("*")
         if action not in {"出", "進"}:
             continue
@@ -2790,7 +2845,7 @@ def unexecuted_signals(
             detail = "未進場"
             klass = "neutral"
         pref=owner_account.preference(ROOT,raw['strategy_id'],raw['asof_date'])
-        if status.get(raw["strategy_id"]) == "STOPPED":pref="已停止參與 · 待擇機清倉"
+        if status.get(raw["strategy_id"]) == "STOPPED":pref=STOP_LABEL + " · 待擇機清倉"
         if pref:detail+=' · '+pref
         rows.append(
             "<tr>"
@@ -2828,22 +2883,37 @@ def overdue_exit_cost(
     if not SIGNAL_HISTORY_PATH.exists():
         return ""
     held = {row["stock_code"].strip(): row for row in holdings}
+    owners = sleeve_owners(fills)
     sold: dict[str, list[date]] = defaultdict(list)
     for fill in fills:
         if fill["side"] == "SELL":
             sold[fill["stock_code"].strip()].append(fill["date"])
     rows: list[str] = []
+    pending: list[str] = []
     total_delay = 0.0
     for raw in read_csv(SIGNAL_HISTORY_PATH):
-        if raw["signal"].strip().strip("*") != "出" or not raw.get("effective_date"):
+        if raw["signal"].strip() != "出" or not raw.get("effective_date") or card_excluded(raw):
             continue
         code = raw["stock_code"].strip()
         asof = parse_date(raw["asof_date"])
         if code not in held or any(day >= asof for day in sold[code]):
             continue
+        if raw["strategy_id"] not in owners[code]:
+            continue  # another sleeve owns these shares
         effective = parse_date(raw["effective_date"])
         bars = [bar for bar in ohlc.get(code, []) if bar["date"] >= effective]
         if not bars:
+            position = held[code]
+            now = estimated_liquidation_value(position["shares"], position["last_price"]) - position["cost_basis_twd"]
+            pending.append(
+                "<tr>"
+                f'<td>{code} {html.escape(raw.get("stock_name", ""))}</td>'
+                f'<td>{html.escape(STRATEGY_LABELS.get(raw["strategy_id"], ""))}</td>'
+                f'<td>{raw["asof_date"]} 卡 出（收 {float(raw["close"]):g}，卡片 {raw["signed_return_pct"]}%）</td>'
+                f'<td>{raw["effective_date"]} 開盤（尚未發生）</td>'
+                f'<td class="{css_value_class(now)}">{fmt_ntd(now, sign=True)}<br><small>以 {position["last_price"]:g} 試算</small></td>'
+                "</tr>"
+            )
             continue
         position = held[code]
         shares, cost = position["shares"], position["cost_basis_twd"]
@@ -2861,25 +2931,34 @@ def overdue_exit_cost(
             "<tr>"
             f'<td>{code} {html.escape(raw.get("stock_name", ""))}</td>'
             f'<td>{html.escape(STRATEGY_LABELS.get(raw["strategy_id"], ""))}</td>'
-            f'<td>{raw["effective_date"]} 開 {bars[0]["open"]:g}</td>'
+            f'<td>{raw["asof_date"]} 卡 出<br><small>{raw["effective_date"]} 開 {bars[0]["open"]:g} 認賠</small></td>'
             f'<td class="{css_value_class(at_signal)}">{fmt_ntd(at_signal, sign=True)}</td>'
             f'<td class="{css_value_class(now)}">{fmt_ntd(now, sign=True)}<br><small>@{position["last_price"]:g}</small></td>'
-            f'<td class="{css_value_class(delay)}"><b>{fmt_ntd(delay, sign=True)}</b><br><small>{sessions} 日 · {fmt_ntd(delay / sessions, sign=True)}/日</small></td>'
+            f'<td class="{css_value_class(delay)}"><b>{fmt_ntd(delay, sign=True)}</b><br><small>{sessions} 日 · {"續抱至今較好" if delay > 0 else "照卡片出較好"}</small></td>'
             f'<td class="{css_value_class(at_best)}">{fmt_ntd(at_best, sign=True)}<br><small>{best["date"].isoformat()} 收 {best["close"]:g}</small></td>'
             "</tr>"
         )
-    if not rows:
+    if not rows and not pending:
         return ""
+    pending_html = (
+        '<div class="period-kind" style="margin-top:14px">出場訊號已發出、生效日還沒到</div>'
+        '<div class="table-wrap"><table><thead><tr><th>股票</th><th>策略</th><th>訊號</th><th>預定出場</th><th>若現在出場的損益（試算）</th></tr></thead><tbody>'
+        + "".join(pending) + "</tbody></table></div>"
+    ) if pending else ""
+    if not rows:
+        return '<article class="panel full" id="overdue"><h2>出場訊號 · 認賠還是續抱</h2>' + pending_html + "</article>"
     return (
-        '<article class="panel full" id="overdue"><h2>逾期出場的代價</h2>'
+        '<article class="panel full" id="overdue"><h2>出場訊號 · 認賠還是續抱</h2>'
         '<div class="sub">卡片說「出」、你還持有的每一檔：生效日開盤出場的淨損益（扣手續費與交易稅）、'
         '現在出場的淨損益、兩者的差就是拖延的成本。「期間最佳」是那段路徑裡最高的收盤 —— '
         '它說的是這一次，不是下一次。</div>'
         '<div class="table-wrap"><table><thead><tr><th>股票</th><th>策略</th><th>卡片出場基準</th>'
         '<th>當時出</th><th>現在出</th><th>拖延代價</th><th>期間最佳</th></tr></thead><tbody>'
         + "".join(rows)
-        + f'<tr><td colspan="5"><b>合計拖延代價</b></td><td class="{css_value_class(total_delay)}"><b>{fmt_ntd(total_delay, sign=True)}</b></td><td></td></tr>'
-        "</tbody></table></div></article>"
+        + f'<tr><td colspan="5"><b>合計：續抱 − 照卡片出</b></td><td class="{css_value_class(total_delay)}"><b>{fmt_ntd(total_delay, sign=True)}</b></td><td></td></tr>'
+        "</tbody></table></div>"
+        '<p class="sub">正數＝到目前為止續抱比照卡片出場少虧或多賺；負數＝照卡片出場較好。這是目前為止的事後結果，股價之後還會變，不能當成下一次該怎麼做的規則。</p>'
+        + pending_html + "</article>"
     )
 
 
@@ -3113,6 +3192,12 @@ def build() -> tuple[Path, dict[str, Any]]:
         f"卡片表頭·{STRATEGY_LABELS[strategy_id]}": curve
         for strategy_id, curve in card_curves.items()
     }
+    # Investable yardstick: 0050 bought at the first card date and held.
+    card_start = min(curve[0][0] for curve in card_curves.values())
+    card_end = max(curve[-1][0] for curve in card_curves.values())
+    etf = slice_and_normalize(benchmark_curves.get("0050", []), card_start, card_end)
+    if etf:
+        theory_series["0050 ETF·同期買進持有"] = etf
     theory_asof = min(curve[-1][0] for curve in card_curves.values())
     comparison_asof = shared_comparison_date(actual_strategy_curves, card_curves)
     actual_bundle_pnl = strategy_diagnostics["bundle_current_pnl_twd"]
@@ -3374,13 +3459,14 @@ polyline[data-line].off{opacity:.08}
 {{PROVISIONAL_BANNER}}
 <article class="panel full" id="today" style="border-color:var(--accent)"><h2 style="color:var(--accent)">來源訊號與你的選擇 · {{PLANNED_DATE}}</h2><div class="sub">你的策略卡對這個交易日開出的動作，只列<b>還需要決定</b>的：「出」只列仍持有的，「進」只列整戶零部位的，括號部位依指示排除。這裡只回報系統說了什麼、帳戶做了什麼 —— 要不要執行、幾塊錢，是你的決定。完整的價格分布與掛單落點在 <a href="prep/">備戰頁</a>；已經變現的盈虧全部搬到 <a href="realized/">已實現頁</a>；每一檔持股的均線、波段低點與各價位了結損益在 <a href="positions/">持股體檢</a>；下一交易日要盯的位置與警訊在 <a href="watch/">跟盤表</a>。</div><div class="table-wrap"><table><thead><tr><th>訊號日</th><th>策略</th><th>股票</th><th>動作</th><th>生效日</th><th>目前狀態</th></tr></thead><tbody>{{UNEXECUTED_SIGNALS}}</tbody></table></div></article>
 {{OVERDUE_EXIT_COST}}
+{{CARD_ALIGNMENT}}
 <article class="panel full"><h2>最新四策略卡 · {{SIGNAL_ASOF}} 收盤</h2><div class="sub">來源圖逐列保存。紅／綠方向已轉成帶正負號報酬；{{PLANNED_DATE}} 的「進／出」是計畫訊號，不是成交。</div><div class="strategy-card-grid">{{LATEST_SIGNAL_CARDS}}</div></article>
 <article class="panel full"><h2>{{PLANNED_DATE}} 策略訊號與目前部位</h2><div class="sub">已回報的平倉立即更新股數；10/1 前費稅以完整對帳單核對，之後依永豐成交明細與公式估算。原策略卡仍保留，四策略曲線截止 {{ASOF}}。</div>{{PLANNED_SIGNALS}}</article>
 <article class="panel full"><h2>「順著買低」反事實 · 用你自己的成交驗證</h2><div class="sub">你的觀察是：買了之後常常還有更低價。這裡不是替你決定要不要分批，是把這個假設<b>放回已經發生的價格裡跑一遍</b>。每一筆真實買進，同一筆錢拆三等份：成交價、成交價 −2%、成交價 −4%；下面兩檔只有在<b>成交日起 5 個交易日內最低價碰到</b>才算成交，沒碰到那份錢就留著。然後兩邊都用最新收盤估值，扣同一套出場費稅。<br><b>三個誠實的但書：</b>① 碰到價位不等於成交（3624 在 9/10 就是站在 100.00 地板上沒買到），所以這張表偏樂觀；② 價格沒跌下來時階梯買得比較少，損益是算在較小的部位上，所以「留著的現金」欄一起列；③ 31 筆是小樣本，−2%／−4% 是隨手定的參數，換一組數字答案會不一樣 —— 參數寫出來是為了讓你可以爭論它，不是要你相信它。<br>這張表<b>不會產生任何委託</b>。要不要分批、分幾批、掛哪裡，是你的決定。</div><div class="table-wrap"><table><thead><tr><th>買進日</th><th>股票</th><th class="num">實際成交</th><th>階梯成交 (%↓)</th><th class="num">階梯均價</th><th class="num">最新收盤</th><th class="num">實際損益</th><th class="num">階梯損益</th><th class="num">留著的現金</th><th class="num">差</th></tr></thead><tbody>{{LADDER_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>訊號 → 成交 · 履約落差帳</h2><div class="sub">策略卡報的是訊號價，帳戶付的是成交價，中間的差就是「這個策略能不能被執行」的全部答案。正的 bp 代表對自己不利。累積夠多筆之後，才知道策略卡報酬要打幾折。</div>{{SLIPPAGE_TABLE}}</article>
 <article class="panel full"><h2>四策略現股成交重建 · 假設資金累積曲線</h2><div class="sub">每策略設定 NT$50 萬現金起始（合計 NT$200 萬），用已分配現股成交、費稅、平倉現金與官方收盤淨變現試算重建。這是設定預算下的績效，不是完整券商帳戶淨值。</div>{{RETURN_BASIS}}{{LINE_CHART}}</article>
 <article class="panel full"><h2>四策略理論績效 · 累積淨值</h2><div class="sub">累積報酬＝每日策略淨值 ÷ 同期間起始淨值 − 1。淨值須保留換股前的已實現損益，並納入現金、持股與費用；同期間比較大盤。不能每日累乘卡片自進場以來的百分比。</div>{{THEORETICAL_NAV}}</article>
-<article class="panel full"><h2>四策略卡片 · 原始表頭歷史</h2><div class="sub">依來源原樣顯示百分比，不重新定基為 100。卡片成分與進場日期會改變，包含括號方向；這些數值不是策略累積淨值，也不能拿來證明勝過同期間大盤。資料只到 {{THEORY_ASOF}}。</div>{{THEORY_CHART}}</article>
+<article class="panel full"><h2>四策略卡片 · 原始表頭歷史</h2><div class="sub">依來源原樣顯示百分比，不重新定基為 100。卡片成分與進場日期會改變，包含括號方向；這些數值不是策略累積淨值。綠線是可投資的 0050 ETF：第一個卡片日收盤買進、持有至今的價格報酬（不含股利與費用），作為「什麼都不做、只買 0050」的比拼基準。卡片表頭是成分股自進場以來的平均，口徑和 0050 持有報酬不同，只能參考、不能直接證明勝負。資料只到 {{THEORY_ASOF}}。</div>{{THEORY_CHART}}</article>
 <article class="panel full"><h2>成本口徑落差 · 歷史四策略多頭（{{SNAPSHOT_ASOF}}）</h2><div class="sub">成交簿記的是實際付出的現金（價金＋手續費），券商『付出成本』欄記的是它自己的成本基礎。兩者不一致時，這裡列出是哪一檔、差多少、每股差多少。<b>差額不是要去抹平的誤差，是成交簿還不知道的事件</b> —— 配息、成本重算、券商用不同方式記費用。在有人解釋它之前，它應該一直看得見。四策略實績一律以逐筆成交現金流為準。</div><div class="table-wrap"><table><thead><tr><th>股票</th><th class="num">成交簿成本</th><th class="num">券商成本欄</th><th class="num">差額</th><th class="num">股數</th><th class="num">每股差</th></tr></thead><tbody>{{COST_GAP_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>資料累積 · 還差多少才說得出話</h2><div class="sub">每一個顯示 <code>N/A</code> 的統計，背後都有一個樣本門檻。在門檻之前它不是壞掉，是還不知道 —— 而「不知道」和「不好」是兩件事。這裡把每天堆疊的資料換算成進度：現在有幾筆、需要幾筆、到了會解鎖什麼。<b>暫計成交不計入</b>，因為那不是真的執行紀錄。</div>{{ACCRUAL}}</article>
 <article class="panel full"><h2>每日更新時間軸</h2><div class="sub">四個來源，各自有自己的更新節奏。實心格代表那一天有這個來源的資料；空格代表沒有，而不是「和前一天一樣」。右欄的日期若比最後一欄舊，代表這個來源正在落後，畫面上與它有關的數字都還停在那一天。{{TIMELINE_SUMMARY}}。</div>{{UPDATE_TIMELINE}}</article>
@@ -3563,6 +3649,7 @@ polyline[data-line].off{opacity:.08}
         "{{EXPECTANCY_ROWS}}": expectancy_table,
         "{{UNEXECUTED_SIGNALS}}": unexecuted_signals(fills, active_holdings),
         "{{OVERDUE_EXIT_COST}}": overdue_exit_cost(active_holdings, fills, ohlc_by_code),
+        "{{CARD_ALIGNMENT}}": card_alignment(latest_signals, active_holdings, fills),
         "{{DISCIPLINE_CARDS}}": discipline_cards(discipline),
         "{{DISCIPLINE_ROWS}}": discipline_rows(discipline),
         "{{LADDER_ROWS}}": ladder_table(ladder_cf),

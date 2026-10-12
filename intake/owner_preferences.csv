@@ -1,6 +1,7 @@
 ﻿recorded_date,card_asof,effective_date,strategy_id,status,source,note
 2026-10-02,2026-10-01,2026-10-02,TRUST,OWNER_DECLINED_FOLLOWING,user_stated,Owner表示近期兩天投信進出暫不跟進；保留來源訊號；不視為成交或永久停用策略
-2026-10-12,2026-10-12,2026-10-13,TRUST,OWNER_STOPPED_PARTICIPATING,user_stated,Owner 10/12：只追融資與突破；投信不再參與，剩餘持股擇機清倉。卡片仍逐日保存為歷史
-2026-10-12,2026-10-12,2026-10-13,YOY,OWNER_STOPPED_PARTICIPATING,user_stated,Owner 10/12：只追融資與突破；YOY 不再參與，剩餘持股擇機清倉。卡片仍逐日保存為歷史
+2026-10-12,2026-10-12,2026-10-13,TRUST,OWNER_STOPPED_PARTICIPATING,user_stated,Owner 10/12：只追融資與突破；投信從 10/13 開始不跟（測試），剩餘持股擇機清倉。卡片照常放上並標明
+2026-10-12,2026-10-12,2026-10-13,YOY,OWNER_STOPPED_PARTICIPATING,user_stated,Owner 10/12：只追融資與突破；YOY 從 10/13 開始不跟（測試），剩餘持股擇機清倉。卡片照常放上並標明
 2026-10-12,2026-10-12,2026-10-13,MARGIN,OWNER_FOCUS_STRATEGY,user_stated,Owner 10/12：強策略，持續追蹤
 2026-10-12,2026-10-12,2026-10-13,BREAKOUT,OWNER_FOCUS_STRATEGY,user_stated,Owner 10/12：強策略，持續追蹤
+2026-10-13,2026-10-12,2026-10-13,ALL,OWNER_NOT_FOLLOWING_BRACKET_OR_STAR,user_stated,Owner 10/13：卡片括號（反向）與 * 特殊標的目前不跟，尚有問題待釐清

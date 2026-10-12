@@ -89,8 +89,8 @@ def action_list(signals: list[dict[str, str]]) -> list[dict[str, Any]]:
         if row["strategy_id"].strip() in stopped:
             continue  # owner stopped following; holdings are listed on the main page
         raw = row["signal"].strip()
-        if raw.startswith("("):
-            continue
+        if raw.startswith("(") or "*" in raw or "*" in row.get("stock_name", ""):
+            continue  # bracketed side or * marker: not followed yet
         action = raw.strip("()*")
         if action not in {"進", "出"}:
             continue

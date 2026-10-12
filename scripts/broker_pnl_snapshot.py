@@ -238,7 +238,7 @@ def render(r):
         out=[]
         for sid in sids:
             st=status.get(sid,'')
-            out.append(LABELS.get(sid,sid)+('・<b>待擇機清倉</b>' if st=='STOPPED' else '・追蹤中' if st=='FOLLOW' else ''))
+            out.append(LABELS.get(sid,sid)+('・10/13 起不跟・<b>待擇機清倉</b>' if st=='STOPPED' else '・追蹤中' if st=='FOLLOW' else ''))
         return '、'.join(out) or '—'
     held=[]
     for c,x in sorted(v['held'].items()):
@@ -266,7 +266,7 @@ def render(r):
     focus=''
     if stopped:
         rest=f'剩餘待擇機清倉：<b>{h("、".join(stop_held))}</b>。' if stop_held else f'{stopped} 目前已無持股。'
-        focus=f'<p class="callout"><b>策略註記（Owner 10/12）：</b>只追強的策略 <b>{follow}</b>；{stopped} 不再參與，卡片仍逐日保存為歷史，但不再列入待進場。{rest}</p>'
+        focus=f'<p class="callout"><b>策略註記（Owner 10/12）：</b>只追強的策略 <b>{follow}</b>；{stopped} <b>從 10/13 開始不跟（測試）</b>，卡片照常放上並標明，但不再列入待進場。括號（反向）與 * 特殊標的目前也不跟。{rest}</p>'
     style=('<style>#owner-account .account-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:18px 0}'
            '#owner-account .metric-value{font-size:clamp(20px,2.15vw,29px)}#owner-account summary{cursor:pointer;color:var(--gold);padding:10px 0}'
            '@media(max-width:760px){#owner-account .account-metrics{grid-template-columns:1fr}}</style>')

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-12T23:51:33+08:00",
+  "generated_at": "2026-10-13T00:27:40+08:00",
   "account": {
     "asof": "2026-10-02",
     "first_trade": "2025-08-01",
@@ -491,7 +491,7 @@
         "strategy_id": "TRUST",
         "status": "OWNER_STOPPED_PARTICIPATING",
         "source": "user_stated",
-        "note": "Owner 10/12：只追融資與突破；投信不再參與，剩餘持股擇機清倉。卡片仍逐日保存為歷史"
+        "note": "Owner 10/12：只追融資與突破；投信從 10/13 開始不跟（測試），剩餘持股擇機清倉。卡片照常放上並標明"
       },
       {
         "recorded_date": "2026-10-12",
@@ -500,7 +500,7 @@
         "strategy_id": "YOY",
         "status": "OWNER_STOPPED_PARTICIPATING",
         "source": "user_stated",
-        "note": "Owner 10/12：只追融資與突破；YOY 不再參與，剩餘持股擇機清倉。卡片仍逐日保存為歷史"
+        "note": "Owner 10/12：只追融資與突破；YOY 從 10/13 開始不跟（測試），剩餘持股擇機清倉。卡片照常放上並標明"
       },
       {
         "recorded_date": "2026-10-12",
@@ -519,6 +519,15 @@
         "status": "OWNER_FOCUS_STRATEGY",
         "source": "user_stated",
         "note": "Owner 10/12：強策略，持續追蹤"
+      },
+      {
+        "recorded_date": "2026-10-13",
+        "card_asof": "2026-10-12",
+        "effective_date": "2026-10-13",
+        "strategy_id": "ALL",
+        "status": "OWNER_NOT_FOLLOWING_BRACKET_OR_STAR",
+        "source": "user_stated",
+        "note": "Owner 10/13：卡片括號（反向）與 * 特殊標的目前不跟，尚有問題待釐清"
       }
     ],
     "statement_reference": {
@@ -965,7 +974,7 @@
           "strategy_id": "TRUST",
           "status": "OWNER_STOPPED_PARTICIPATING",
           "source": "user_stated",
-          "note": "Owner 10/12：只追融資與突破；投信不再參與，剩餘持股擇機清倉。卡片仍逐日保存為歷史"
+          "note": "Owner 10/12：只追融資與突破；投信從 10/13 開始不跟（測試），剩餘持股擇機清倉。卡片照常放上並標明"
         },
         {
           "recorded_date": "2026-10-12",
@@ -974,7 +983,7 @@
           "strategy_id": "YOY",
           "status": "OWNER_STOPPED_PARTICIPATING",
           "source": "user_stated",
-          "note": "Owner 10/12：只追融資與突破；YOY 不再參與，剩餘持股擇機清倉。卡片仍逐日保存為歷史"
+          "note": "Owner 10/12：只追融資與突破；YOY 從 10/13 開始不跟（測試），剩餘持股擇機清倉。卡片照常放上並標明"
         },
         {
           "recorded_date": "2026-10-12",
@@ -993,6 +1002,15 @@
           "status": "OWNER_FOCUS_STRATEGY",
           "source": "user_stated",
           "note": "Owner 10/12：強策略，持續追蹤"
+        },
+        {
+          "recorded_date": "2026-10-13",
+          "card_asof": "2026-10-12",
+          "effective_date": "2026-10-13",
+          "strategy_id": "ALL",
+          "status": "OWNER_NOT_FOLLOWING_BRACKET_OR_STAR",
+          "source": "user_stated",
+          "note": "Owner 10/13：卡片括號（反向）與 * 特殊標的目前不跟，尚有問題待釐清"
         }
       ]
     },
