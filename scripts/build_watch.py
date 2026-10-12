@@ -300,7 +300,7 @@ table{min-width:1100px}td{vertical-align:top}
     <span><a href="../">&larr; 實際績效</a></span><span><a href="../positions/">持股體檢</a></span><span><a href="../prep/">備戰頁</a></span>
   </div>
 </header>
-<div class="notice"><b>這頁不看盤。</b>它用官方收盤算出明天要盯的位置；盤中價格請你自己對。3055 融券已於 9/23 全數回補。兆豐（2886）依指示不計。
+<div class="notice"><b>這頁不看盤。</b>它用官方收盤算出明天要盯的位置；盤中價格請你自己對。3055 融券已於 9/23 全數回補。
 持股以完整對帳單重建；成本含實際買入手續費，未實現損益按 {snapshot_day.isoformat()} 官方收盤且未扣未來賣出費稅。</div>
 
 <article class="panel"><h2>四張卡自己的路徑</h2>

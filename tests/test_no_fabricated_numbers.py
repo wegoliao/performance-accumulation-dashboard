@@ -100,6 +100,9 @@ def test_cost_and_price_columns_next_to_held_stocks_match_the_inputs() -> None:
     }
     offenders: list[str] = []
     tables_checked = 0
+    import owner_account
+    reference = owner_account.load_account(ROOT)["statement_reference"]
+    current_positions, current_costs = reference["positions"], reference["costs"]
 
     for table in TABLE.findall(html):
         rows = ROW.findall(table)
@@ -150,11 +153,19 @@ def test_cost_and_price_columns_next_to_held_stocks_match_the_inputs() -> None:
                 continue
             snap = holdings[code]
             expect_cost = float(snap["avg_cost"])
+            # After later broker trades the remaining lot's FIFO cost replaces the snapshot's.
+            if code in current_positions:
+                lot_total = float(current_costs[code])
+                lot_unit = lot_total / float(current_positions[code])
+            else:
+                lot_total = lot_unit = None
             expect_price = float(snap["last_price"])
             for col in cost_cols:
                 if col < len(cells):
                     got = _first_number(cells[col])
                     # per-share cost columns only; a total-cost column would be shares x price
+                    if got is not None and lot_unit is not None and (abs(got - lot_unit) <= 0.01 or abs(got - lot_total) <= 1):
+                        continue
                     if got is not None and got < 50_000 and abs(got - expect_cost) > 0.02 * expect_cost:
                         # allow the fill book's own per-share (cash incl. fee), within 1%
                         if abs(got - expect_cost) > 0.02 * expect_cost:

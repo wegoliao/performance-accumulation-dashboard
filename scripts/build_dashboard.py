@@ -26,6 +26,7 @@ import charts  # noqa: E402
 import realized  # noqa: E402
 import strategy_gap  # noqa: E402
 import owner_account  # noqa: E402
+import broker_pnl_snapshot  # noqa: E402
 
 
 TRADING_DAYS = 252
@@ -601,8 +602,11 @@ def latest_signal_cards(
 ) -> str:
     asof = rows[0]["asof_date"]
     cards: list[str] = []
+    stopped_cards: list[str] = []
+    status = broker_pnl_snapshot.strategy_status(ROOT)
     style_names = {"TRUST": "trust", "YOY": "yoy", "MARGIN": "margin", "BREAKOUT": "breakout"}
-    for strategy_id, label in STRATEGY_LABELS.items():
+    order = sorted(STRATEGY_LABELS.items(), key=lambda item: status.get(item[0]) == "STOPPED")
+    for strategy_id, label in order:
         header_return = dict(card_curves[strategy_id])[asof] - 100.0
         body: list[str] = []
         for row in [item for item in rows if item["strategy_id"] == strategy_id]:
@@ -618,13 +622,33 @@ def latest_signal_cards(
                 f'<td><span class="signal {signal_class}">{row["signal"]}</span></td>'
                 "</tr>"
             )
-        cards.append(
+        mark = "　<small class=\"neutral\">Owner 已停止參與・僅保存歷史</small>" if status.get(strategy_id) == "STOPPED" else ("　<small>追蹤中</small>" if status.get(strategy_id) == "FOLLOW" else "")
+        (stopped_cards if status.get(strategy_id) == "STOPPED" else cards).append(
             f'<section class="strategy-card {style_names[strategy_id]}">'
-            f'<h3>{asof.strftime("%Y/%m/%d")} {html.escape(label)}策略：<span class="{css_value_class(header_return)}">{header_return:+.1f}%</span></h3>'
+            f'<h3>{asof.strftime("%Y/%m/%d")} {html.escape(label)}策略：<span class="{css_value_class(header_return)}">{header_return:+.1f}%</span>{mark}</h3>'
             '<div class="table-wrap"><table><thead><tr><th>股票</th><th>產業</th><th class="num">進場</th><th class="num">收盤</th><th class="num">%</th><th>訊</th></tr></thead>'
             f'<tbody>{"".join(body)}</tbody></table></div></section>'
         )
+    if stopped_cards:
+        names = "、".join(STRATEGY_LABELS[k] for k, v in status.items() if v == "STOPPED")
+        cards.append(
+            f'<details style="grid-column:1/-1"><summary>{html.escape(names)}：Owner 2026-10-12 起不再參與，卡片仍逐日保存（點開查看）</summary>'
+            f'{"".join(stopped_cards)}</details>'
+        )
     return "".join(cards)
+
+
+def sleeve_owners(fills: list[dict[str, Any]]) -> dict[str, set[str]]:
+    """Strategies whose own fills still leave shares open in each name."""
+    net: dict[tuple[str, str], float] = defaultdict(float)
+    for fill in fills:
+        key = (fill["strategy_id"], fill["stock_code"].strip())
+        net[key] += fill["shares"] if fill["side"] == "BUY" else -fill["shares"]
+    owners: dict[str, set[str]] = defaultdict(set)
+    for (strategy_id, code), shares in net.items():
+        if shares > 1e-9:
+            owners[code].add(strategy_id)
+    return owners
 
 
 def planned_signal_table(
@@ -640,6 +664,8 @@ def planned_signal_table(
     進 only where it holds nothing. The rest already happened or never applied.
     """
     held = {row["stock_code"].strip() for row in holdings if in_strategy_scope(row)}
+    status = broker_pnl_snapshot.strategy_status(ROOT)
+    owners = sleeve_owners(fills)
     bought_since: dict[str, list[date]] = defaultdict(list)
     for fill in fills:
         if fill["side"] == "BUY":
@@ -651,8 +677,12 @@ def planned_signal_table(
         if row["signal"].strip().startswith("("):
             return False  # bracketed side, ignored per owner
         if action == "出":
+            if status.get(row["strategy_id"]) == "STOPPED" and row["strategy_id"] not in owners[code]:
+                return False  # another, followed sleeve owns these shares
             return code in held
         if action == "進":
+            if status.get(row["strategy_id"]) == "STOPPED":
+                return False  # owner no longer enters this strategy
             return code not in held and not any(
                 day >= row["asof_date"] for day in bought_since[code]
             )
@@ -673,7 +703,7 @@ def planned_signal_table(
         f'<td><span class="signal {"enter" if row["signal"] == "進" else "exit"}">{row["signal"]}</span></td>'
         f'<td>{html.escape(row["entry_display"])}</td>'
         f'<td class="num">{row["close"]:,.2f}</td>'
-        f'<td><span class="badge warn">{owner_account.preference(ROOT,row["strategy_id"],row["asof_date"]) or ("仍持有 · 待出" if row["signal"].strip("()*") == "出" else "零部位 · 待進")}</span></td>'
+        f'<td><span class="badge warn">{("已停止參與 · 待擇機清倉" if status.get(row["strategy_id"]) == "STOPPED" else "") or owner_account.preference(ROOT,row["strategy_id"],row["asof_date"]) or ("仍持有 · 待出" if row["signal"].strip("()*") == "出" else "零部位 · 待進")}</span></td>'
         "</tr>"
         for row in planned
     )
@@ -2719,6 +2749,8 @@ def unexecuted_signals(
         (sold if fill["side"] == "SELL" else bought)[code].append(fill["date"])
 
     history = read_csv(SIGNAL_HISTORY_PATH)
+    status = broker_pnl_snapshot.strategy_status(ROOT)
+    owners = sleeve_owners(fills)
     # a card that later says 出 on a name closes the book on its earlier 進;
     # an entry the strategy itself has since abandoned is not still pending
     exited_after: dict[str, list[date]] = defaultdict(list)
@@ -2738,9 +2770,13 @@ def unexecuted_signals(
         asof = parse_date(raw["asof_date"])
         if action == "進" and any(day > asof for day in exited_after[code]):
             continue
+        if action == "進" and status.get(raw["strategy_id"]) == "STOPPED":
+            continue  # owner stopped this strategy; its entries are history only
         if action == "出":
             if code not in held or any(day >= asof for day in sold[code]):
                 continue
+            if status.get(raw["strategy_id"]) == "STOPPED" and raw["strategy_id"] not in owners[code]:
+                continue  # another, followed sleeve owns these shares
             position = held[code]
             detail = (
                 f'仍持有 {position["shares"]:,.0f} 股，'
@@ -2754,6 +2790,7 @@ def unexecuted_signals(
             detail = "未進場"
             klass = "neutral"
         pref=owner_account.preference(ROOT,raw['strategy_id'],raw['asof_date'])
+        if status.get(raw["strategy_id"]) == "STOPPED":pref="已停止參與 · 待擇機清倉"
         if pref:detail+=' · '+pref
         rows.append(
             "<tr>"
@@ -2991,20 +3028,21 @@ REALIZED_TEMPLATE = '''<!doctype html>
 <article class="panel full"><h2>歷史券商已實現 vs 成交簿已實現 · 逐筆對帳</h2><div class="sub">原券商回報与原成交簿是歷史資料，涵蓋範圍不同：券商回報缺 9/11 陽明賣出 1,000 股（成交簿已實現 4,958 元）。同範圍另有 4,855.50 元差額，未提供股息或成本調整明細前不能直接歸因。新平倉及融券損失已列在頁首。</div><div class="table-wrap"><table><thead><tr><th>賣出日</th><th>股票</th><th class="num">股數</th><th class="num">賣價</th><th class="num">券商已實現</th><th class="num">成交簿已實現</th><th class="num">差額</th><th>說明</th></tr></thead><tbody>{{BROKER_RECON}}</tbody></table></div></article>
 <article class="panel full"><h2>你自己的期望值 · 以及它為什麼看起來太好</h2><div class="sub">這裡的 EV <b>不是任何個股的預測</b>，是你已結算現金的歷史期望值。只算已平倉會得到一個很漂亮的數字 —— 但<b>要不要平倉是你的選擇</b>，而你的習慣是賣掉賺的、留下賠的，所以「已平倉」這個集合幾乎是被建構出來的贏家集合。把在庫部位按今日收盤一起算進來，才是<b>無法靠決定何時實現來美化</b>的版本。三列並列，差距本身就是結論。樣本仍然很小，任何一列都還不能當成穩定估計。</div><div class="table-wrap"><table><thead><tr><th>母體</th><th class="num">樣本</th><th class="num">勝率</th><th class="num">平均獲利</th><th class="num">平均虧損</th><th class="num">賺賠比</th><th class="num">每筆 EV</th><th>說明</th></tr></thead><tbody>{{EXPECTANCY_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>紀律帳 · 我的損益 vs 策略的損益</h2><div class="sub">每一筆賣出都對照 <code>signal_history</code> 分類：賣出當天或之前有 <b>出</b> 訊號的是<b>策略指示</b>，卡片仍寫「抱」時賣掉的是<b>自主決定</b>。自主決定的那些，反事實不需要模型 —— 股票已經賣了，「沒賣的話現在值多少」就是同樣股數乘上最新官方收盤，扣掉同一套出場費稅。兩者相減就是這個決策賺了或賠了多少。<br><b>這是記分，不是評判。</b>躲掉下跌的提早出場會顯示為正，少賺的會顯示為負，兩種用同一把尺量。目的是看出直覺到底有沒有加分，不是替任何一邊說話。</div>{{DISCIPLINE_CARDS}}<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>賣出日</th><th>策略</th><th>股票</th><th>依據</th><th class="num">股數</th><th class="num">賣價</th><th class="num">實際已實現</th><th class="num">現價</th><th class="num">若持有至今</th><th class="num">決策價值</th></tr></thead><tbody>{{DISCIPLINE_ROWS}}</tbody></table></div></article>
-<article class="panel full"><h2>四策略多頭・已實現與可變現試算</h2><div class="sub">本表只含四策略多頭，排除融券與兆豐金缺成本測試單。未實現使用扣除假設出場費稅後的可變現試算，與上方帳戶收盤市值口徑不同。已平倉的成交不會出現在庫存表裡，但現金已經確定變動 —— 那筆錢的盈虧在這裡。sleeve 曲線一直都含這兩塊，這張表只是把它拆開讓你看得到。已實現＝實收現金 − 實付成本（含手續費與證交稅）；未實現＝目前可變現值 − 在庫帳面成本，兩者不重複計算。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">已實現損益</th><th class="num">平倉筆數</th><th class="num">未實現損益</th><th class="num">在庫成本</th><th class="num">合計損益</th><th class="num">對 50 萬報酬</th></tr></thead><tbody>{{PNL_SPLIT_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">逐筆平倉明細 · FIFO 對沖，一次賣出跨多筆買進會拆成多列</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">買進</th><th class="num">賣出</th><th class="num">持有</th><th class="num">成本 → 實收</th><th class="num">已實現損益</th></tr></thead><tbody>{{CLOSED_LOTS}}</tbody></table></div></article>
+<article class="panel full"><h2>四策略多頭・已實現與可變現試算</h2><div class="sub">本表只含四策略多頭，排除融券與不屬於任何策略的成交。未實現使用扣除假設出場費稅後的可變現試算，與上方帳戶收盤市值口徑不同。已平倉的成交不會出現在庫存表裡，但現金已經確定變動 —— 那筆錢的盈虧在這裡。sleeve 曲線一直都含這兩塊，這張表只是把它拆開讓你看得到。已實現＝實收現金 − 實付成本（含手續費與證交稅）；未實現＝目前可變現值 − 在庫帳面成本，兩者不重複計算。</div><div class="table-wrap"><table><thead><tr><th>策略</th><th class="num">已實現損益</th><th class="num">平倉筆數</th><th class="num">未實現損益</th><th class="num">在庫成本</th><th class="num">合計損益</th><th class="num">對 50 萬報酬</th></tr></thead><tbody>{{PNL_SPLIT_TABLE}}</tbody></table></div><div class="section-gap"></div><div class="period-kind">逐筆平倉明細 · FIFO 對沖，一次賣出跨多筆買進會拆成多列</div><div class="table-wrap"><table><thead><tr><th>策略</th><th>股票</th><th class="num">股數</th><th class="num">買進</th><th class="num">賣出</th><th class="num">持有</th><th class="num">成本 → 實收</th><th class="num">已實現損益</th></tr></thead><tbody>{{CLOSED_LOTS}}</tbody></table></div></article>
 <footer>生成時間 {{GENERATED_AT}} · <a href="../">首頁</a> · <a href="../prep/">備戰頁</a> · <a href="../mainline2/">主線二</a></footer></main></body></html>'''
 
 
 def build() -> tuple[Path, dict[str, Any]]:
     holdings = load_holdings()
     account_report = owner_account.load_account(ROOT)
-    active_holdings = [dict(row) for row in holdings if not account_report or row['stock_code'] in account_report['positions']]
+    current_positions = account_report.get('statement_reference', account_report)['positions'] if account_report else {}
+    active_holdings = [dict(row) for row in holdings if not account_report or row['stock_code'] in current_positions]
     if account_report and 'statement_rows' in account_report:
         technical_account = account_report.get('statement_reference', account_report)
         for row in active_holdings:
             code=row['stock_code'];qty=technical_account['positions'][code];cost=technical_account['costs'][code]
             close=technical_account['marks'][code]['close'];value=qty*close;pnl=value-cost
-            row.update(asof_date=parse_date(technical_account['marks_asof']),cost_basis_twd=float(cost),
+            row.update(asof_date=parse_date(technical_account['marks_asof']),shares=float(qty),cost_basis_twd=float(cost),
                        avg_cost=float(cost/qty),last_price=float(close),current_value_twd=float(value),
                        unrealized_pnl_twd=float(pnl),unrealized_return_pct=float(pnl/cost*100))
     source_summary = load_summary()
@@ -3337,7 +3375,7 @@ polyline[data-line].off{opacity:.08}
 <article class="panel full" id="today" style="border-color:var(--accent)"><h2 style="color:var(--accent)">來源訊號與你的選擇 · {{PLANNED_DATE}}</h2><div class="sub">你的策略卡對這個交易日開出的動作，只列<b>還需要決定</b>的：「出」只列仍持有的，「進」只列整戶零部位的，括號部位依指示排除。這裡只回報系統說了什麼、帳戶做了什麼 —— 要不要執行、幾塊錢，是你的決定。完整的價格分布與掛單落點在 <a href="prep/">備戰頁</a>；已經變現的盈虧全部搬到 <a href="realized/">已實現頁</a>；每一檔持股的均線、波段低點與各價位了結損益在 <a href="positions/">持股體檢</a>；下一交易日要盯的位置與警訊在 <a href="watch/">跟盤表</a>。</div><div class="table-wrap"><table><thead><tr><th>訊號日</th><th>策略</th><th>股票</th><th>動作</th><th>生效日</th><th>目前狀態</th></tr></thead><tbody>{{UNEXECUTED_SIGNALS}}</tbody></table></div></article>
 {{OVERDUE_EXIT_COST}}
 <article class="panel full"><h2>最新四策略卡 · {{SIGNAL_ASOF}} 收盤</h2><div class="sub">來源圖逐列保存。紅／綠方向已轉成帶正負號報酬；{{PLANNED_DATE}} 的「進／出」是計畫訊號，不是成交。</div><div class="strategy-card-grid">{{LATEST_SIGNAL_CARDS}}</div></article>
-<article class="panel full"><h2>{{PLANNED_DATE}} 策略訊號與目前部位</h2><div class="sub">已回報的平倉立即更新股數；本批已用完整對帳單核對實際費稅與收付。原策略卡仍保留，四策略曲線截止 {{ASOF}}。</div>{{PLANNED_SIGNALS}}</article>
+<article class="panel full"><h2>{{PLANNED_DATE}} 策略訊號與目前部位</h2><div class="sub">已回報的平倉立即更新股數；10/1 前費稅以完整對帳單核對，之後依永豐成交明細與公式估算。原策略卡仍保留，四策略曲線截止 {{ASOF}}。</div>{{PLANNED_SIGNALS}}</article>
 <article class="panel full"><h2>「順著買低」反事實 · 用你自己的成交驗證</h2><div class="sub">你的觀察是：買了之後常常還有更低價。這裡不是替你決定要不要分批，是把這個假設<b>放回已經發生的價格裡跑一遍</b>。每一筆真實買進，同一筆錢拆三等份：成交價、成交價 −2%、成交價 −4%；下面兩檔只有在<b>成交日起 5 個交易日內最低價碰到</b>才算成交，沒碰到那份錢就留著。然後兩邊都用最新收盤估值，扣同一套出場費稅。<br><b>三個誠實的但書：</b>① 碰到價位不等於成交（3624 在 9/10 就是站在 100.00 地板上沒買到），所以這張表偏樂觀；② 價格沒跌下來時階梯買得比較少，損益是算在較小的部位上，所以「留著的現金」欄一起列；③ 31 筆是小樣本，−2%／−4% 是隨手定的參數，換一組數字答案會不一樣 —— 參數寫出來是為了讓你可以爭論它，不是要你相信它。<br>這張表<b>不會產生任何委託</b>。要不要分批、分幾批、掛哪裡，是你的決定。</div><div class="table-wrap"><table><thead><tr><th>買進日</th><th>股票</th><th class="num">實際成交</th><th>階梯成交 (%↓)</th><th class="num">階梯均價</th><th class="num">最新收盤</th><th class="num">實際損益</th><th class="num">階梯損益</th><th class="num">留著的現金</th><th class="num">差</th></tr></thead><tbody>{{LADDER_ROWS}}</tbody></table></div></article>
 <article class="panel full"><h2>訊號 → 成交 · 履約落差帳</h2><div class="sub">策略卡報的是訊號價，帳戶付的是成交價，中間的差就是「這個策略能不能被執行」的全部答案。正的 bp 代表對自己不利。累積夠多筆之後，才知道策略卡報酬要打幾折。</div>{{SLIPPAGE_TABLE}}</article>
 <article class="panel full"><h2>四策略現股成交重建 · 假設資金累積曲線</h2><div class="sub">每策略設定 NT$50 萬現金起始（合計 NT$200 萬），用已分配現股成交、費稅、平倉現金與官方收盤淨變現試算重建。這是設定預算下的績效，不是完整券商帳戶淨值。</div>{{RETURN_BASIS}}{{LINE_CHART}}</article>
@@ -3576,14 +3614,15 @@ polyline[data-line].off{opacity:.08}
     (ROOT / "realized").mkdir(parents=True, exist_ok=True)
     (ROOT / "realized" / "index.html").write_text(realized_page, encoding="utf-8")
     period_snapshot = trailing_returns(analysis_curve)
+    broker_view = broker_pnl_snapshot.view(account_report)
     summary_markdown = "\n".join(
         [
             "# 公開績效累積圖 · 最新摘要",
             "",
-            f"- 已回報成交截止：`{account_report['asof']}`；鴻準、緯創已平倉，蔚華科已回補",
-            f"- 券商累積已實現（排除兆豐金測試買賣）：`NT$ {owner_account.money(account_report['realized'])}`；其中融券：`NT$ {owner_account.money(account_report['short_realized'])}`（實際費稅、借券費與利息）",
-            f"- 券商持股未實現試算：`NT$ {owner_account.money(account_report['unrealized'])}`；合計：`NT$ {owner_account.money(account_report['combined'])}`；9 檔，截圖日 `{account_report['marks_asof']}`，精確報價時間未提供，含預估賣出費稅",
-            "- 來源年份待核對：本次已實現圖印為 2025，先前完整 HTML 印為 2026；按唯一委託單號、股票、股數、價格與淨收付核對，不改寫原日期。",
+            f"- 已回報成交截止：`{broker_view.get('last_trade', account_report['asof'])}`（10/2 券商報表＋之後永豐成交明細；新成交費稅為公式估算）",
+            f"- 累積已實現：`NT$ {owner_account.money(broker_view['realized'])}`；其中融券：`NT$ {owner_account.money(account_report['short_realized'])}`（實際費稅、借券費與利息）",
+            f"- 持股未實現試算：`NT$ {owner_account.money(broker_view['unrealized'])}`；合計：`NT$ {owner_account.money(broker_view['combined'])}`；{len(broker_view.get('held', {}))} 檔，估值 `{broker_view['marks_asof']}` 官方收盤，含預估賣出費稅",
+            "- 策略註記（Owner 2026-10-12）：只追融資、突破；投信、YOY 不再參與，剩餘持股擇機清倉；卡片仍逐日保存為歷史。",
             f"- 四策略估值日：`{actual_asof.isoformat()}`",
             f"- owner 庫存快照日：`{source_summary['asof_date'].isoformat()}`",
             f"- 庫存現值：`NT$ {fmt_ntd(snapshot['current_value_twd'])}`",

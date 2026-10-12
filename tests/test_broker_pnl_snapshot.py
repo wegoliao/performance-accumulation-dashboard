@@ -72,10 +72,9 @@ def test_new_statement_fill_cannot_reuse_older_realized_screen():
 def test_main_panel_labels_snapshot_estimates_and_exclusion():
     import owner_account
     content=owner_account.render(report())
-    assert '9,561' in content and '1,367' in content and '10,928' in content
-    assert '兆豐金測試交易已排除' in content
-    assert '預估賣出費稅' in content
-    assert '盤中截圖' in content and '精確報價時間未提供' in content
+    assert '9,561' in content  # the 10/2 screen remains the base
+    assert '兆豐' not in content and '2886' not in content
+    assert '預估賣出' in content and '公式估算' in content
     assert '成本缺口' not in content
     assert '4,857' in content and '原因未提供' in content
     assert '來源年份待核對' in content
@@ -89,6 +88,32 @@ def test_subpages_build_with_broker_pnl_and_separate_official_analytics():
     for module in (build_prep,build_positions,build_watch):
         path,_=module.build()
         content=path.read_text(encoding='utf-8')
-        assert '9,561' in content and '1,367' in content and '10,928' in content
-        assert '券商盤中截圖' in content and '以下技術量測' in content
-        assert '2026-10-02' in content
+        v=report()['current']
+        assert f"{v['realized']:+,.2f}" in content and f"{v['combined']:+,.2f}" in content
+        assert '公式估算' in content and v['marks_asof'] in content
+        assert '兆豐' not in content
+
+def test_trade_detail_rolls_screen_forward_with_fifo_and_verified_fee_formula():
+    """10/6-10/12 SinoPac trade detail on top of the 10/2 broker screen."""
+    v=report()['current']
+    assert v['snapshot_realized']==D('-9561')
+    assert {c:x['shares'] for c,x in v['held'].items()}=={'1717':1210,'2489':3000,'2637':1000,'3006':348,'6108':136}
+    by=lambda code:[x for x in v['closes'] if x['stock_code']==code]
+    # 6426: 157 @352 -> 55264 - fee 78 - tax 165 = 55021 vs broker cost 49525
+    assert by('6426')[0]['pnl']==D('5496')
+    # 1712: 1066 broker lot (43433) + 934 of the 10/6 lot (39800+56) sold first
+    assert by('1712')[0]['basis']==D('43433')+D('39856')*934/1000
+    # 6108: old 2136 + 1864 of new lot sold; 136 left at new-lot unit cost
+    assert v['held']['6108']['cost']==D('51673')*136/2000
+    assert v['realized']==v['snapshot_realized']+sum(x['pnl'] for x in v['closes'])
+    assert v['unrealized']==sum(x['value']-x['cost'] for x in v['held'].values())
+
+def test_trade_detail_layer_rejects_unsourced_post_screen_fill(tmp_path):
+    import shutil,broker_pnl_snapshot as b,statement_account as s
+    root=tmp_path/'r';shutil.copytree(ROOT/'inputs',root/'inputs')
+    rows=s.read(root/'inputs/actual_fills.csv')
+    rows[-1]['source']='hand_typed'
+    s.write(root/'inputs/actual_fills.csv',rows)
+    base=b.apply(root,s.load_account(root))
+    with pytest.raises(ValueError,match='trade-detail'):
+        b.apply_trade_detail(root,base)

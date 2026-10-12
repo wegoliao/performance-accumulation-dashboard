@@ -87,7 +87,8 @@ def load_account(root: Path):
     if (root / 'inputs/broker_statement_fills.csv').exists():
         import statement_account
         import broker_pnl_snapshot
-        return broker_pnl_snapshot.apply(root, statement_account.load_account(root))
+        r = broker_pnl_snapshot.apply(root, statement_account.load_account(root))
+        return broker_pnl_snapshot.apply_trade_detail(root, r) if 'broker_snapshot' in r else r
     inputs = root / 'inputs'
     raw = read(inputs / 'actual_fills.csv')
     books = defaultdict(deque)

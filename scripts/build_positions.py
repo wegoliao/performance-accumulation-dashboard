@@ -360,7 +360,7 @@ table.lv{min-width:0}
 {"".join(position_card(row) for row in rows)}
 
 <footer>資料：inputs/price_history.csv（TWSE／TPEx 公開日資料）、inputs/broker_statement_fills.csv（完整券商成交，去識別）、inputs/actual_fills.csv（四策略歷史分配）。
-沒有券商連線、沒有委託路徑、沒有買賣價格建議。兆豐（2886）依指示不計。</footer>
+沒有券商連線、沒有委託路徑、沒有買賣價格建議。</footer>
 </div></body></html>
 """
     SITE.mkdir(parents=True, exist_ok=True)

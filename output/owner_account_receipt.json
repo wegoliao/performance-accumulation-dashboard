@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-09T15:33:29+00:00",
+  "generated_at": "2026-10-12T23:51:33+08:00",
   "account": {
     "asof": "2026-10-02",
     "first_trade": "2025-08-01",
@@ -483,6 +483,42 @@
         "status": "OWNER_DECLINED_FOLLOWING",
         "source": "user_stated",
         "note": "Owner表示近期兩天投信進出暫不跟進；保留來源訊號；不視為成交或永久停用策略"
+      },
+      {
+        "recorded_date": "2026-10-12",
+        "card_asof": "2026-10-12",
+        "effective_date": "2026-10-13",
+        "strategy_id": "TRUST",
+        "status": "OWNER_STOPPED_PARTICIPATING",
+        "source": "user_stated",
+        "note": "Owner 10/12：只追融資與突破；投信不再參與，剩餘持股擇機清倉。卡片仍逐日保存為歷史"
+      },
+      {
+        "recorded_date": "2026-10-12",
+        "card_asof": "2026-10-12",
+        "effective_date": "2026-10-13",
+        "strategy_id": "YOY",
+        "status": "OWNER_STOPPED_PARTICIPATING",
+        "source": "user_stated",
+        "note": "Owner 10/12：只追融資與突破；YOY 不再參與，剩餘持股擇機清倉。卡片仍逐日保存為歷史"
+      },
+      {
+        "recorded_date": "2026-10-12",
+        "card_asof": "2026-10-12",
+        "effective_date": "2026-10-13",
+        "strategy_id": "MARGIN",
+        "status": "OWNER_FOCUS_STRATEGY",
+        "source": "user_stated",
+        "note": "Owner 10/12：強策略，持續追蹤"
+      },
+      {
+        "recorded_date": "2026-10-12",
+        "card_asof": "2026-10-12",
+        "effective_date": "2026-10-13",
+        "strategy_id": "BREAKOUT",
+        "status": "OWNER_FOCUS_STRATEGY",
+        "source": "user_stated",
+        "note": "Owner 10/12：強策略，持續追蹤"
       }
     ],
     "statement_reference": {
@@ -504,26 +540,18 @@
       },
       "source_sha256": "11f75ebc3fbaf68e80d2b4c4b9ad66d3ff932384e6da9f232de5f53239a3ac10",
       "positions": {
-        "2397": "1045.000000",
-        "3006": "348.000000",
-        "2637": "1000.000000",
-        "1717": "1210.000000",
-        "1712": "1066.000000",
-        "6108": "2136.000000",
-        "2489": "3000.000000",
-        "6179": "1308.000000",
-        "6426": "157.000000"
+        "1717": "1210",
+        "2489": "3000",
+        "2637": "1000",
+        "3006": "348",
+        "6108": "136"
       },
       "costs": {
-        "2397": "68544.000000",
-        "3006": "100366.000000",
-        "2637": "97939.000000",
-        "1717": "98997.000000",
-        "1712": "43433.000000",
-        "6108": "50072.000000",
-        "2489": "118819.000000",
-        "6179": "48171.000000",
-        "6426": "49525.000000"
+        "1717": "98997",
+        "2489": "118819",
+        "2637": "97939",
+        "3006": "100366",
+        "6108": "3513.764000"
       },
       "names": {
         "1590": "亞德客-KY",
@@ -555,53 +583,33 @@
         "6426": "統新"
       },
       "marks": {
-        "2397": {
-          "date": "2026-10-08",
-          "close": "65.1000",
-          "source": "TWSE_STOCK_DAY"
-        },
-        "3006": {
-          "date": "2026-10-08",
-          "close": "267.0000",
-          "source": "TWSE_STOCK_DAY"
-        },
-        "2637": {
-          "date": "2026-10-08",
-          "close": "98.4000",
-          "source": "TWSE_STOCK_DAY"
-        },
         "1717": {
-          "date": "2026-10-08",
-          "close": "74.4000",
-          "source": "TWSE_STOCK_DAY"
-        },
-        "1712": {
-          "date": "2026-10-08",
-          "close": "39.9500",
-          "source": "TWSE_STOCK_DAY"
-        },
-        "6108": {
-          "date": "2026-10-08",
-          "close": "25.6000",
+          "date": "2026-10-12",
+          "close": "74.7000",
           "source": "TWSE_STOCK_DAY"
         },
         "2489": {
-          "date": "2026-10-08",
+          "date": "2026-10-12",
           "close": "41.0000",
           "source": "TWSE_STOCK_DAY"
         },
-        "6179": {
-          "date": "2026-10-08",
-          "close": "37.8000",
-          "source": "TPEX_STOCK_DAY"
+        "2637": {
+          "date": "2026-10-12",
+          "close": "102.0000",
+          "source": "TWSE_STOCK_DAY"
         },
-        "6426": {
-          "date": "2026-10-08",
-          "close": "341.0000",
+        "3006": {
+          "date": "2026-10-12",
+          "close": "260.5000",
+          "source": "TWSE_STOCK_DAY"
+        },
+        "6108": {
+          "date": "2026-10-12",
+          "close": "25.9500",
           "source": "TWSE_STOCK_DAY"
         }
       },
-      "marks_asof": "2026-10-08",
+      "marks_asof": "2026-10-12",
       "long_closes": [
         {
           "stock_code": "3702",
@@ -933,9 +941,9 @@
       "realized": "-14418.00",
       "cash_change": "-690234.000000",
       "open_cost": "675866.000000",
-      "market_value": "672617.2000000000",
-      "unrealized": "-3248.8000000000",
-      "combined": "-17666.8000000000",
+      "market_value": "675923.4000000000",
+      "unrealized": "57.4000000000",
+      "combined": "-14360.6000000000",
       "short_remaining_shares": "0",
       "exact_net_status": "EXACT_MATCHED_SETTLEMENTS",
       "coverage_status": "MATCHED_TRADES_WITH_ONE_UNKNOWN_COST",
@@ -949,6 +957,42 @@
           "status": "OWNER_DECLINED_FOLLOWING",
           "source": "user_stated",
           "note": "Owner表示近期兩天投信進出暫不跟進；保留來源訊號；不視為成交或永久停用策略"
+        },
+        {
+          "recorded_date": "2026-10-12",
+          "card_asof": "2026-10-12",
+          "effective_date": "2026-10-13",
+          "strategy_id": "TRUST",
+          "status": "OWNER_STOPPED_PARTICIPATING",
+          "source": "user_stated",
+          "note": "Owner 10/12：只追融資與突破；投信不再參與，剩餘持股擇機清倉。卡片仍逐日保存為歷史"
+        },
+        {
+          "recorded_date": "2026-10-12",
+          "card_asof": "2026-10-12",
+          "effective_date": "2026-10-13",
+          "strategy_id": "YOY",
+          "status": "OWNER_STOPPED_PARTICIPATING",
+          "source": "user_stated",
+          "note": "Owner 10/12：只追融資與突破；YOY 不再參與，剩餘持股擇機清倉。卡片仍逐日保存為歷史"
+        },
+        {
+          "recorded_date": "2026-10-12",
+          "card_asof": "2026-10-12",
+          "effective_date": "2026-10-13",
+          "strategy_id": "MARGIN",
+          "status": "OWNER_FOCUS_STRATEGY",
+          "source": "user_stated",
+          "note": "Owner 10/12：強策略，持續追蹤"
+        },
+        {
+          "recorded_date": "2026-10-12",
+          "card_asof": "2026-10-12",
+          "effective_date": "2026-10-13",
+          "strategy_id": "BREAKOUT",
+          "status": "OWNER_FOCUS_STRATEGY",
+          "source": "user_stated",
+          "note": "Owner 10/12：強策略，持續追蹤"
         }
       ]
     },
@@ -1960,6 +2004,419 @@
         "included": "false",
         "exclusion_reason": "OWNER_TEST_TRADE"
       }
-    ]
+    ],
+    "current": {
+      "since": "2026-10-02",
+      "last_trade": "2026-10-12",
+      "marks_asof": "2026-10-12",
+      "trades": [
+        {
+          "trade_id": "X-069D-20261006",
+          "strategy_id": "MARGIN",
+          "stock_code": "1712",
+          "stock_name": "興農",
+          "side": "BUY",
+          "fill_date": "2026-10-06",
+          "fill_time": "11:14:32",
+          "fill_price": "39.8",
+          "shares": "1000",
+          "consideration_twd": "39800.000000",
+          "fee_twd": "56.000000",
+          "tax_twd": "0.000000",
+          "cash_out_twd": "39856.000000",
+          "cash_in_twd": "0.000000",
+          "currency": "TWD",
+          "source": "broker_trade_detail_2026-10-12;SHA256_76e075f9;FEES_FORMULA_ESTIMATE_PENDING_STATEMENT;sleeve_of_existing_position",
+          "q": "1000",
+          "cash": "39856.000000"
+        },
+        {
+          "trade_id": "X-069V-20261006",
+          "strategy_id": "YOY",
+          "stock_code": "2397",
+          "stock_name": "友通",
+          "side": "SELL",
+          "fill_date": "2026-10-06",
+          "fill_time": "11:38:38",
+          "fill_price": "64.6",
+          "shares": "1000",
+          "consideration_twd": "64600.000000",
+          "fee_twd": "92.000000",
+          "tax_twd": "193.000000",
+          "cash_out_twd": "0.000000",
+          "cash_in_twd": "64315.000000",
+          "currency": "TWD",
+          "source": "broker_trade_detail_2026-10-12;SHA256_76e075f9;FEES_FORMULA_ESTIMATE_PENDING_STATEMENT;sleeve_of_existing_position",
+          "q": "1000",
+          "cash": "64315.000000"
+        },
+        {
+          "trade_id": "X-06AY-20261006",
+          "strategy_id": "MARGIN",
+          "stock_code": "6108",
+          "stock_name": "競國",
+          "side": "BUY",
+          "fill_date": "2026-10-06",
+          "fill_time": "11:16:50",
+          "fill_price": "25.8",
+          "shares": "2000",
+          "consideration_twd": "51600.000000",
+          "fee_twd": "73.000000",
+          "tax_twd": "0.000000",
+          "cash_out_twd": "51673.000000",
+          "cash_in_twd": "0.000000",
+          "currency": "TWD",
+          "source": "broker_trade_detail_2026-10-12;SHA256_76e075f9;FEES_FORMULA_ESTIMATE_PENDING_STATEMENT;sleeve_of_existing_position",
+          "q": "2000",
+          "cash": "51673.000000"
+        },
+        {
+          "trade_id": "X-06BE-20261006",
+          "strategy_id": "MARGIN",
+          "stock_code": "6108",
+          "stock_name": "競國",
+          "side": "SELL",
+          "fill_date": "2026-10-06",
+          "fill_time": "12:16:26",
+          "fill_price": "25.9",
+          "shares": "4000",
+          "consideration_twd": "103600.000000",
+          "fee_twd": "147.000000",
+          "tax_twd": "310.000000",
+          "cash_out_twd": "0.000000",
+          "cash_in_twd": "103143.000000",
+          "currency": "TWD",
+          "source": "broker_trade_detail_2026-10-12;SHA256_76e075f9;FEES_FORMULA_ESTIMATE_PENDING_STATEMENT;sleeve_of_existing_position",
+          "q": "4000",
+          "cash": "103143.000000"
+        },
+        {
+          "trade_id": "X-06PK-20261006",
+          "strategy_id": "YOY",
+          "stock_code": "6179",
+          "stock_name": "亞通",
+          "side": "SELL",
+          "fill_date": "2026-10-06",
+          "fill_time": "11:35:27",
+          "fill_price": "37.75",
+          "shares": "1000",
+          "consideration_twd": "37750.000000",
+          "fee_twd": "53.000000",
+          "tax_twd": "113.000000",
+          "cash_out_twd": "0.000000",
+          "cash_in_twd": "37584.000000",
+          "currency": "TWD",
+          "source": "broker_trade_detail_2026-10-12;SHA256_76e075f9;FEES_FORMULA_ESTIMATE_PENDING_STATEMENT;sleeve_of_existing_position",
+          "q": "1000",
+          "cash": "37584.000000"
+        },
+        {
+          "trade_id": "X-06QG-20261006",
+          "strategy_id": "YOY",
+          "stock_code": "6179",
+          "stock_name": "亞通",
+          "side": "SELL",
+          "fill_date": "2026-10-06",
+          "fill_time": "12:14:02",
+          "fill_price": "37.8",
+          "shares": "308",
+          "consideration_twd": "11642.000000",
+          "fee_twd": "16.000000",
+          "tax_twd": "34.000000",
+          "cash_out_twd": "0.000000",
+          "cash_in_twd": "11592.000000",
+          "currency": "TWD",
+          "source": "broker_trade_detail_2026-10-12;SHA256_76e075f9;FEES_FORMULA_ESTIMATE_PENDING_STATEMENT;sleeve_of_existing_position",
+          "q": "308",
+          "cash": "11592.000000"
+        },
+        {
+          "trade_id": "X-05WB-20261008",
+          "strategy_id": "MARGIN",
+          "stock_code": "1712",
+          "stock_name": "興農",
+          "side": "SELL",
+          "fill_date": "2026-10-08",
+          "fill_time": "",
+          "fill_price": "40.05",
+          "shares": "2000",
+          "consideration_twd": "80100.000000",
+          "fee_twd": "114.000000",
+          "tax_twd": "240.000000",
+          "cash_out_twd": "0.000000",
+          "cash_in_twd": "79746.000000",
+          "currency": "TWD",
+          "source": "broker_trade_detail_2026-10-12;SHA256_76e075f9;FEES_FORMULA_ESTIMATE_PENDING_STATEMENT;sleeve_of_existing_position",
+          "q": "2000",
+          "cash": "79746.000000"
+        },
+        {
+          "trade_id": "X-08LS-20261008",
+          "strategy_id": "YOY",
+          "stock_code": "6426",
+          "stock_name": "統新",
+          "side": "SELL",
+          "fill_date": "2026-10-08",
+          "fill_time": "13:28:05",
+          "fill_price": "352",
+          "shares": "157",
+          "consideration_twd": "55264.000000",
+          "fee_twd": "78.000000",
+          "tax_twd": "165.000000",
+          "cash_out_twd": "0.000000",
+          "cash_in_twd": "55021.000000",
+          "currency": "TWD",
+          "source": "broker_trade_detail_2026-10-12;SHA256_76e075f9;FEES_FORMULA_ESTIMATE_PENDING_STATEMENT;sleeve_of_existing_position",
+          "q": "157",
+          "cash": "55021.000000"
+        },
+        {
+          "trade_id": "X-098L-20261008",
+          "strategy_id": "YOY",
+          "stock_code": "2397",
+          "stock_name": "友通",
+          "side": "SELL",
+          "fill_date": "2026-10-08",
+          "fill_time": "14:30:00",
+          "fill_price": "65.2",
+          "shares": "1",
+          "consideration_twd": "65.000000",
+          "fee_twd": "1.000000",
+          "tax_twd": "0.000000",
+          "cash_out_twd": "0.000000",
+          "cash_in_twd": "64.000000",
+          "currency": "TWD",
+          "source": "broker_trade_detail_2026-10-12;SHA256_76e075f9;FEES_FORMULA_ESTIMATE_PENDING_STATEMENT;sleeve_of_existing_position",
+          "q": "1",
+          "cash": "64.000000"
+        },
+        {
+          "trade_id": "X-054Y-20261012",
+          "strategy_id": "MARGIN",
+          "stock_code": "1712",
+          "stock_name": "興農",
+          "side": "SELL",
+          "fill_date": "2026-10-12",
+          "fill_time": "11:45:03",
+          "fill_price": "40.4",
+          "shares": "66",
+          "consideration_twd": "2666.000000",
+          "fee_twd": "3.000000",
+          "tax_twd": "7.000000",
+          "cash_out_twd": "0.000000",
+          "cash_in_twd": "2656.000000",
+          "currency": "TWD",
+          "source": "broker_trade_detail_2026-10-12;SHA256_76e075f9;FEES_FORMULA_ESTIMATE_PENDING_STATEMENT;sleeve_of_existing_position",
+          "q": "66",
+          "cash": "2656.000000"
+        },
+        {
+          "trade_id": "X-055A-20261012",
+          "strategy_id": "YOY",
+          "stock_code": "2397",
+          "stock_name": "友通",
+          "side": "SELL",
+          "fill_date": "2026-10-12",
+          "fill_time": "",
+          "fill_price": "65",
+          "shares": "44",
+          "consideration_twd": "2860.000000",
+          "fee_twd": "4.000000",
+          "tax_twd": "8.000000",
+          "cash_out_twd": "0.000000",
+          "cash_in_twd": "2848.000000",
+          "currency": "TWD",
+          "source": "broker_trade_detail_2026-10-12;SHA256_76e075f9;FEES_FORMULA_ESTIMATE_PENDING_STATEMENT;sleeve_of_existing_position",
+          "q": "44",
+          "cash": "2848.000000"
+        }
+      ],
+      "closes": [
+        {
+          "date": "2026-10-06",
+          "stock_code": "2397",
+          "stock_name": "友通",
+          "strategy_id": "YOY",
+          "shares": "1000",
+          "price": "64.6",
+          "proceeds": "64315.000000",
+          "basis": "65592.34449760765550239234450",
+          "pnl": "-1277.34449760765550239234450"
+        },
+        {
+          "date": "2026-10-06",
+          "stock_code": "6108",
+          "stock_name": "競國",
+          "strategy_id": "MARGIN",
+          "shares": "4000",
+          "price": "25.9",
+          "proceeds": "103143.000000",
+          "basis": "98231.236000",
+          "pnl": "4911.764000"
+        },
+        {
+          "date": "2026-10-06",
+          "stock_code": "6179",
+          "stock_name": "亞通",
+          "strategy_id": "YOY",
+          "shares": "1000",
+          "price": "37.75",
+          "proceeds": "37584.000000",
+          "basis": "36827.98165137614678899082569",
+          "pnl": "756.01834862385321100917431"
+        },
+        {
+          "date": "2026-10-06",
+          "stock_code": "6179",
+          "stock_name": "亞通",
+          "strategy_id": "YOY",
+          "shares": "308",
+          "price": "37.8",
+          "proceeds": "11592.000000",
+          "basis": "11343.01834862385321100917431",
+          "pnl": "248.98165137614678899082569"
+        },
+        {
+          "date": "2026-10-08",
+          "stock_code": "1712",
+          "stock_name": "興農",
+          "strategy_id": "MARGIN",
+          "shares": "2000",
+          "price": "40.05",
+          "proceeds": "79746.000000",
+          "basis": "80658.504000",
+          "pnl": "-912.504000"
+        },
+        {
+          "date": "2026-10-08",
+          "stock_code": "6426",
+          "stock_name": "統新",
+          "strategy_id": "YOY",
+          "shares": "157",
+          "price": "352",
+          "proceeds": "55021.000000",
+          "basis": "49525",
+          "pnl": "5496.000000"
+        },
+        {
+          "date": "2026-10-08",
+          "stock_code": "2397",
+          "stock_name": "友通",
+          "strategy_id": "YOY",
+          "shares": "1",
+          "price": "65.2",
+          "proceeds": "64.000000",
+          "basis": "65.59234449760765550239234444",
+          "pnl": "-1.59234449760765550239234444"
+        },
+        {
+          "date": "2026-10-12",
+          "stock_code": "1712",
+          "stock_name": "興農",
+          "strategy_id": "MARGIN",
+          "shares": "66",
+          "price": "40.4",
+          "proceeds": "2656.000000",
+          "basis": "2630.496000",
+          "pnl": "25.504000"
+        },
+        {
+          "date": "2026-10-12",
+          "stock_code": "2397",
+          "stock_name": "友通",
+          "strategy_id": "YOY",
+          "shares": "44",
+          "price": "65",
+          "proceeds": "2848.000000",
+          "basis": "2886.063157894736842105263156",
+          "pnl": "-38.063157894736842105263156"
+        }
+      ],
+      "held": {
+        "1717": {
+          "stock_code": "1717",
+          "stock_name": "長興",
+          "shares": "1210",
+          "cost": "98997",
+          "close": "74.7000",
+          "gross": "90387.0000",
+          "est_sell_cost": "399",
+          "value": "89988.0000",
+          "pnl": "-9009.0000",
+          "strategies": [
+            "TRUST"
+          ]
+        },
+        "2489": {
+          "stock_code": "2489",
+          "stock_name": "瑞軒",
+          "shares": "3000",
+          "cost": "118819",
+          "close": "41.0000",
+          "gross": "123000.0000",
+          "est_sell_cost": "544",
+          "value": "122456.0000",
+          "pnl": "3637.0000",
+          "strategies": [
+            "TRUST"
+          ]
+        },
+        "2637": {
+          "stock_code": "2637",
+          "stock_name": "慧洋-KY",
+          "shares": "1000",
+          "cost": "97939",
+          "close": "102.0000",
+          "gross": "102000.0000",
+          "est_sell_cost": "451",
+          "value": "101549.0000",
+          "pnl": "3610.0000",
+          "strategies": [
+            "MARGIN"
+          ]
+        },
+        "3006": {
+          "stock_code": "3006",
+          "stock_name": "晶豪科",
+          "shares": "348",
+          "cost": "100366",
+          "close": "260.5000",
+          "gross": "90654.0000",
+          "est_sell_cost": "400",
+          "value": "90254.0000",
+          "pnl": "-10112.0000",
+          "strategies": [
+            "BREAKOUT"
+          ]
+        },
+        "6108": {
+          "stock_code": "6108",
+          "stock_name": "競國",
+          "shares": "136",
+          "cost": "3513.764000",
+          "close": "25.9500",
+          "gross": "3529.2000",
+          "est_sell_cost": "15",
+          "value": "3514.2000",
+          "pnl": "0.436000",
+          "strategies": [
+            "MARGIN"
+          ]
+        }
+      },
+      "snapshot_realized": "-9561",
+      "new_realized": "9208.764000000000000000000000",
+      "realized": "-352.236000000000000000000000",
+      "open_cost": "419634.764000",
+      "market_value": "407761.2000",
+      "status": {
+        "TRUST": "STOPPED",
+        "YOY": "STOPPED",
+        "MARGIN": "FOLLOW",
+        "BREAKOUT": "FOLLOW"
+      },
+      "unrealized": "-11873.564000",
+      "combined": "-12225.80000000000000000000000"
+    }
   }
 }

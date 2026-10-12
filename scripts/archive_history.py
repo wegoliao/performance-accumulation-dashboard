@@ -74,17 +74,38 @@ def freeze(day: date, is_current: bool) -> tuple[str, str]:
 
 def build() -> tuple[Path, dict]:
     summaries = sorted(INPUTS.glob("snapshot_summary_????-??-??.csv"))
-    days = [datetime.strptime(p.stem[-10:], "%Y-%m-%d").date() for p in summaries]
-    current = max(days)
+    by_day = {datetime.strptime(p.stem[-10:], "%Y-%m-%d").date(): read(p)[0] for p in summaries}
+    # Every strategy-card day after the last snapshot is an update day too.
+    headers: dict[date, dict[str, str]] = {}
+    for row in read(INPUTS / "strategy_card_returns.csv"):
+        headers.setdefault(date.fromisoformat(row["asof_date"]), {})[row["strategy_id"]] = row["display_return_pct"]
+    for day in headers:
+        if day > max(by_day):
+            by_day.setdefault(day, {})
+    current = max(by_day)
     rows = []
-    for path, day in zip(summaries, days):
-        summary = read(path)[0]
+    for day in sorted(by_day):
         sha, status = freeze(day, day == current)
-        rows.append({"day": day, "summary": summary, "sha": sha, "status": status})
+        rows.append({"day": day, "summary": by_day[day], "cards": headers.get(day, {}), "sha": sha, "status": status})
 
     body = []
     for row in sorted(rows, key=lambda r: r["day"], reverse=True):
         s = row["summary"]
+        if not s:
+            cards = " · ".join(
+                f"{label} {row['cards'][sid]}%" for sid, label in
+                (("MARGIN", "融資"), ("BREAKOUT", "突破"), ("TRUST", "投信"), ("YOY", "YOY")) if sid in row["cards"]
+            )
+            sha_link = (
+                f'<a href="{REPO_URL}/commit/{row["sha"]}">{row["sha"][:7]}</a>'
+                if row["sha"] and row["sha"] != "WORKING_TREE" else "<small>本次建置</small>"
+            )
+            body.append(
+                f'<tr><td><a href="{row["day"].isoformat()}/">{row["day"].isoformat()}</a></td>'
+                f'<td colspan="4"><small>策略卡表頭：{html.escape(cards) or "—"}</small></td>'
+                f"<td><small>每日更新（當天最後一版）</small></td><td>{sha_link}</td></tr>"
+            )
+            continue
         pnl = float(s.get("unrealized_pnl_twd") or 0)
         klass = "positive" if pnl > 0 else "negative" if pnl < 0 else "neutral"
         link = f'<a href="{row["day"].isoformat()}/">{row["day"].isoformat()}</a>'
@@ -122,7 +143,7 @@ td{{padding:10px 8px;border-bottom:1px solid var(--line)}}td.num,th.num{{text-al
 </style></head><body><div class="wrap">
 <div class="eyebrow">History &middot; frozen copies</div>
 <h1>歷史存檔 · 每一天的儀表板長什麼樣</h1>
-<p class="lede">每一個庫存快照日，儀表板當天結束時的版本都凍結在這裡，可以點回去看。數字是那一天的，不會被之後的建置改寫。
+<p class="lede">每一個庫存快照日與策略卡更新日，儀表板當天結束時的版本都凍結在這裡，可以點回去看。數字是那一天的，不會被之後的建置改寫。
 完整的逐次變更在 <a href="{REPO_URL}/commits/main">GitHub 提交紀錄</a>。</p>
 <div class="panel"><div class="table-wrap"><table><thead><tr><th>日期</th><th class="num">股數</th><th class="num">市值</th><th class="num">成本</th><th class="num">未實現</th><th>快照來源</th><th>提交</th></tr></thead>
 <tbody>{"".join(body)}</tbody></table></div></div>

@@ -63,16 +63,17 @@ def latest_holdings() -> tuple[date, dict[str, dict[str, str]]]:
         report = report['statement_reference']  # Technical views retain official close dates.
     if report:
         rows = [row for row in rows if row['stock_code'].strip() in report['positions']]
-        for row in rows:
-            if float(row['shares']) != float(report['positions'][row['stock_code'].strip()]):
-                raise ValueError('snapshot quantity changed; refresh valuation before analysis')
+        if 'statement_rows' not in report:
+            for row in rows:
+                if float(row['shares']) != float(report['positions'][row['stock_code'].strip()]):
+                    raise ValueError('snapshot quantity changed; refresh valuation before analysis')
         if 'statement_rows' in report:
             day=date.fromisoformat(report['marks_asof'])
             for row in rows:
                 code=row['stock_code'].strip()
                 qty=report['positions'][code];cost=report['costs'][code]
                 close=report['marks'][code]['close'];value=qty*close;pnl=value-cost
-                row.update(asof_date=day.isoformat(),source='BROKER_SETTLEMENT_REPLAY_AND_OFFICIAL_CLOSE',
+                row.update(asof_date=day.isoformat(),source='BROKER_SETTLEMENT_REPLAY_AND_OFFICIAL_CLOSE',shares=str(qty),
                            cost_basis_twd=str(cost),avg_cost=str(cost/qty),last_price=str(close),
                            current_value_twd=str(value),unrealized_pnl_twd=str(pnl),
                            unrealized_return_pct=str(pnl/cost*100))
@@ -81,8 +82,12 @@ def latest_holdings() -> tuple[date, dict[str, dict[str, str]]]:
 
 def action_list(signals: list[dict[str, str]]) -> list[dict[str, Any]]:
     """Non-bracketed 進/出 rows from the newest card, with their effective date."""
+    import broker_pnl_snapshot
+    stopped = {k for k, v in broker_pnl_snapshot.strategy_status(ROOT).items() if v == "STOPPED"}
     out: list[dict[str, Any]] = []
     for row in signals:
+        if row["strategy_id"].strip() in stopped:
+            continue  # owner stopped following; holdings are listed on the main page
         raw = row["signal"].strip()
         if raw.startswith("("):
             continue

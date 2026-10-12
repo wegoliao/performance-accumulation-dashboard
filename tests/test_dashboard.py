@@ -66,7 +66,9 @@ def test_published_page_reflects_confirmed_closes_and_short_loss():
     assert 'id="owner-account"' in text
     assert '-71,052.00' in text
     assert '券買・已回補' in text and '現賣・已平倉' in text
-    assert '目前持股・9 檔' in text
+    assert '目前持股・5 檔' in text
+    assert '兆豐' not in text and '2886' not in text
+    assert '待擇機清倉' in text and '只追強的策略' in text
 
 
 def test_pasted_snapshot_reconciles_exact_source_subtotal() -> None:
@@ -259,7 +261,8 @@ def test_build_creates_offline_html_and_fail_closed_statuses() -> None:
     # Only rows the sleeves may own: the unassigned share and any short sale
     # sit in the broker's subtotal but belong to no strategy.
     import owner_account
-    account = {code:float(shares) for code,shares in owner_account.load_account(ROOT)['positions'].items()}
+    current = owner_account.load_account(ROOT)['statement_reference']['positions']  # rolled forward with trade detail
+    account = {code:float(shares) for code,shares in current.items()}
     assert dict(per_sleeve) == pytest.approx(account)
     shared = [code for code in account if sum(
         1 for s in dashboard.STRATEGY_LABELS
@@ -551,10 +554,14 @@ def test_planned_actions_never_list_an_exit_on_a_name_already_sold() -> None:
     The panel listed 2059 as "waiting for a fill" five sessions after the
     owner sold it, because it read the card and never looked at the book.
     """
-    holdings = dashboard.load_holdings()
+    import owner_account
+    current = owner_account.load_account(ROOT)["statement_reference"]["positions"]
+    holdings = [row for row in dashboard.load_holdings() if row["stock_code"] in current]  # as build() passes
     fills = dashboard.load_actual_fills()
     signals = dashboard.load_latest_strategy_signals()
     held = {row["stock_code"].strip() for row in holdings if dashboard.in_strategy_scope(row)}
+    stopped = {k for k, v in dashboard.broker_pnl_snapshot.strategy_status(dashboard.ROOT).items() if v == "STOPPED"}
+    owners = dashboard.sleeve_owners(fills)
     html_out = dashboard.planned_signal_table(signals, holdings, fills)
 
     for row in signals:
@@ -564,7 +571,13 @@ def test_planned_actions_never_list_an_exit_on_a_name_already_sold() -> None:
         listed = f"{code} " in html_out
         if bracketed:
             assert not listed, f"bracketed {code} must be excluded per owner"
+        elif action == "出" and row["strategy_id"] in stopped and row["strategy_id"] not in owners[code]:
+            continue  # another sleeve's shares; that sleeve's own row decides
         elif action == "出":
             assert listed == (code in held), f"出 {code}: listed={listed} held={code in held}"
+        elif action == "進" and row["strategy_id"] in stopped:
+            # a name may also appear on a followed card; only this row must not add it
+            if not any(o["stock_code"].strip() == code and o["strategy_id"] not in stopped for o in signals):
+                assert not listed, f"stopped strategy entry {code} must not be pending"
         elif action == "進":
             assert listed == (code not in held), f"進 {code}: listed={listed} held={code in held}"

@@ -37,19 +37,20 @@ def test_rendered_current_view_is_separate_from_historical_snapshot():
     r = m.load_account(ROOT)
     content = m.render(r)
     assert '已回補' in content and '71,052' in content
-    assert '已平倉' in content and '9 檔' in content
-    assert '券商損益報表' in content and '借券費' in content
+    assert '已平倉' in content and '5 檔' in content
+    assert '券商' in content and '損益報表' in content and '借券費' in content
     assert '目前持股未實現損益' in content and '累積已實現損益' in content
-    assert '兆豐金測試交易已排除' in content
-    assert max(mark['date'] for mark in r['marks'].values()) in content
-    assert r['asof'] in content
+    assert '兆豐' not in content and '2886' not in content
+    assert r['current']['marks_asof'] in content
+    assert r['current']['last_trade'] in content
 
 def test_current_subpages_use_replayed_quantity_not_old_snapshot():
     import build_prep
     snapshot_day, held = build_prep.latest_holdings()
     assert snapshot_day.isoformat() == load_module().load_account(ROOT)['statement_reference']['marks_asof']
-    assert len(held) == 9
-    assert not ({'2354', '3231', '3055'} & held.keys())
+    assert len(held) == 5
+    assert not ({'2354', '3231', '3055', '2397', '1712', '6179', '6426'} & held.keys())
+    assert float(held['6108']['shares']) == 136
 
 def test_long_sale_cannot_exceed_confirmed_open_quantity():
     m = load_module()

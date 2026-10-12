@@ -90,6 +90,7 @@ def test_duplicate_physical_fill_fails_closed():
 def test_strategy_cash_and_quantity_reconcile_to_statement():
     r = report()
     rows = list(csv.DictReader((ROOT/'inputs/actual_fills.csv').open(encoding='utf-8-sig')))
+    rows = [x for x in rows if x['fill_date'] <= r['asof']]  # later rows carry formula-estimated fees
     cash = sum(D(x['cash_in_twd'])-D(x['cash_out_twd']) for x in rows)
     assert cash + r['open_cost'] == r['long_realized']
     assert len(rows) == 58

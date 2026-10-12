@@ -92,3 +92,11 @@ Pages需包含main、realized、prep、positions、watch、intake及historical�
 真正理論累積圖使用既有 `inputs/strategy_nav.csv`，四策略須至少兩個共同日期；缺少來源淨值顯示 `WAITING_STRATEGY_NAV`。淨值須已納入歷次平倉、持股、現金與成本，外部入出金須已消除其影響；`note` 說明策略版本、權重、多空、成交時点、費用及股息處理。禁止用 `strategy_card_returns.csv` 補成NAV。
 
 查核與缺口見 [RETURN_BASIS_AUDIT_2026-10-02.md](RETURN_BASIS_AUDIT_2026-10-02.md)。新增 `tests/test_return_basis.py` 驗卡片原負報酬、缺NAV拒畫、換股後平倉利益仍累積及共同期間benchmark。主專案的 `Quant_Card/audit_return_basis_20261002.py` 重播來源hash與金額。
+
+## 2026-10-12：只追融資／突破、永豐成交明細接續、歷史每日凍結
+
+- **策略註記**：Owner 10/12 只追融資（MARGIN）、突破（BREAKOUT）；投信、YOY 不再參與。記在 `inputs/owner_preferences.csv`（`OWNER_FOCUS_STRATEGY`／`OWNER_STOPPED_PARTICIPATING`）。四張卡仍逐日轉錄保存為歷史；停止策略的「進」不再列為待決定，「出」只在該策略自己的部位仍持有時列為「待擇機清倉」。最新卡區把停止策略收進摺疊區。
+- **成交明細**：永豐「成交帳務」xlsx 是分筆成交、沒有費稅與帳號以外的收付欄。匯入前其 10/1 前全部委託鍵（日期／委託書號／交易別／代碼／價格→股數）必須與已核對對帳單 59 筆完全一致；之後的委託合併分筆後追加到 `actual_fills.csv`，費稅用對帳單 57 筆現股收付全數重現的公式（手續費 max(int(價金×0.1425%),1)、賣出稅 int(價金×0.3%)），來源標 `FEES_FORMULA_ESTIMATE_PENDING_STATEMENT`。下一份對帳單到了再以實際費稅取代。帳號欄從不讀出、不寫出；公開版是 `inputs/broker_trade_detail_*.csv`。重播腳本 `Quant_Card/update_20261012.py`，收據在主專案 `Quant_Card/evidence_20261012/`。
+- **頁首帳戶**：`broker_pnl_snapshot.apply_trade_detail` 以 10/2 券商畫面為底，同股票先進先出套用之後成交；剩餘持股以最新共同官方收盤 − 預估賣出費稅 − 成本計未實現。10/2 畫面本身的數字仍保留在 `r['broker_snapshot']`，不覆寫。
+- **兆豐金**：Owner 指示買賣文字不再顯示；資料（對帳單 CSV、收據）照舊保存，只是頁面與摘要不呈現。
+- **歷史**：`archive_history.py` 除庫存快照日外，也凍結每個策略卡更新日（過去日期取當天最後一個 commit，不改寫）；每日 workflow 已加入此步驟並提交 `history/`。
