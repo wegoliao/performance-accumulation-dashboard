@@ -1,13 +1,13 @@
 {
-  "generated_at": "2026-10-12T18:14:02",
-  "snapshot_asof": "2026-10-12",
-  "price_asof": "2026-10-12",
+  "generated_at": "2026-10-13T16:20:47",
+  "snapshot_asof": "2026-10-13",
+  "price_asof": "2026-10-13",
   "positions": [
     "3006",
     "1717",
+    "2489",
     "6108",
-    "2637",
-    "2489"
+    "2637"
   ],
   "boundaries": [
     "NO_PRICE_RECOMMENDATION",
