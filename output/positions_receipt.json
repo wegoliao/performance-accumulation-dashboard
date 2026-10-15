@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-10-14T14:04:06",
-  "snapshot_asof": "2026-10-14",
-  "price_asof": "2026-10-14",
+  "generated_at": "2026-10-15T13:44:23",
+  "snapshot_asof": "2026-10-15",
+  "price_asof": "2026-10-15",
   "positions": [
     "3006",
     "1717",
-    "6108",
     "2489",
+    "6108",
     "2637"
   ],
   "boundaries": [
