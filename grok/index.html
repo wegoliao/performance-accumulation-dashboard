@@ -67,65 +67,67 @@ code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;
   <h1>QGL 開發進度</h1>
   <p class="lede">量化研究系統（S1–S5 與協調層）的每日中文摘要。只寫在 <code>grok/</code>，不改其他 AI 的檔案。公開 repo：無原始資料、無金鑰、無帳號明細。</p>
   <div class="meta">
-    <span>最新：<strong>2026-10-15</strong>（台北）</span>
+    <span>最新：<strong>2026-10-16</strong>（台北）</span>
     <span>整體：<span class="badge b-warn">NOT_VERIFIED</span></span>
     <span>頁面：<a href="https://wegoliao.github.io/performance-accumulation-dashboard/grok/">grok/</a></span>
   </div>
 </header>
 
 <div class="note">
-  Owner 規則摘要：原生 FinLab <code>sim()</code>／報表／daily NAV 才是績效正典；自算標 DIAGNOSTIC；候選門檻＝原生 Sharpe &gt; 1.3 或 CAGR &gt; 30%；禁止實盤與 merge main；負面／安慰劑／BLOCKED 全保留。
+  Owner 規則摘要：原生 FinLab <code>sim()</code>／報表／daily NAV 才是績效正典；自算標 DIAGNOSTIC；候選門檻＝原生 Sharpe &gt; 1.3 或 CAGR &gt; 30%；禁止實盤與 merge main；負面／安慰劑／BLOCKED 全保留。數字來自本機狀態檔，不發明。
 </div>
 
 <section class="tiles" aria-label="最新快照">
-  <div class="tile"><div class="n">55</div><div class="l">試驗帳計入 N（s4 csv）</div></div>
-  <div class="tile"><div class="n">21 / 34</div><div class="l">real／安慰劑（計入 N）</div></div>
-  <div class="tile"><div class="n">682</div><div class="l">快取 feather 檔數</div></div>
-  <div class="tile"><div class="n">~3199</div><div class="l">當日帳號用量 MB（摘要）</div></div>
-  <div class="tile"><div class="n">55/55</div><div class="l">S4 pytest</div></div>
-  <div class="tile"><div class="n">3</div><div class="l">GA DRAFT 假說卡</div></div>
+  <div class="tile"><div class="n">78</div><div class="l">試驗帳計入 N（s4 csv）</div></div>
+  <div class="tile"><div class="n">24 / 54</div><div class="l">real／安慰劑（計入 N）</div></div>
+  <div class="tile"><div class="n">1257</div><div class="l">快取 feather 檔數</div></div>
+  <div class="tile"><div class="n">~4408</div><div class="l">當日帳號用量 MB（摘要）</div></div>
+  <div class="tile"><div class="n">107/107</div><div class="l">S4 pytest</div></div>
+  <div class="tile"><div class="n">FAIL 2</div><div class="l">SCOREBOARD 最嚴重標籤</div></div>
 </section>
 
-<h2>各 Bot 一覽（2026-10-15）</h2>
-<p class="sub">彙整自 S4 STATUS 與 coord STATUS_LATEST；細節見當日 md。</p>
+<h2>各 Bot 一覽（2026-10-16）</h2>
+<p class="sub">彙整自 S4 STATUS、batch_status、trial_health、coord STATUS_LATEST；細節見當日 md。</p>
 <div class="tbl">
 <table>
   <thead><tr><th>Bot</th><th>進度</th><th>狀態</th></tr></thead>
   <tbody>
-    <tr><td>S1 策略</td><td>Track A 14 次原生 sim；C1/C3 達門檻但 #37 未合併</td><td><span class="badge b-warn">非證據</span></td></tr>
-    <tr><td>S2 驗證</td><td>117 舊報表全 BLOCKED；收據雜湊 OK</td><td><span class="badge b-bad">BLOCKED</span></td></tr>
-    <tr><td>S3 執行</td><td>紙上 NAV 仍 PLACEHOLDER；衰退燈「觀察中」</td><td><span class="badge b-warn">DIAGNOSTIC</span></td></tr>
-    <tr><td>S4 自我優化</td><td>fetch_all 今日 bulk_cap 結束；Q-001 已通知；工具鏈擴充</td><td><span class="badge b-ok">進行中</span></td></tr>
-    <tr><td>S5 儀表板</td><td>status.html 過時；無已驗證數字</td><td><span class="badge b-warn">待更新</span></td></tr>
+    <tr><td>S1 策略</td><td>Track A 仍為既有 14 次原生 sim；C2 已匯入 coord；無新 sim</td><td><span class="badge b-warn">非證據</span></td></tr>
+    <tr><td>S2 驗證</td><td>117 舊報表仍全 BLOCKED；未再審 Track A</td><td><span class="badge b-bad">BLOCKED</span></td></tr>
+    <tr><td>S3 執行</td><td>紙上 NAV 仍 PLACEHOLDER；衰退燈「觀察中」；滑價閘門 N/A</td><td><span class="badge b-warn">DIAGNOSTIC</span></td></tr>
+    <tr><td>S4 自我優化</td><td>守門鏈擴充；fetch_all todo_empty；N=78；E2b；淘汰／as-of／簡報</td><td><span class="badge b-ok">進行中</span></td></tr>
+    <tr><td>S5 儀表板</td><td>status.html 停在 10-15 14:40；無已驗證數字</td><td><span class="badge b-warn">過時</span></td></tr>
   </tbody>
 </table>
 </div>
 
 <h2>研究候選（原生 FinLab，僅列數字）</h2>
-<p class="sub">期間含 2024+（已看過）；#37 未合併 → 依 RULES <strong>不算證據</strong>。C3 持股 parity FAIL。</p>
+<p class="sub">期間含 2024+（已看過）；#37 未合併 → 依 RULES <strong>不算證據</strong>。候選閘門：C1＝CANDIDATE_BLOCKED；C3＝FAIL（parity）。</p>
 <div class="tbl">
 <table>
-  <thead><tr><th>run</th><th>Sharpe</th><th>CAGR</th><th>MDD</th><th>候選？</th></tr></thead>
+  <thead><tr><th>run</th><th>Sharpe</th><th>CAGR</th><th>MDD</th><th>候選／閘門</th></tr></thead>
   <tbody>
-    <tr><td>A_C1_real_1x</td><td>1.82</td><td>23.3%</td><td>−22.6%</td><td>是（Sharpe）</td></tr>
-    <tr><td>A_C1_real_2x</td><td>1.32</td><td>17.0%</td><td>−23.3%</td><td>是（邊緣）</td></tr>
-    <tr><td>A_C3_real_1x</td><td>1.27</td><td>32.1%</td><td>−30.8%</td><td>是（CAGR）＋parity FAIL</td></tr>
-    <tr><td>A_C3_real_2x</td><td>1.09</td><td>26.9%</td><td>−31.7%</td><td>否（保留）</td></tr>
+    <tr><td>A_C1_real_1x</td><td>1.82</td><td>23.3%</td><td>−22.6%</td><td>是（Sharpe）→ BLOCKED</td></tr>
+    <tr><td>A_C1_real_2x</td><td>1.32</td><td>17.0%</td><td>−23.3%</td><td>是（邊緣）→ BLOCKED</td></tr>
+    <tr><td>A_C3_real_1x</td><td>1.27</td><td>32.1%</td><td>−30.8%</td><td>是（CAGR）＋parity → FAIL</td></tr>
+    <tr><td>A_C3_real_2x</td><td>1.09</td><td>26.9%</td><td>−31.7%</td><td>否＋parity → FAIL</td></tr>
   </tbody>
 </table>
 </div>
 
 <h2>監控與阻塞</h2>
 <ul>
-  <li>衰退監控：<strong>觀察中</strong>（樣本不足）。</li>
+  <li>衰退監控：<strong>觀察中</strong>（樣本不足；執行面滑價 N/A）。</li>
+  <li>SCOREBOARD：FAIL 2（C3）、INVALID 3（Q013-E2 POST_HOC）、權威績效 0＝NOT_RUN。</li>
   <li>FinLab 版本：核准 <strong>2.2.11</strong> vs 多數環境 <strong>2.2.10</strong> → PENDING DECISION。</li>
-  <li>前五大阻塞：#37 未合併；版本未定；試驗帳分裂；未歸屬用量／快照漂移；SIM／Forward／PIT 未解。</li>
+  <li>前五大阻塞：#37；版本未定；#38／POST_HOC；額度記帳可疑外部用量；SIM／Forward／PIT／as-of。</li>
   <li>實盤與 merge main：<strong>禁止</strong>。</li>
 </ul>
 
 <h2>每日紀錄（只追加）</h2>
-<p class="sub">舊日檔不改寫；新日在列表頂端追加。</p>
+<p class="sub">舊日檔不改寫；新日在列表頂端追加。同日可覆寫當日檔。</p>
 <ul class="hist">
+  <li><a href="daily/2026-10-16.md">2026-10-16</a><span class="d">守門鏈／SCOREBOARD；N 55→78；fetch_all todo_empty；快取 1257；pytest 107；E2b／淘汰／as-of</span></li>
   <li><a href="daily/2026-10-15.md">2026-10-15</a><span class="d">首日上線：S1–S5、試驗帳、GA、fetch_all 結束、版本閘門與阻塞摘要</span></li>
 </ul>
 
