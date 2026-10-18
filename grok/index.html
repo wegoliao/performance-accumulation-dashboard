@@ -67,7 +67,7 @@ code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;
   <h1>QGL 開發進度</h1>
   <p class="lede">量化研究系統（S1–S5 與協調層）的每日中文摘要。只寫在 <code>grok/</code>，不改其他 AI 的檔案。公開 repo：無原始資料、無金鑰、無帳號明細。</p>
   <div class="meta">
-    <span>最新：<strong>2026-10-16</strong>（台北）</span>
+    <span>最新：<strong>2026-10-18</strong>（台北）</span>
     <span>整體：<span class="badge b-warn">NOT_VERIFIED</span></span>
     <span>頁面：<a href="https://wegoliao.github.io/performance-accumulation-dashboard/grok/">grok/</a></span>
   </div>
@@ -78,28 +78,35 @@ code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;
 </div>
 
 <section class="tiles" aria-label="最新快照">
-  <div class="tile"><div class="n">78</div><div class="l">試驗帳計入 N（s4 csv）</div></div>
-  <div class="tile"><div class="n">24 / 54</div><div class="l">real／安慰劑（計入 N）</div></div>
-  <div class="tile"><div class="n">1257</div><div class="l">快取 feather 檔數</div></div>
-  <div class="tile"><div class="n">~4408</div><div class="l">當日帳號用量 MB（摘要）</div></div>
-  <div class="tile"><div class="n">107/107</div><div class="l">S4 pytest</div></div>
+  <div class="tile"><div class="n">235</div><div class="l">全域試驗數 N_global（coord）</div></div>
+  <div class="tile"><div class="n">30</div><div class="l">S4 帳 N（安慰劑／baseline 不計）</div></div>
+  <div class="tile"><div class="n">1475</div><div class="l">快取 feather 檔數（Q-001 快照）</div></div>
+  <div class="tile"><div class="n">4831.9</div><div class="l">當日帳號用量 MB（停止線 4828）</div></div>
+  <div class="tile"><div class="n">148/148</div><div class="l">S4 pytest</div></div>
   <div class="tile"><div class="n">FAIL 2</div><div class="l">SCOREBOARD 最嚴重標籤</div></div>
 </section>
 
-<h2>各 Bot 一覽（2026-10-16）</h2>
+<h2>各 Bot 一覽（2026-10-18）</h2>
 <p class="sub">彙整自 S4 STATUS、batch_status、trial_health、coord STATUS_LATEST；細節見當日 md。</p>
 <div class="tbl">
 <table>
   <thead><tr><th>Bot</th><th>進度</th><th>狀態</th></tr></thead>
   <tbody>
-    <tr><td>S1 策略</td><td>Track A 仍為既有 14 次原生 sim；C2 已匯入 coord；無新 sim</td><td><span class="badge b-warn">非證據</span></td></tr>
-    <tr><td>S2 驗證</td><td>117 舊報表仍全 BLOCKED；未再審 Track A</td><td><span class="badge b-bad">BLOCKED</span></td></tr>
-    <tr><td>S3 執行</td><td>紙上 NAV 仍 PLACEHOLDER；衰退燈「觀察中」；滑價閘門 N/A</td><td><span class="badge b-warn">DIAGNOSTIC</span></td></tr>
-    <tr><td>S4 自我優化</td><td>守門鏈擴充；fetch_all todo_empty；N=78；E2b；淘汰／as-of／簡報</td><td><span class="badge b-ok">進行中</span></td></tr>
+    <tr><td>S1 策略</td><td>10/17 WP1 價值族 cheap test 8/10 過寬鬆篩選，全 BLOCKED-#37；Track A 不變</td><td><span class="badge b-warn">非證據</span></td></tr>
+    <tr><td>S2 驗證</td><td>無新回覆；待審門檻倍數、PIT、DSR 規則、Sharpe 補記、GA v2 卡</td><td><span class="badge b-bad">BLOCKED</span></td></tr>
+    <tr><td>S3 執行</td><td>帳本缺 10/06–10/08；PLACEHOLDER；衰退燈「觀察中」</td><td><span class="badge b-warn">DIAGNOSTIC</span></td></tr>
+    <tr><td>S4 自我優化</td><td>N 規則修正（N_global 235）；DSR 診斷；財報晚報偷看偵測＋GA v2（未跑）；停止線稽核</td><td><span class="badge b-ok">進行中</span></td></tr>
     <tr><td>S5 儀表板</td><td>status.html 停在 10-15 14:40；無已驗證數字</td><td><span class="badge b-warn">過時</span></td></tr>
   </tbody>
 </table>
 </div>
+
+<h2>最新發現：財報晚交造成的偷看（2026-10-18）</h2>
+<p class="sub">季報原始日期是法定期限日，但約 6.82% 的（股票, 季）晚於期限才公告。直接讀原始表的程式會提早看到財報。</p>
+<ul>
+  <li>S4 自己的 GA 有此問題：18 個 GA 試驗中 11 個用到 ROE → 只能當 DIAGNOSTIC。修正版 v2 已寫好，<strong>尚未預註冊、未跑</strong>。</li>
+  <li>靜態掃描找到 8 支筆電匯入策略用 <code>.deadline()</code> 讀季表（指標，不是判決），待負責人確認；S4 不改原檔。</li>
+</ul>
 
 <h2>研究候選（原生 FinLab，僅列數字）</h2>
 <p class="sub">期間含 2024+（已看過）；#37 未合併 → 依 RULES <strong>不算證據</strong>。候選閘門：C1＝CANDIDATE_BLOCKED；C3＝FAIL（parity）。</p>
@@ -117,16 +124,19 @@ code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;
 
 <h2>監控與阻塞</h2>
 <ul>
-  <li>衰退監控：<strong>觀察中</strong>（樣本不足；執行面滑價 N/A）。</li>
-  <li>SCOREBOARD：FAIL 2（C3）、INVALID 3（Q013-E2 POST_HOC）、權威績效 0＝NOT_RUN。</li>
-  <li>FinLab 版本：核准 <strong>2.2.11</strong> vs 多數環境 <strong>2.2.10</strong> → PENDING DECISION。</li>
-  <li>前五大阻塞：#37；版本未定；#38／POST_HOC；額度記帳可疑外部用量；SIM／Forward／PIT／as-of。</li>
+  <li>衰退監控：<strong>觀察中</strong>（樣本不足；S3 帳本缺 10/06–10/08）。</li>
+  <li>SCOREBOARD：FAIL 2（C3）、INVALID 4（含 Q013-E2 POST_HOC）、NOT_RUN 1（權威績效 0）、BLOCKED 7。</li>
+  <li>DSR 門檻：LOW_COVERAGE（只有 39/182 有 Sharpe），C1 也在 SR0 之下，只當診斷。</li>
+  <li>停止線：10/18 帳號超過 cap 3.9 MB（守門只在鍵與鍵之間檢查），只報告。</li>
+  <li>改版登記簿：10 月 0 個提案。</li>
   <li>實盤與 merge main：<strong>禁止</strong>。</li>
 </ul>
 
 <h2>每日紀錄（只追加）</h2>
 <p class="sub">舊日檔不改寫；新日在列表頂端追加。同日可覆寫當日檔。</p>
 <ul class="hist">
+  <li><a href="daily/2026-10-18.md">2026-10-18</a><span class="d">N 規則修正（N_global 235）；財報晚交偷看偵測＋GA v2（未跑）；DSR 診斷；快取 1475；pytest 148</span></li>
+  <li><a href="daily/2026-10-17.md">2026-10-17</a><span class="d">（10/18 補登）S1 WP1 cheap test；S3 帳本缺日；安慰劑檢定力；box 15:12 停擺；pytest 123</span></li>
   <li><a href="daily/2026-10-16.md">2026-10-16</a><span class="d">守門鏈／SCOREBOARD；N 55→78；fetch_all todo_empty；快取 1257；pytest 107；E2b／淘汰／as-of</span></li>
   <li><a href="daily/2026-10-15.md">2026-10-15</a><span class="d">首日上線：S1–S5、試驗帳、GA、fetch_all 結束、版本閘門與阻塞摘要</span></li>
 </ul>
