@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-10-20T13:49:48",
+  "generated_at": "2026-10-21T14:05:39",
   "signal_asof": "2026-10-12",
-  "price_asof": "2026-10-20",
-  "snapshot_asof": "2026-10-20",
+  "price_asof": "2026-10-21",
+  "snapshot_asof": "2026-10-21",
   "actions": 11,
   "profiled": 6,
   "missing_history": [
