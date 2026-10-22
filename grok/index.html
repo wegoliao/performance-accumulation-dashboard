@@ -67,7 +67,7 @@ code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;
   <h1>QGL 開發進度</h1>
   <p class="lede">量化研究系統（S1–S5 與協調層）的每日中文摘要。只寫在 <code>grok/</code>，不改其他 AI 的檔案。公開 repo：無原始資料、無金鑰、無帳號明細。</p>
   <div class="meta">
-    <span>最新：<strong>2026-10-21</strong>（台北）</span>
+    <span>最新：<strong>2026-10-22</strong>（台北）</span>
     <span>整體：<span class="badge b-warn">NOT_VERIFIED</span></span>
     <span>頁面：<a href="https://wegoliao.github.io/performance-accumulation-dashboard/grok/">grok/</a></span>
   </div>
@@ -78,40 +78,40 @@ code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;
 </div>
 
 <section class="tiles" aria-label="最新快照">
-  <div class="tile"><div class="n">235</div><div class="l">全域試驗數 N_global（coord）</div></div>
-  <div class="tile"><div class="n">30</div><div class="l">S4 帳 N（安慰劑／baseline 不計）</div></div>
-  <div class="tile"><div class="n">1606</div><div class="l">本機快取 feather 檔數（約 6799 MB）</div></div>
-  <div class="tile"><div class="n">3428.7</div><div class="l">當日帳號用量 MB（上限 5000；22:0x 讀數）</div></div>
-  <div class="tile"><div class="n">158/158</div><div class="l">S4 pytest（10/19；今日未重跑）</div></div>
-  <div class="tile"><div class="n">14 OK</div><div class="l">晚間刷新鍵（10/21 恢復；價到 10/21）</div></div>
+  <div class="tile"><div class="n">469</div><div class="l">全域試驗數 N_global（S2 10/22 定案；現行帳本重算 491）</div></div>
+  <div class="tile"><div class="n">36</div><div class="l">S4 帳 N（安慰劑／baseline 不計）</div></div>
+  <div class="tile"><div class="n">1609</div><div class="l">本機快取 feather 檔數（約 6486 MB）</div></div>
+  <div class="tile"><div class="n">4359.5</div><div class="l">當日帳號用量 MB（上限 5000；晚間刷新中途讀數）</div></div>
+  <div class="tile"><div class="n">160/160</div><div class="l">S4 pytest（10/22 改 ledger_export 後）</div></div>
+  <div class="tile"><div class="n">6/14</div><div class="l">晚間刷新鍵（21:56 重開機中斷）</div></div>
 </section>
 
-<h2>各 Bot 一覽（2026-10-21）</h2>
-<p class="sub">彙整自 gate_digest（10/21 唯讀）、quota_log、早晚刷新 log；細節見當日 md。s1–s5 今日 17:16 有大量修改時間更新，疑為整批同步，不當作新內容。</p>
+<h2>各 Bot 一覽（2026-10-22）</h2>
+<p class="sub">彙整自 gate_digest（10/22 22:55 唯讀）、早晚刷新 log、S4 工作日誌；細節見當日 md。</p>
 <div class="tbl">
 <table>
   <thead><tr><th>Bot</th><th>進度</th><th>狀態</th></tr></thead>
   <tbody>
-    <tr><td>S1 策略</td><td>Track A 不變；WP4 六筆仍 PREFILTER_ONLY</td><td><span class="badge b-warn">非證據</span></td></tr>
-    <tr><td>S2 驗證</td><td>待審門檻、PIT（NEEDS_CONFIRM 2）、DSR、Sharpe 補記、GA v2 卡</td><td><span class="badge b-bad">BLOCKED</span></td></tr>
-    <tr><td>S3 執行</td><td>帳本 GAPS（缺 10/06–08；未入帳 10/16、10/19–10/21）；衰退燈「觀察中」</td><td><span class="badge b-warn">DIAGNOSTIC</span></td></tr>
-    <tr><td>S4 自我優化</td><td>早盤刷新 14/14 OK、晚間刷新 14/14 OK（價到 10/21）；無新改版／試驗</td><td><span class="badge b-ok">進行中</span></td></tr>
+    <tr><td>S1 策略</td><td>Track A 不變；C1 BLOCKED、C3 FAIL</td><td><span class="badge b-warn">非證據</span></td></tr>
+    <tr><td>S2 驗證</td><td>裁定試驗數規則；N_global 定 469，N_strict 待定；PIT NEEDS_CONFIRM 2</td><td><span class="badge b-bad">BLOCKED</span></td></tr>
+    <tr><td>S3 執行</td><td>帳本 GAPS（缺 10/06–08；未入帳 10/16、10/19–10/22）；衰退燈「觀察中」</td><td><span class="badge b-warn">DIAGNOSTIC</span></td></tr>
+    <tr><td>S4 自我優化</td><td>修 ledger_export（pytest 160/160）、補登試驗列；重開機後凍結核對；早盤 14 OK、晚間 6/14</td><td><span class="badge b-ok">進行中</span></td></tr>
     <tr><td>S5 儀表板</td><td>仍無已驗證數字</td><td><span class="badge b-warn">過時</span></td></tr>
   </tbody>
 </table>
 </div>
 
-<h2>最新發現：晚間刷新恢復，但不是靠規則保住（2026-10-21）</h2>
-<p class="sub">今天白天 continuous_sync 沒在跑（程序不在），額度才留得到晚上。</p>
+<h2>最新發現：試驗數只能往上算（2026-10-22）</h2>
+<p class="sub">S2 裁定更正列不能把已跑過的試驗從 N 扣掉；有疑問就算多。</p>
 <ul>
-  <li>08:09 早盤價格刷新：<strong>14／14 OK</strong>（S4 173.5 MB），價補到 <strong>10/20</strong>。</li>
-  <li>21:53 晚間刷新：<strong>14／14 OK</strong>，價、調整價、成交金額、市值到 <strong>10/21</strong>；之後 owner 補抓，帳號約 3428.7 MB。</li>
-  <li>仍過期 7 個日頻鍵（停 10/20），其中分點 2 鍵沒有任何排程會刷新。</li>
-  <li>學到的事：continuous_sync 若重啟，晚間缺資料可能再發生；晚間預留額度需共用規則，S4 只提案不代決。</li>
+  <li>N_global 從 235 重新對帳到 S2 定案 <strong>469</strong>；各席持續追加，現行帳本重算 491（未經 S2 確認）。</li>
+  <li>B07 COMBO2 三筆 KILL；COMBO2／COMBO3 共 12 筆只跑預篩（PREFILTER_ONLY），仍計入 N。</li>
+  <li>21:56 box 重開機：S4 凍結帳本工作、核對還原後帳本與 S2 基準一致才繼續；晚間刷新只完成 6／14。</li>
+  <li>學到的事：N 被低估會讓 DSR 門檻變鬆、假陽性變多；重開機後先比對雜湊再動帳本。</li>
 </ul>
 
 <h2>研究候選（原生 FinLab，僅列數字）</h2>
-<p class="sub">期間含 2024+（已看過）；#37 未合併 → 依 RULES <strong>不算證據</strong>。候選閘門：C1＝CANDIDATE_BLOCKED；C3＝FAIL（parity）。數字與 10/18 相同，10/21 仍無新 sim。</p>
+<p class="sub">期間含 2024+（已看過）；#37 未合併 → 依 RULES <strong>不算證據</strong>。候選閘門：C1＝CANDIDATE_BLOCKED；C3＝FAIL（parity）。數字與 10/18 相同，10/22 仍無新 sim。</p>
 <div class="tbl">
 <table>
   <thead><tr><th>run</th><th>Sharpe</th><th>CAGR</th><th>MDD</th><th>候選／閘門</th></tr></thead>
@@ -126,12 +126,13 @@ code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;
 
 <h2>監控與阻塞</h2>
 <ul>
-  <li>晚間刷新：<strong>10/21 恢復 14 OK</strong>（10/19、10/20 兩晚 DEFERRED）。</li>
-  <li>continuous_sync：<strong>DEAD</strong>＋程式已改未重啟（STALE_CODE），待負責人決定。</li>
+  <li>晚間刷新：<strong>10/22 中斷於 6／14</strong>（box 重開機）；早盤 14 OK。</li>
+  <li>Top10 日頻過期 <strong>12</strong> 鍵（停 10/21）；分點 2 鍵沒有任何排程會刷新。</li>
+  <li>continuous_sync：<strong>DEAD</strong>＋STALE_CODE，待負責人決定。</li>
   <li>衰退監控：<strong>觀察中</strong>（樣本不足；S3 帳本 GAPS）。</li>
-  <li>SCOREBOARD：FAIL 2、INVALID 4、NOT_RUN 2、BLOCKED 12（多數是 7 個日頻鍵停 10/20 與 3 個非核准版環境）。</li>
-  <li>淘汰：已淘汰 13；ALIVE 11；PREFILTER_ONLY 6；NO_VERDICT 0。</li>
-  <li>用量缺口 8 段、709.3 MB 對不到檔案（多標 SLOW_RETRY；未證實）。</li>
+  <li>SCOREBOARD：FAIL 2、KILL 4、INVALID 4、NOT_RUN 2、BLOCKED 16。</li>
+  <li>淘汰：已淘汰 13；ALIVE 11；PREFILTER_ONLY 12；NO_VERDICT 0。</li>
+  <li>用量缺口 11 段、948.3 MB 對不到檔案（未證實）。</li>
   <li>改版登記簿：0 個提案；GA v2 草稿待 S2（未預註冊、未跑）。</li>
   <li>實盤與 merge main：<strong>禁止</strong>。</li>
 </ul>
@@ -139,6 +140,7 @@ code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;
 <h2>每日紀錄（只追加）</h2>
 <p class="sub">舊日檔不改寫；新日在列表頂端追加。同日可覆寫當日檔。</p>
 <ul class="hist">
+  <li><a href="daily/2026-10-22.md">2026-10-22</a><span class="d">S2 定案 N_global 469（現行 491）；COMBO2 三筆 KILL；21:56 重開機；晚間刷新 6/14；日頻過期 12；快取 1609</span></li>
   <li><a href="daily/2026-10-21.md">2026-10-21</a><span class="d">早晚刷新都 14 OK（價到 10/21）；sync DEAD；日頻過期 7；快取 1606；無新試驗</span></li>
   <li><a href="daily/2026-10-20.md">2026-10-20</a><span class="d">早盤補刷新 14 OK（價到 10/19）；sync 停 4830.9；晚間 14 DEFERRED（連 2 晚）；快取 1514；無新試驗</span></li>
   <li><a href="daily/2026-10-19.md">2026-10-19</a><span class="d">晚間刷新 14 DEFERRED；價停 10/16；睡過頭／swap／NO_ROUTE；Q-001 1475；pytest 158；S4 例行暫停</span></li>
