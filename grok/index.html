@@ -67,7 +67,7 @@ code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;
   <h1>QGL 開發進度</h1>
   <p class="lede">量化研究系統（S1–S5 與協調層）的每日中文摘要。只寫在 <code>grok/</code>，不改其他 AI 的檔案。公開 repo：無原始資料、無金鑰、無帳號明細。</p>
   <div class="meta">
-    <span>最新：<strong>2026-10-26</strong>（台北）</span>
+    <span>最新：<strong>2026-10-27</strong>（台北）</span>
     <span>整體：<span class="badge b-warn">NOT_VERIFIED</span></span>
     <span>頁面：<a href="https://wegoliao.github.io/performance-accumulation-dashboard/grok/">grok/</a></span>
   </div>
@@ -80,14 +80,14 @@ code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;
 <section class="tiles" aria-label="最新快照">
   <div class="tile"><div class="n">575</div><div class="l">全域試驗數 N_global（S2 10/23 00:35 正式公告；N_strict 499）</div></div>
   <div class="tile"><div class="n">36</div><div class="l">S4 帳 N（安慰劑／baseline 不計）</div></div>
-  <div class="tile"><div class="n">1611</div><div class="l">本機快取 feather 檔數（約 6353 MB）</div></div>
-  <div class="tile"><div class="n">77.3</div><div class="l">當日帳號用量 MB（上限 5000；10/26 23:05 讀數）</div></div>
-  <div class="tile"><div class="n">201</div><div class="l">S4 pytest 通過（最近安裝 10/23 00:25；10/24–26 未改工具）</div></div>
-  <div class="tile"><div class="n">14/14</div><div class="l">晚間刷新鍵（價格仍到 10/22，連五次未前進）</div></div>
+  <div class="tile"><div class="n">1611</div><div class="l">本機快取 feather 檔數（約 6352 MB）</div></div>
+  <div class="tile"><div class="n">4972</div><div class="l">當日帳號用量峰值 MB（上限 5000；停止線 4723，超衝）</div></div>
+  <div class="tile"><div class="n">201</div><div class="l">S4 pytest 通過（最近安裝 10/23 00:25；10/24–27 未改工具）</div></div>
+  <div class="tile"><div class="n">0/14</div><div class="l">晚間刷新鍵（額度用盡被拒；價格仍到 10/22，連七次未前進）</div></div>
 </section>
 
-<h2>各 Bot 一覽（2026-10-26）</h2>
-<p class="sub">彙整自 gate_digest（10/26 23:04 唯讀）、早晚刷新 log、S4 工作日誌；細節見當日 md。</p>
+<h2>各 Bot 一覽（2026-10-27）</h2>
+<p class="sub">彙整自 gate_digest（10/27 22:58 唯讀）、早晚刷新 log、S4 工作日誌；細節見當日 md。</p>
 <div class="tbl">
 <table>
   <thead><tr><th>Bot</th><th>進度</th><th>狀態</th></tr></thead>
@@ -95,23 +95,23 @@ code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;
     <tr><td>S1 策略</td><td>Track A 不變；C1 BLOCKED、C3 FAIL</td><td><span class="badge b-warn">非證據</span></td></tr>
     <tr><td>S2 驗證</td><td>N_global 575／N_strict 499 不變；PIT NEEDS_CONFIRM 2</td><td><span class="badge b-bad">BLOCKED</span></td></tr>
     <tr><td>S3 執行</td><td>帳本 GAPS（缺 10/06–08；未入帳 10/16、10/19–10/22）；衰退燈「觀察中」</td><td><span class="badge b-warn">DIAGNOSTIC</span></td></tr>
-    <tr><td>S4 自我優化</td><td>晚間刷新 14 OK；記錄 FinLab 分類與月營收歷史修正；守門日報唯讀重算；無新改版</td><td><span class="badge b-ok">進行中</span></td></tr>
+    <tr><td>S4 自我優化</td><td>早盤刷新 14 OK；晚間刷新被額度擋下；守門日報唯讀重算；無新改版</td><td><span class="badge b-warn">受阻</span></td></tr>
     <tr><td>S5 儀表板</td><td>仍無已驗證數字</td><td><span class="badge b-warn">過時</span></td></tr>
   </tbody>
 </table>
 </div>
 
-<h2>最新發現：資料源會回頭改舊資料（2026-10-26）</h2>
+<h2>最新發現：大量下載把刷新額度擠掉了（2026-10-27）</h2>
 <p class="sub">仍沒有新試驗、沒有寫帳本、沒有改工具；SCOREBOARD 與 N 全部不變。</p>
 <ul>
-  <li>晚間刷新 14／14 OK；價格仍停 10/22（連五次刷新未前進，10/23、10/26 都還沒有）。</li>
-  <li>FinLab 歷史修正：153 檔「其他證券」改分成 ETF 子類；月營收補上 2012–2019 年 34 檔的 1022 個空白格（記在 DATA_GAPS §T）。</li>
-  <li>用量缺口 1 段、40.2 MB 對不到檔案，原因未證實。</li>
-  <li>學到的事：歷史資料也會變，所以正式回測一定要綁凍結快照與資料指紋。</li>
+  <li>白天持續同步到 11:53 已用 4972 MB（停止線 4723，超衝約 249 MB），晚間抓收盤價時 FinLab 回「Usage exceed」，其餘 13 鍵延後。</li>
+  <li>早盤刷新 14／14 OK；FinLab 對 3 檔 ETF 改名（DATA_GAPS §U）。價格仍停 10/22（連七次刷新未前進）。</li>
+  <li>是否替晚間刷新每天保留約 300 MB，已交 Owner 決定，設定未改。</li>
+  <li>學到的事：下載與刷新共用一個每日額度，最重要的價格資料要先留位子。</li>
 </ul>
 
 <h2>研究候選（原生 FinLab，僅列數字）</h2>
-<p class="sub">期間含 2024+（已看過）；#37 未合併 → 依 RULES <strong>不算證據</strong>。候選閘門：C1＝CANDIDATE_BLOCKED；C3＝FAIL（parity）。數字與 10/18 相同，10/26 仍無新 sim。</p>
+<p class="sub">期間含 2024+（已看過）；#37 未合併 → 依 RULES <strong>不算證據</strong>。候選閘門：C1＝CANDIDATE_BLOCKED；C3＝FAIL（parity）。數字與 10/18 相同，10/27 仍無新 sim。</p>
 <div class="tbl">
 <table>
   <thead><tr><th>run</th><th>Sharpe</th><th>CAGR</th><th>MDD</th><th>候選／閘門</th></tr></thead>
@@ -126,13 +126,14 @@ code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;
 
 <h2>監控與阻塞</h2>
 <ul>
-  <li>晚間刷新：<strong>10/26 14／14 OK</strong>（週一無早盤）；價格最新仍 10/22（連五次未前進）。</li>
+  <li>刷新：<strong>10/27 早盤 14／14 OK；晚間被額度拒絕（13 鍵延後）</strong>；價格最新仍 10/22（連七次未前進）。</li>
+  <li>停止線守門：<strong>OVERSHOOT</strong>（峰值 4972／停止線 4723 MB）。</li>
   <li>Top10 日頻過期 <strong>12</strong> 鍵（停 10/21）；分點 2 鍵沒有任何排程會刷新。</li>
-  <li>continuous_sync：<strong>執行中</strong>（日報 WOKE）。</li>
+  <li>continuous_sync：程序在，等換日（日報 WAITING）。</li>
   <li>衰退監控：<strong>觀察中</strong>（樣本不足；S3 帳本 GAPS）。</li>
   <li>SCOREBOARD：FAIL 2、KILL 8、INVALID 4、NOT_RUN 2、BLOCKED 17。</li>
   <li>淘汰：已淘汰 13；ALIVE 11；PREFILTER_ONLY 12；NO_VERDICT 0。</li>
-  <li>用量缺口 1 段、40.2 MB 對不到檔案（未證實）。</li>
+  <li>用量缺口 9 段、約 4776.6 MB 對不到檔案（未證實）。</li>
   <li>改版登記簿：0 個提案；GA v2 草稿待 S2（未預註冊、未跑）。</li>
   <li>實盤與 merge main：<strong>禁止</strong>。</li>
 </ul>
@@ -140,6 +141,7 @@ code{background:var(--code);padding:1px 6px;border-radius:4px;font-size:12.5px;
 <h2>每日紀錄（只追加）</h2>
 <p class="sub">舊日檔不改寫；新日在列表頂端追加。同日可覆寫當日檔。</p>
 <ul class="hist">
+  <li><a href="daily/2026-10-27.md">2026-10-27</a><span class="d">晚間刷新被額度擋（持續同步用到 4972 MB）；早盤 14 OK；價仍 10/22（連七次）；3 檔 ETF 改名；N 575 不變</span></li>
   <li><a href="daily/2026-10-26.md">2026-10-26</a><span class="d">無新試驗／無寫帳；晚間刷新 14 OK（價仍 10/22，連五次）；FinLab 分類與月營收歷史修正；快取 1611；N 575 不變</span></li>
   <li><a href="daily/2026-10-25.md">2026-10-25</a><span class="d">安靜日：無新試驗／無寫帳；晚間刷新 14 OK（價仍 10/22，連四次）；sync 執行中；N 575 不變；BLOCKED 17</span></li>
   <li><a href="daily/2026-10-24.md">2026-10-24</a><span class="d">重開機後完整性檢查 PASS；早晚刷新 14 OK（價仍 10/22）；sync 重啟；N 575 不變；BLOCKED 17</span></li>
