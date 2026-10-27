@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-26T15:26:32+00:00",
+  "generated_at": "2026-10-27T14:52:17+00:00",
   "account": {
     "asof": "2026-10-02",
     "first_trade": "2025-08-01",
@@ -593,32 +593,32 @@
       },
       "marks": {
         "1717": {
-          "date": "2026-10-22",
-          "close": "68.5000",
+          "date": "2026-10-27",
+          "close": "68.6000",
           "source": "TWSE_STOCK_DAY"
         },
         "2489": {
-          "date": "2026-10-22",
-          "close": "39.1500",
+          "date": "2026-10-27",
+          "close": "39.0500",
           "source": "TWSE_STOCK_DAY"
         },
         "2637": {
-          "date": "2026-10-22",
+          "date": "2026-10-27",
           "close": "100.5000",
           "source": "TWSE_STOCK_DAY"
         },
         "3006": {
-          "date": "2026-10-22",
-          "close": "234.0000",
+          "date": "2026-10-27",
+          "close": "250.5000",
           "source": "TWSE_STOCK_DAY"
         },
         "6108": {
-          "date": "2026-10-22",
-          "close": "32.7500",
+          "date": "2026-10-27",
+          "close": "31.0000",
           "source": "TWSE_STOCK_DAY"
         }
       },
-      "marks_asof": "2026-10-22",
+      "marks_asof": "2026-10-27",
       "long_closes": [
         {
           "stock_code": "3702",
@@ -950,9 +950,9 @@
       "realized": "-14418.00",
       "cash_change": "-690234.000000",
       "open_cost": "675866.000000",
-      "market_value": "660029.3000000000",
-      "unrealized": "-15836.7000000000",
-      "combined": "-30254.7000000000",
+      "market_value": "662043.0000000000",
+      "unrealized": "-13823.0000000000",
+      "combined": "-28241.0000000000",
       "short_remaining_shares": "0",
       "exact_net_status": "EXACT_MATCHED_SETTLEMENTS",
       "coverage_status": "MATCHED_TRADES_WITH_ONE_UNKNOWN_COST",
@@ -2026,7 +2026,7 @@
     "current": {
       "since": "2026-10-02",
       "last_trade": "2026-10-12",
-      "marks_asof": "2026-10-22",
+      "marks_asof": "2026-10-27",
       "trades": [
         {
           "trade_id": "X-069D-20261006",
@@ -2356,11 +2356,11 @@
           "stock_name": "長興",
           "shares": "1210",
           "cost": "98997",
-          "close": "68.5000",
-          "gross": "82885.0000",
-          "est_sell_cost": "366",
-          "value": "82519.0000",
-          "pnl": "-16478.0000",
+          "close": "68.6000",
+          "gross": "83006.0000",
+          "est_sell_cost": "367",
+          "value": "82639.0000",
+          "pnl": "-16358.0000",
           "strategies": [
             "TRUST"
           ]
@@ -2370,11 +2370,11 @@
           "stock_name": "瑞軒",
           "shares": "3000",
           "cost": "118819",
-          "close": "39.1500",
-          "gross": "117450.0000",
-          "est_sell_cost": "519",
-          "value": "116931.0000",
-          "pnl": "-1888.0000",
+          "close": "39.0500",
+          "gross": "117150.0000",
+          "est_sell_cost": "517",
+          "value": "116633.0000",
+          "pnl": "-2186.0000",
           "strategies": [
             "TRUST"
           ]
@@ -2398,11 +2398,11 @@
           "stock_name": "晶豪科",
           "shares": "348",
           "cost": "100366",
-          "close": "234.0000",
-          "gross": "81432.0000",
-          "est_sell_cost": "360",
-          "value": "81072.0000",
-          "pnl": "-19294.0000",
+          "close": "250.5000",
+          "gross": "87174.0000",
+          "est_sell_cost": "385",
+          "value": "86789.0000",
+          "pnl": "-13577.0000",
           "strategies": [
             "BREAKOUT"
           ]
@@ -2412,11 +2412,11 @@
           "stock_name": "競國",
           "shares": "136",
           "cost": "3513.764000",
-          "close": "32.7500",
-          "gross": "4454.0000",
-          "est_sell_cost": "19",
-          "value": "4435.0000",
-          "pnl": "921.236000",
+          "close": "31.0000",
+          "gross": "4216.0000",
+          "est_sell_cost": "18",
+          "value": "4198.0000",
+          "pnl": "684.236000",
           "strategies": [
             "MARGIN"
           ]
@@ -2426,15 +2426,15 @@
       "new_realized": "9208.764000000000000000000000",
       "realized": "-352.236000000000000000000000",
       "open_cost": "419634.764000",
-      "market_value": "385013.0000",
+      "market_value": "390315.0000",
       "status": {
         "TRUST": "STOPPED",
         "YOY": "STOPPED",
         "MARGIN": "FOLLOW",
         "BREAKOUT": "FOLLOW"
       },
-      "unrealized": "-34621.764000",
-      "combined": "-34974.00000000000000000000000"
+      "unrealized": "-29319.764000",
+      "combined": "-29672.00000000000000000000000"
     }
   }
 }
