@@ -1,20 +1,20 @@
 {
   "status": "SUCCESS",
-  "latest_session": "2026-10-29",
+  "latest_session": "2026-10-30",
   "missing_at_latest_session": [],
   "missing_at_latest_session_watchlist_only": [],
-  "fetched_at": "2026-10-29T15:27:07+00:00",
+  "fetched_at": "2026-10-30T15:15:25+00:00",
   "window": {
-    "start": "2026-09-14",
-    "end": "2026-10-29"
+    "start": "2026-09-15",
+    "end": "2026-10-30"
   },
   "requested_symbols": 51,
-  "price_rows_total": 10124,
+  "price_rows_total": 10175,
   "price_rows_added_or_refreshed": 1479,
-  "trading_days": 285,
+  "trading_days": 286,
   "coverage": {
     "first": "2025-08-25",
-    "last": "2026-10-29"
+    "last": "2026-10-30"
   },
   "per_symbol": {
     "1303": {
@@ -273,7 +273,7 @@
       "name": "TAIEX"
     }
   },
-  "benchmark_rows": 570,
+  "benchmark_rows": 572,
   "failures": [],
   "endpoints": [
     "https://www.twse.com.tw/rwd/zh/afterTrading/STOCK_DAY",
