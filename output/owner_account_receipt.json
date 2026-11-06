@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-05T16:46:04+00:00",
+  "generated_at": "2026-11-06T16:14:11+00:00",
   "account": {
     "asof": "2026-10-02",
     "first_trade": "2025-08-01",
@@ -593,32 +593,32 @@
       },
       "marks": {
         "1717": {
-          "date": "2026-11-05",
-          "close": "59.8000",
+          "date": "2026-11-06",
+          "close": "57.5000",
           "source": "TWSE_STOCK_DAY"
         },
         "2489": {
-          "date": "2026-11-05",
-          "close": "31.7000",
+          "date": "2026-11-06",
+          "close": "30.8500",
           "source": "TWSE_STOCK_DAY"
         },
         "2637": {
-          "date": "2026-11-05",
-          "close": "98.6000",
+          "date": "2026-11-06",
+          "close": "94.4000",
           "source": "TWSE_STOCK_DAY"
         },
         "3006": {
-          "date": "2026-11-05",
-          "close": "214.0000",
+          "date": "2026-11-06",
+          "close": "207.5000",
           "source": "TWSE_STOCK_DAY"
         },
         "6108": {
-          "date": "2026-11-05",
-          "close": "27.7500",
+          "date": "2026-11-06",
+          "close": "26.9000",
           "source": "TWSE_STOCK_DAY"
         }
       },
-      "marks_asof": "2026-11-05",
+      "marks_asof": "2026-11-06",
       "long_closes": [
         {
           "stock_code": "3702",
@@ -950,9 +950,9 @@
       "realized": "-14418.00",
       "cash_change": "-690234.000000",
       "open_cost": "675866.000000",
-      "market_value": "581761.6000000000",
-      "unrealized": "-94104.4000000000",
-      "combined": "-108522.4000000000",
+      "market_value": "560125.9000000000",
+      "unrealized": "-115740.1000000000",
+      "combined": "-130158.1000000000",
       "short_remaining_shares": "0",
       "exact_net_status": "EXACT_MATCHED_SETTLEMENTS",
       "coverage_status": "MATCHED_TRADES_WITH_ONE_UNKNOWN_COST",
@@ -2026,7 +2026,7 @@
     "current": {
       "since": "2026-10-02",
       "last_trade": "2026-10-12",
-      "marks_asof": "2026-11-05",
+      "marks_asof": "2026-11-06",
       "trades": [
         {
           "trade_id": "X-069D-20261006",
@@ -2356,11 +2356,11 @@
           "stock_name": "長興",
           "shares": "1210",
           "cost": "98997",
-          "close": "59.8000",
-          "gross": "72358.0000",
-          "est_sell_cost": "320",
-          "value": "72038.0000",
-          "pnl": "-26959.0000",
+          "close": "57.5000",
+          "gross": "69575.0000",
+          "est_sell_cost": "307",
+          "value": "69268.0000",
+          "pnl": "-29729.0000",
           "strategies": [
             "TRUST"
           ]
@@ -2370,11 +2370,11 @@
           "stock_name": "瑞軒",
           "shares": "3000",
           "cost": "118819",
-          "close": "31.7000",
-          "gross": "95100.0000",
-          "est_sell_cost": "420",
-          "value": "94680.0000",
-          "pnl": "-24139.0000",
+          "close": "30.8500",
+          "gross": "92550.0000",
+          "est_sell_cost": "408",
+          "value": "92142.0000",
+          "pnl": "-26677.0000",
           "strategies": [
             "TRUST"
           ]
@@ -2384,11 +2384,11 @@
           "stock_name": "慧洋-KY",
           "shares": "1000",
           "cost": "97939",
-          "close": "98.6000",
-          "gross": "98600.0000",
-          "est_sell_cost": "435",
-          "value": "98165.0000",
-          "pnl": "226.0000",
+          "close": "94.4000",
+          "gross": "94400.0000",
+          "est_sell_cost": "417",
+          "value": "93983.0000",
+          "pnl": "-3956.0000",
           "strategies": [
             "MARGIN"
           ]
@@ -2398,11 +2398,11 @@
           "stock_name": "晶豪科",
           "shares": "348",
           "cost": "100366",
-          "close": "214.0000",
-          "gross": "74472.0000",
-          "est_sell_cost": "329",
-          "value": "74143.0000",
-          "pnl": "-26223.0000",
+          "close": "207.5000",
+          "gross": "72210.0000",
+          "est_sell_cost": "318",
+          "value": "71892.0000",
+          "pnl": "-28474.0000",
           "strategies": [
             "BREAKOUT"
           ]
@@ -2412,11 +2412,11 @@
           "stock_name": "競國",
           "shares": "136",
           "cost": "3513.764000",
-          "close": "27.7500",
-          "gross": "3774.0000",
-          "est_sell_cost": "16",
-          "value": "3758.0000",
-          "pnl": "244.236000",
+          "close": "26.9000",
+          "gross": "3658.4000",
+          "est_sell_cost": "15",
+          "value": "3643.4000",
+          "pnl": "129.636000",
           "strategies": [
             "MARGIN"
           ]
@@ -2426,15 +2426,15 @@
       "new_realized": "9208.764000000000000000000000",
       "realized": "-352.236000000000000000000000",
       "open_cost": "419634.764000",
-      "market_value": "342784.0000",
+      "market_value": "330928.4000",
       "status": {
         "TRUST": "STOPPED",
         "YOY": "STOPPED",
         "MARGIN": "FOLLOW",
         "BREAKOUT": "FOLLOW"
       },
-      "unrealized": "-76850.764000",
-      "combined": "-77203.00000000000000000000000"
+      "unrealized": "-88706.364000",
+      "combined": "-89058.60000000000000000000000"
     }
   }
 }
